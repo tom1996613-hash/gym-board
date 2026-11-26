@@ -3236,9 +3236,22 @@
             bpParts.push(`${b.label}, BP ${b.sbp}/${b.dbp}, HR ${b.hr}`);
           });
         }
-        if (ex.status === 'early_stopped') {
-          const co = [ex.earlyReason, ex.earlyNote].filter(Boolean).join(' - ');
-          bpParts.push(`Early terminated at ${mins} min${co ? `, c/o: ${co}` : ''}`);
+     if (ex.status === 'early_stopped') {
+          const reasonDict = {
+            '疲倦': 'fatigue',
+            '頭暈／血壓不適': 'dizziness / unstable BP',
+            '痛楚': 'pain',
+            '檢查／覆診': 'investigation / FU',
+            '其他': 'other'
+          };
+          const enReason = reasonDict[ex.earlyReason] || ex.earlyReason;
+          const co = [enReason, ex.earlyNote].filter(Boolean).join(' - ');
+          const hasEarlyLabel = bpParts.some(p => p.toLowerCase().includes('early terminated'));
+          if (hasEarlyLabel) {
+            if (co) bpParts.push(`c/o: ${co}`);
+          } else {
+            bpParts.push(`Early terminated at ${mins} min${co ? `, c/o: ${co}` : ''}`);
+          }
         }
         if (bpParts.length) {
           line += ` // ${bpParts.join('. ')}`;
