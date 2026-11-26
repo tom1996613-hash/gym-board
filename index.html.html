@@ -1,0 +1,3638 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>復康運動室電子看板與排程系統 (全設定雲端同步版)</title>
+  <style>
+    /* ==========================================================================
+       1. 全域設計系統與色彩變數
+       ========================================================================== */
+    :root {
+      --font-sans: "PingFang HK", "Microsoft JhengHei", "Noto Sans TC", "Heiti TC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --bg-app: #eef2f6;
+      --bg-surface: #ffffff;
+      --bg-subtle: #f8fafc;
+      --border: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --text-main: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+
+      --primary: #0f4c81;
+      --primary-hover: #0a365c;
+      --accent: #0284c7;
+      --teal: #0d9488;
+      --green: #059669;
+      --amber: #d97706;
+      --orange-warn: #c2410c;
+      --orange-border: #7c2d12;
+      --red: #dc2626;
+      --red-dark: #991b1b;
+
+      --risk-none-bg: #ffffff;
+      --risk-none-border: #cbd5e1;
+      --risk-none-bar: #94a3b8;
+
+      --risk-fall-bg: #fef9c3;
+      --risk-fall-border: #fde047;
+      --risk-fall-bar: #d97706;
+      --risk-fall-accent: #b45309;
+
+      --risk-bp-bg: #e0f2fe;
+      --risk-bp-border: #7dd3fc;
+      --risk-bp-bar: #0284c7;
+      --risk-bp-accent: #0369a1;
+
+      --risk-both-bg: #ffe4e6;
+      --risk-both-border: #fda4af;
+      --risk-both-bar: linear-gradient(180deg, #d97706 0%, #d97706 50%, #0284c7 50%, #0284c7 100%);
+      --risk-both-accent: #be123c;
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+      --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.1);
+      --shadow-lg: 0 18px 40px rgba(15, 23, 42, 0.28);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      font-family: var(--font-sans);
+      background: var(--bg-app);
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    .tabular { font-variant-numeric: tabular-nums; }
+    button {
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: inherit;
+      transition: background-color 0.14s ease, border-color 0.14s ease, transform 0.08s ease;
+    }
+    button:active { transform: scale(0.97); }
+    input, select, textarea { font-family: inherit; }
+
+    /* ==========================================================================
+       2. 頂部工具列
+       ========================================================================== */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 6px 11px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      box-shadow: var(--shadow-md);
+    }
+    .topbar-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .brand-badge {
+      width: 30px; height: 30px; border-radius: 7px;
+      background: linear-gradient(135deg, #0284c7, #0d9488);
+      color: #fff; font-weight: 900; font-size: 13px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .brand-title { font-size: 14px; font-weight: 900; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+    .brand-sub { font-size: 10.5px; color: #94a3b8; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+    .sync-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 1px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 800;
+      background: #1e293b; border: 1px solid #475569; color: #cbd5e1;
+    }
+    .sync-pill.online { background: #064e3b; border-color: #10b981; color: #a7f3d0; }
+    .sync-pill.error { background: #7f1d1d; border-color: #ef4444; color: #fecaca; }
+
+    .topbar-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+    .seg-group { display: inline-flex; background: #1e293b; padding: 2px; border-radius: 7px; gap: 2px; border: 1px solid #334155; }
+    .seg-top-btn { padding: 4px 7px; border-radius: 5px; font-size: 11px; font-weight: 700; color: #cbd5e1; white-space: nowrap; }
+    .seg-top-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+    .seg-top-btn.active { background: #0284c7; color: #fff; }
+
+    .tool-btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 8px; border-radius: 7px; font-size: 11px; font-weight: 800;
+      background: #1e293b; color: #e2e8f0; border: 1px solid #334155; white-space: nowrap;
+    }
+    .tool-btn:hover { background: #334155; color: #fff; }
+    .tool-btn.is-on { background: #0f766e; border-color: #14b8a6; color: #fff; }
+    .tool-btn.btn-tv-pop { background: #1d4ed8; border-color: #3b82f6; color: #fff; }
+    .tool-btn.btn-qr { background: #7c3aed; border-color: #a78bfa; color: #fff; }
+    .tool-btn.btn-save-html { background: #b45309; border-color: #f59e0b; color: #fff; }
+    .tool-btn.btn-settings { background: linear-gradient(135deg, #4f46e5, #0284c7); border-color: #818cf8; color: #fff; }
+    .tool-btn.btn-add { background: #0f4c81; border-color: #38bdf8; color: #fff; }
+    .tool-btn.btn-export { background: #059669; border-color: #10b981; color: #fff; }
+
+    /* ==========================================================================
+       3. 主版面容器 (雙畫面 46%/54%、純操作台、大電視、手機掃碼專屬端)
+       ========================================================================== */
+    .workspace { width: 100%; min-height: calc(100vh - 48px); }
+    .workspace.mode-pc { max-width: 1460px; margin: 0 auto; padding: 12px 14px 28px; }
+    .workspace.mode-tv { height: calc(100vh - 48px); background: #090e1a; overflow: hidden; }
+    body.standalone-tv .workspace.mode-tv { height: 100vh; }
+
+    .workspace.mode-split {
+      display: grid;
+      grid-template-columns: 46% 54%;
+      height: calc(100vh - 48px);
+      overflow: hidden;
+    }
+    @media (max-width: 1080px) {
+      .workspace.mode-split { grid-template-columns: 1fr; height: auto; overflow: visible; }
+      .workspace.mode-tv { height: auto; min-height: 100vh; overflow: auto; }
+    }
+    .split-pane { overflow-y: auto; height: 100%; }
+    .split-pane-pc { padding: 10px 12px 28px; background: var(--bg-app); border-right: 3px solid #334155; }
+    .split-pane-tv { background: #090e1a; display: flex; flex-direction: column; overflow: hidden; }
+    .pane-banner {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 4px 10px; font-size: 11px; font-weight: 800;
+      background: #1e293b; color: #e2e8f0; border-bottom: 1px solid #334155; flex-shrink: 0;
+    }
+
+    /* ==========================================================================
+       4. 患側「左｜右」雙色圖示 (健側淺綠、患側高對比紅)
+       ========================================================================== */
+    .side-box {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 7px;
+      overflow: hidden;
+      border: 2px solid #94a3b8;
+      background: #ffffff;
+      line-height: 1;
+      font-weight: 900;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+      flex-shrink: 0;
+    }
+    .side-half {
+      padding: 3px 7px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .side-half:first-child { border-right: 1.5px solid #cbd5e1; }
+    .side-ok { background: #f0fdf4; color: #22c55e; }
+    .side-bad { background: #fee2e2; color: #dc2626; }
+
+    /* ==========================================================================
+       5. 電腦操作台 (PC Console)
+       ========================================================================== */
+    .transport-bar {
+      background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: var(--radius-md);
+      padding: 8px 10px; margin-bottom: 8px; box-shadow: var(--shadow-sm);
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .transport-bar-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+    .transport-title { font-size: 12px; font-weight: 900; color: var(--primary); }
+    .transport-pills { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+    .tr-stat-pill {
+      display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px;
+      border-radius: 999px; font-size: 12px; font-weight: 800;
+      background: #f1f5f9; border: 1.5px solid #cbd5e1; color: var(--text-main);
+    }
+    .tr-stat-pill.next-turn { background: #ecfdf5; border-color: #10b981; color: #065f46; }
+    .tr-stat-num {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+      background: #0f4c81; color: #fff; font-size: 10.5px; font-weight: 900;
+    }
+    .tr-stat-pill.next-turn .tr-stat-num { background: #059669; }
+
+    .duty-drawer {
+      background: #f8fafc; border: 1px dashed #94a3b8; border-radius: 8px;
+      padding: 6px 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 5px;
+    }
+    .duty-chip {
+      padding: 4px 10px; border-radius: 7px; font-size: 12px; font-weight: 900;
+      border: 1.5px solid #cbd5e1; background: #fff; color: #94a3b8;
+    }
+    .duty-chip.on { background: #0f766e; border-color: #0f766e; color: #fff; }
+
+    .seg-btn {
+      padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 800;
+      background: #fff; border: 1px solid #cbd5e1; color: var(--text-secondary);
+    }
+    .seg-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+    .pc-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; }
+    .filter-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+    .filter-chip {
+      padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 800;
+      background: #fff; color: var(--text-secondary); border: 1.5px solid var(--border-strong);
+    }
+    .filter-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    .btn-primary {
+      background: var(--primary); color: #fff; padding: 6px 12px; border-radius: var(--radius-sm);
+      font-size: 12.5px; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary {
+      background: #fff; color: var(--text-main); padding: 6px 10px; border-radius: var(--radius-sm);
+      font-size: 12px; font-weight: 700; border: 1px solid var(--border-strong);
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+    .btn-secondary:hover { background: #f8fafc; border-color: #94a3b8; }
+
+    .band-header { display: flex; align-items: center; justify-content: space-between; margin: 10px 0 6px; font-size: 12px; font-weight: 800; color: var(--text-muted); }
+    .band-count { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+    .band-count.waiting { background: #e0f2fe; color: #0369a1; }
+    .band-count.active { background: #d1fae5; color: #047857; }
+    .band-count.done { background: #e2e8f0; color: #475569; }
+    .band-count.inactive { background: #f1f5f9; color: #64748b; }
+
+    /* PC 病人卡片 */
+    .pc-card {
+      position: relative; border-radius: var(--radius-md);
+      border: 1.5px solid var(--risk-none-border); background: var(--risk-none-bg);
+      padding: 9px 11px 9px 15px; margin-bottom: 8px; box-shadow: var(--shadow-sm); overflow: hidden;
+    }
+    .pc-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 7px; background: var(--risk-none-bar); }
+    .pc-card.risk-fall { background: var(--risk-fall-bg); border-color: var(--risk-fall-border); }
+    .pc-card.risk-fall::before { background: var(--risk-fall-bar); }
+    .pc-card.risk-bp { background: var(--risk-bp-bg); border-color: var(--risk-bp-border); }
+    .pc-card.risk-bp::before { background: var(--risk-bp-bar); }
+    .pc-card.risk-both { background: var(--risk-both-bg); border-color: var(--risk-both-border); }
+    .pc-card.risk-both::before { background: var(--risk-both-bar); }
+    .pc-card.is-all-done { opacity: 0.68; }
+    .pc-card.is-inactive { opacity: 0.56; background: #f8fafc; border-style: dashed; }
+
+    .pc-card-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 7px; }
+    .pc-meta-left { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+
+    .bed-badge {
+      display: inline-flex; align-items: center; gap: 2px; font-size: 17px; font-weight: 900;
+      padding: 2px 8px; border-radius: 7px; background: rgba(15, 23, 42, 0.08); color: #0f172a;
+    }
+    .sym { font-size: 13px; font-weight: 900; }
+    .sym.fall { color: var(--risk-fall-accent); }
+    .sym.bp { color: var(--risk-bp-accent); }
+    .sym.both { color: var(--risk-both-accent); }
+    .sym.pm { color: #dc2626; }
+
+    .pc-name { font-size: 15px; font-weight: 900; color: var(--text-main); }
+    .pc-tag {
+      font-size: 11.5px; font-weight: 800; padding: 2px 7px; border-radius: 6px;
+      background: rgba(255, 255, 255, 0.92); border: 1px solid var(--border-strong); color: var(--text-secondary);
+    }
+    .pc-tag.therapist { color: #fff; border: none; }
+    .pc-tag.aid-extra { background: #ecfdf5; border-color: #6ee7b7; color: #065f46; }
+    .pc-tag.tr-mode { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+    .pc-tag.tr-extra { background: #ede9fe; border-color: #c4b5fd; color: #5b21b6; }
+    .pc-tag.bp-btn { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
+    .pc-tag.walk-btn { background: #dcfce7; border-color: #86efac; color: #166534; }
+    .pc-tag.walk-btn.done { background: #16a34a; border-color: #15803d; color: #fff; }
+
+    .assist-warn-badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      background: var(--orange-warn); color: #ffffff; border: 2px solid var(--orange-border);
+      font-weight: 900; padding: 1px 8px; border-radius: 999px; font-size: 12px;
+    }
+
+    .tr-assign-btn {
+      display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px;
+      border-radius: 999px; font-size: 11.5px; font-weight: 900;
+      background: #fff; border: 1.5px dashed #0284c7; color: #0369a1;
+    }
+    .tr-assigned-pill {
+      display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px;
+      border-radius: 999px; font-size: 11.5px; font-weight: 900;
+      background: #0f766e; color: #ffffff; border: 1.5px solid #115e59;
+    }
+
+    .tr-inline-picker {
+      background: #f0f9ff; border: 1.5px solid #38bdf8; border-radius: 9px;
+      padding: 8px 10px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 7px;
+    }
+    .tr-picker-row { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+    .tr-mode-btn {
+      padding: 4px 10px; border-radius: 7px; font-size: 12px; font-weight: 800;
+      background: #fff; border: 1.5px solid #cbd5e1; color: #334155;
+    }
+    .tr-mode-btn.is-mode { background: #d97706; border-color: #b45309; color: #fff; }
+    .tr-mode-btn.is-extra { background: #7c3aed; border-color: #6d28d9; color: #fff; }
+
+    .tr-pick-btn {
+      min-width: 36px; height: 34px; padding: 0 9px; border-radius: 7px;
+      font-size: 14px; font-weight: 900; background: #fff; border: 2px solid #93c5fd; color: #0f172a;
+    }
+    .tr-pick-btn.is-current { background: #0f766e; border-color: #0f766e; color: #fff; }
+
+    .pc-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+    .att-select {
+      font-size: 11.5px; font-weight: 700; padding: 4px 6px; border-radius: 6px;
+      border: 1px solid var(--border-strong); background: rgba(255, 255, 255, 0.92);
+    }
+    .mini-action-btn {
+      font-size: 11.5px; font-weight: 700; padding: 4px 8px; border-radius: 6px;
+      background: rgba(255, 255, 255, 0.92); border: 1px solid var(--border-strong); color: var(--text-secondary);
+    }
+    .mini-action-btn:hover { border-color: var(--primary); color: var(--primary); background: #fff; }
+
+    .pc-note-banner {
+      font-size: 12px; font-weight: 800; color: #9a3412;
+      background: #ffedd5; border: 1px solid #fdba74; border-radius: 6px;
+      padding: 4px 8px; margin-bottom: 7px; display: flex; align-items: center; justify-content: space-between; gap: 6px;
+    }
+
+    /* PC 運動卡片 */
+    .pc-ex-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pc-ex {
+      min-width: 132px; border-radius: 8px; border: 1.5px solid var(--border-strong);
+      background: #ffffff; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px;
+    }
+    .pc-ex.status-pending { cursor: pointer; }
+    .pc-ex.status-pending:hover { border-color: var(--primary); background: #f8fafc; }
+    .pc-ex.must-do.status-pending { border-color: #f59e0b; background: #fffbeb; }
+    .pc-ex.status-running { min-width: 214px; border-width: 2px; border-color: #0284c7; background: #f0f9ff; }
+    .pc-ex.status-paused { min-width: 214px; border-width: 2px; border-color: #64748b; background: #f1f5f9; }
+    .pc-ex.stage-warn { border-color: #d97706; background: #fffbeb; }
+    .pc-ex.stage-due { border-color: #dc2626; background: #fef2f2; animation: pulseRed 1.3s ease-in-out infinite; }
+    .pc-ex.stage-critical { border-color: #7f1d1d; background: #b91c1c; color: #ffffff; }
+    .pc-ex.status-completed, .pc-ex.status-early_stopped { opacity: 0.65; background: #f8fafc; border-style: dashed; }
+
+    .ex-head { display: flex; align-items: center; justify-content: space-between; gap: 5px; }
+    .ex-name { font-size: 13px; font-weight: 800; display: inline-flex; align-items: center; gap: 3px; }
+    .star-mark { color: #d97706; }
+    .stage-critical .star-mark { color: #fde047; }
+    .ex-sub { display: flex; align-items: center; justify-content: space-between; gap: 5px; font-size: 11px; color: var(--text-secondary); font-weight: 600; }
+    .stage-critical .ex-sub { color: #fecaca; }
+
+    .staff-pill {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 22px; height: 21px; padding: 0 6px; border-radius: 5px;
+      background: #0f172a; color: #fff; font-size: 11px; font-weight: 900;
+    }
+    .stage-critical .staff-pill { background: #fff; color: #991b1b; }
+    .pc-timer-text { font-size: 18px; font-weight: 900; }
+    .prog-track { height: 6px; width: 100%; background: rgba(15, 23, 42, 0.12); border-radius: 999px; overflow: hidden; }
+    .prog-fill { height: 100%; border-radius: 999px; transition: width 0.35s linear; }
+    .ex-btn-row { display: flex; gap: 4px; margin-top: 2px; }
+    .ex-ctrl { flex: 1; padding: 5px 5px; border-radius: 6px; font-size: 11.5px; font-weight: 800; text-align: center; border: 1px solid transparent; }
+    .ex-ctrl.pause { background: #fff; border-color: #cbd5e1; color: #334155; }
+    .ex-ctrl.done { background: #059669; color: #fff; }
+    .ex-ctrl.early { background: #fff; border-color: #fca5a5; color: #dc2626; }
+
+    /* ==========================================================================
+       6. 46 吋大電視極大字體看板 (統一字號、貼邊放大、貫穿底部置中提示)
+       ========================================================================== */
+    .tv-board {
+      height: 100%;
+      min-height: 100%;
+      background: #090e1a;
+      color: #f8fafc;
+      padding: 4px 6px 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      overflow: hidden;
+    }
+
+    .tv-header {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 4px 12px; background: #151f32; border-radius: 8px; border: 1px solid #29364f;
+      flex-shrink: 0; position: relative; overflow: hidden;
+    }
+    .tv-head-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .tv-board-title { font-size: clamp(16px, 1.5vw, 24px); font-weight: 900; color: #f8fafc; }
+    .mode-split .tv-board-title { font-size: 14px; }
+
+    .tv-page-badge {
+      display: inline-flex; align-items: center; gap: 4px; padding: 1px 9px; border-radius: 6px;
+      background: #0284c7; color: #fff; font-size: clamp(13px, 1.2vw, 19px); font-weight: 900;
+    }
+    .tv-page-nav { display: inline-flex; align-items: center; gap: 3px; }
+    .tv-nav-btn { width: 24px; height: 24px; border-radius: 5px; background: #25344f; color: #e2e8f0; font-size: 11px; font-weight: 900; }
+    .tv-kpi-inline { display: flex; align-items: center; gap: 6px; font-size: clamp(12px, 1.1vw, 17px); font-weight: 800; color: #cbd5e1; }
+    .tv-kpi-chip { padding: 1px 8px; border-radius: 999px; background: #0f172a; border: 1px solid #334155; }
+    .tv-kpi-chip.running { background: #0369a1; border-color: #38bdf8; color: #fff; }
+    .tv-clock { font-size: clamp(20px, 2vw, 32px); font-weight: 900; color: #38bdf8; line-height: 1; }
+    .mode-split .tv-clock { font-size: 16px; }
+
+    .tv-rows { flex: 1; display: flex; flex-direction: column; gap: 4px; min-height: 0; overflow: hidden; }
+
+    .tv-row {
+      position: relative;
+      display: grid;
+      grid-template-columns: var(--tv-col-bed) var(--tv-col-name) var(--tv-col-mob) 1fr;
+      grid-template-rows: 1fr auto;
+      align-items: stretch;
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--risk-none-bg);
+      color: var(--text-main);
+      border: 2px solid var(--risk-none-border);
+      padding-left: 10px;
+      flex: 1 1 0;
+      min-height: 0;
+    }
+    .tv-row::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 10px; background: var(--risk-none-bar); }
+    .tv-row.risk-fall { background: var(--risk-fall-bg); border-color: var(--risk-fall-border); }
+    .tv-row.risk-fall::before { background: var(--risk-fall-bar); }
+    .tv-row.risk-bp { background: var(--risk-bp-bg); border-color: var(--risk-bp-border); }
+    .tv-row.risk-bp::before { background: var(--risk-bp-bar); }
+    .tv-row.risk-both { background: var(--risk-both-bg); border-color: var(--risk-both-border); }
+    .tv-row.risk-both::before { background: var(--risk-both-bar); }
+    .tv-row.is-pinned { box-shadow: 0 0 0 3px #f59e0b; }
+    .tv-row.is-all-done { opacity: 0.45; }
+
+    .tv-col {
+      display: flex;
+      align-items: center;
+      padding: 2px 4px;
+      border-right: 2px solid rgba(15, 23, 42, 0.1);
+      min-width: 0;
+      overflow: hidden;
+    }
+    .tv-col-bed {
+      position: relative;
+      justify-content: center;
+      gap: 2px;
+      padding-left: calc(var(--tv-therapist) + 12px);
+      padding-right: 4px;
+    }
+    .tv-therapist-corner {
+      position: absolute;
+      top: 0; left: 0;
+      font-size: var(--tv-therapist);
+      font-weight: 900;
+      line-height: 1.05;
+      padding: 2px 7px 3px 6px;
+      border-bottom-right-radius: 9px;
+      color: #ffffff;
+      box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.28);
+      z-index: 2;
+    }
+    .tv-bed-num {
+      font-size: var(--tv-bed);
+      font-weight: 900;
+      color: #0f172a;
+      line-height: 0.92;
+      letter-spacing: -0.03em;
+    }
+    .tv-sym { font-size: var(--tv-sym); font-weight: 900; line-height: 0.95; }
+    .tv-sym.fall { color: var(--risk-fall-accent); }
+    .tv-sym.bp { color: var(--risk-bp-accent); }
+    .tv-sym.both { color: var(--risk-both-accent); }
+    .tv-sym.pm { color: #dc2626; }
+
+    .tv-col-name {
+      justify-content: center;
+      font-size: var(--tv-name);
+      font-weight: 900;
+      color: #0f172a;
+      line-height: 0.95;
+      white-space: nowrap;
+      padding: 2px 4px;
+    }
+
+    .tv-col-mob {
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 2px;
+      padding: 2px 4px;
+    }
+    .tv-mob-top {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      flex-wrap: nowrap;
+      max-width: 100%;
+    }
+    .tv-mob-top .side-box { font-size: calc(var(--tv-mob) * 0.86); }
+    .tv-mob-top .side-half { padding: 2px 5px; }
+    .tv-mob-aid {
+      font-size: var(--tv-mob);
+      font-weight: 900;
+      color: #0f172a;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .tv-mob-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      flex-wrap: nowrap;
+      max-width: 100%;
+    }
+    .tv-mob-assist {
+      font-size: calc(var(--tv-mob) * 0.92);
+      font-weight: 900;
+      line-height: 1;
+      white-space: nowrap;
+      padding: 1px 6px;
+      border-radius: 5px;
+      background: rgba(15, 23, 42, 0.08);
+      color: #0f172a;
+    }
+    .tv-mob-warn {
+      font-size: calc(var(--tv-mob) * 0.92);
+      font-weight: 900;
+      line-height: 1;
+      white-space: nowrap;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--orange-warn);
+      color: #ffffff;
+      border: 1.5px solid var(--orange-border);
+    }
+    .tv-walk-badge {
+      font-size: calc(var(--tv-mob) * 0.85);
+      font-weight: 900;
+      line-height: 1;
+      padding: 2px 6px;
+      border-radius: 5px;
+      white-space: nowrap;
+      background: rgba(148, 163, 184, 0.22);
+      color: #64748b;
+      border: 1px solid #cbd5e1;
+    }
+    .tv-walk-badge.done {
+      background: #16a34a;
+      color: #ffffff;
+      border-color: #15803d;
+    }
+
+    .tv-col-ex {
+      border-right: none;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 6px;
+      overflow: hidden;
+    }
+    .tv-ex {
+      border-radius: 8px;
+      padding: 2px 8px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 2px solid #94a3b8;
+      display: inline-flex;
+      flex-direction: column;
+      justify-content: center;
+      flex-shrink: 1;
+      min-width: 0;
+    }
+    .tv-ex.must-do.status-pending { border-color: #d97706; background: #fffbeb; }
+    .tv-ex.status-running { border-width: 3px; border-color: #0284c7; background: #f0f9ff; padding: 2px 10px; flex-shrink: 0; }
+    .tv-ex.status-paused { border-width: 3px; border-color: #475569; background: #e2e8f0; padding: 2px 10px; flex-shrink: 0; }
+    .tv-ex.stage-warn { border-color: #d97706; background: #fef3c7; }
+    .tv-ex.stage-due { border-color: #dc2626; background: #fee2e2; animation: pulseRed 1.2s ease-in-out infinite; }
+    .tv-ex.stage-critical { border-color: #7f1d1d; background: #b91c1c; color: #ffffff; }
+    .tv-ex.status-completed, .tv-ex.status-early_stopped { opacity: 0.45; background: rgba(241, 245, 249, 0.85); border-style: dashed; }
+
+    .tv-ex-active-row { display: flex; align-items: center; gap: 7px; flex-wrap: nowrap; }
+    .tv-ex-name-pending {
+      font-size: var(--row-ex-font, var(--tv-ex-pending));
+      font-weight: 900;
+      line-height: 1.05;
+      white-space: nowrap;
+      color: #0f172a;
+    }
+    .tv-ex-name-active {
+      font-size: var(--row-ex-active-font, var(--tv-ex-active));
+      font-weight: 900;
+      line-height: 1.02;
+      white-space: nowrap;
+      color: #0f172a;
+    }
+    .stage-critical .tv-ex-name-active { color: #ffffff; }
+    .tv-ex-timer {
+      font-size: var(--tv-timer);
+      font-weight: 900;
+      line-height: 0.95;
+      color: #0369a1;
+      white-space: nowrap;
+    }
+    .stage-warn .tv-ex-timer { color: #b45309; }
+    .stage-due .tv-ex-timer { color: #b91c1c; }
+    .stage-critical .tv-ex-timer { color: #ffffff; }
+
+    .tv-staff {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 1px 6px; border-radius: 5px; background: #0f172a; color: #ffffff;
+      font-size: var(--tv-staff); font-weight: 900; flex-shrink: 0;
+    }
+    .stage-critical .tv-staff { background: #ffffff; color: #991b1b; }
+
+    .tv-prog-track { height: 6px; width: 100%; background: rgba(15, 23, 42, 0.16); border-radius: 999px; overflow: hidden; margin-top: 2px; }
+    .tv-prog-fill { height: 100%; border-radius: 999px; transition: width 0.35s linear; }
+
+    .tv-row-footer-note {
+      grid-column: 1 / -1;
+      text-align: center;
+      background: rgba(154, 52, 18, 0.12);
+      border-top: 1.5px solid rgba(154, 52, 18, 0.28);
+      color: #9a3412;
+      font-size: var(--tv-note);
+      font-weight: 900;
+      line-height: 1.1;
+      padding: 2px 10px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tv-float-bar {
+      position: fixed; bottom: 10px; right: 10px; z-index: 60; display: none;
+      flex-wrap: wrap; align-items: center; gap: 5px;
+      background: rgba(15, 23, 42, 0.92); padding: 6px 9px; border-radius: 10px;
+      border: 1px solid #334155; opacity: 0.16; transition: opacity 0.2s ease;
+    }
+    .tv-float-bar:hover { opacity: 1; }
+
+    @keyframes pulseRed {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.65); }
+      50% { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0.1); }
+    }
+
+    /* ==========================================================================
+       7. 手機掃描床號 QR Code 專屬極簡大按鈕端 (#bed=21)
+       ========================================================================== */
+    .mobile-bed-app {
+      min-height: 100vh;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 540px;
+      margin: 0 auto;
+    }
+    .m-bed-card {
+      border-radius: 16px;
+      padding: 16px;
+      background: #ffffff;
+      color: #0f172a;
+      border: 4px solid #cbd5e1;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+    }
+    .m-bed-card.risk-fall { background: var(--risk-fall-bg); border-color: #d97706; }
+    .m-bed-card.risk-bp { background: var(--risk-bp-bg); border-color: #0284c7; }
+    .m-bed-card.risk-both { background: var(--risk-both-bg); border-color: #be123c; }
+
+    .m-ex-btn {
+      width: 100%;
+      border-radius: 14px;
+      padding: 16px;
+      background: #ffffff;
+      border: 2.5px solid #cbd5e1;
+      color: #0f172a;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      text-align: left;
+      box-shadow: 0 3px 10px rgba(15, 23, 42, 0.08);
+    }
+    .m-ex-btn.is-running { border-color: #0284c7; background: #f0f9ff; border-width: 3px; }
+    .m-ex-btn.is-done { opacity: 0.55; background: #f1f5f9; border-style: dashed; }
+
+    .m-staff-chip {
+      min-width: 46px; height: 44px; padding: 0 12px; border-radius: 10px;
+      font-size: 18px; font-weight: 900; background: #f1f5f9; border: 2px solid #cbd5e1; color: #334155;
+    }
+    .m-staff-chip.selected { background: #0f4c81; border-color: #0f4c81; color: #fff; }
+
+    /* ==========================================================================
+       8. 彈窗系統與系統設定樣式
+       ========================================================================== */
+    .modal-backdrop {
+      position: fixed; inset: 0; z-index: 100; background: rgba(15, 23, 42, 0.62);
+      backdrop-filter: blur(2px); display: none; align-items: center; justify-content: center; padding: 12px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-box {
+      background: #fff; color: var(--text-main); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg); width: 100%; max-width: 600px; max-height: 92vh;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .modal-box.lg { max-width: 940px; }
+    .modal-box.xl { max-width: 1280px; }
+
+    .modal-header { padding: 12px 16px; border-bottom: 1px solid var(--border); background: #f8fafc; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .modal-title { font-size: 16px; font-weight: 900; }
+    .modal-close { width: 30px; height: 30px; border-radius: 7px; font-size: 16px; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; }
+    .modal-body { padding: 14px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+    .modal-footer { padding: 10px 16px; border-top: 1px solid var(--border); background: #f8fafc; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+
+    .settings-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 16px 0; background: #f1f5f9; border-bottom: 1px solid var(--border-strong); }
+    .s-tab { padding: 8px 12px; border-radius: 8px 8px 0 0; font-size: 12.5px; font-weight: 800; color: var(--text-secondary); margin-bottom: -1px; }
+    .s-tab.active { background: #fff; color: var(--primary); border: 1px solid var(--border-strong); border-bottom: 2px solid #fff; }
+
+    .settings-section { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+    .settings-section-title { font-size: 13.5px; font-weight: 900; color: var(--primary); display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+
+    .tag-chip-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .removable-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; font-size: 13px; font-weight: 800; background: #fff; border: 1.5px solid var(--border-strong); }
+    .removable-chip .chip-x { width: 18px; height: 18px; border-radius: 999px; background: rgba(15, 23, 42, 0.12); font-size: 12px; font-weight: 900; display: inline-flex; align-items: center; justify-content: center; }
+
+    .add-inline-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .toggle-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 800; }
+    .toggle-switch input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary); }
+
+    .field-group { display: flex; flex-direction: column; gap: 5px; }
+    .field-label { font-size: 12px; font-weight: 800; color: var(--text-secondary); }
+    .field-hint { font-size: 11.5px; color: var(--text-muted); line-height: 1.45; }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 10px; }
+    .text-input { padding: 7px 10px; border: 1.5px solid var(--border-strong); border-radius: 8px; font-size: 13.5px; font-weight: 700; color: var(--text-main); background: #fff; width: 100%; }
+
+    .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { padding: 6px 11px; border-radius: 8px; font-size: 12.5px; font-weight: 800; background: #f1f5f9; color: var(--text-secondary); border: 1.5px solid var(--border-strong); }
+    .chip.selected { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .chip.selected-extra { background: #0d9488; border-color: #0f766e; color: #fff; }
+    .chip.selected-warn { background: var(--orange-warn); border-color: var(--orange-border); color: #fff; }
+    .chip.selected-fall { background: #fef9c3; border-color: #d97706; color: #92400e; }
+    .chip.selected-bp { background: #e0f2fe; border-color: #0284c7; color: #075985; }
+    .chip.selected-pm { background: #fee2e2; border-color: #dc2626; color: #991b1b; }
+
+    .staff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 7px; }
+    .staff-tile {
+      height: 46px; border-radius: 10px; font-size: 17px; font-weight: 900;
+      background: #f8fafc; border: 2px solid var(--border-strong); color: var(--text-main);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .staff-tile.selected { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+    .reason-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 7px; }
+    .reason-btn { padding: 10px 8px; border-radius: 10px; font-size: 13px; font-weight: 800; background: #f8fafc; border: 2px solid var(--border-strong); text-align: center; }
+    .reason-btn.selected { background: #fee2e2; border-color: #dc2626; color: #991b1b; }
+
+    .bp-panel { background: #e0f2fe; border: 1.5px solid #7dd3fc; border-radius: 10px; padding: 11px; display: flex; flex-direction: column; gap: 9px; }
+    .bp-multi-row {
+      display: grid; grid-template-columns: 120px 1fr 1fr 1fr auto; gap: 6px; align-items: center;
+      background: #fff; padding: 6px 8px; border-radius: 8px; border: 1px solid #bae6fd;
+    }
+    .bp-input { width: 100%; padding: 6px; font-size: 16px; font-weight: 900; text-align: center; border: 1.5px solid #7dd3fc; border-radius: 7px; }
+
+    .matrix-box { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+    .preset-btn { padding: 5px 9px; border-radius: 7px; font-size: 12px; font-weight: 700; background: #fff; border: 1px solid var(--border-strong); }
+    .draft-ex-list { display: flex; flex-direction: column; gap: 6px; }
+    .draft-ex-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 7px; padding: 7px 10px; background: #fff; border: 1px solid var(--border-strong); border-radius: 8px; }
+    .draft-ex-row.is-must { border-color: #f59e0b; background: #fffbeb; }
+    .step-btn { padding: 4px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 800; background: #f1f5f9; border: 1px solid #cbd5e1; }
+    .step-btn.must-on { background: #f59e0b; border-color: #d97706; color: #fff; }
+    .step-btn.countup-on { background: #0d9488; border-color: #0f766e; color: #fff; }
+
+    /* 報表治療師分組卡片 */
+    .rep-therapist-block { border: 2px solid #cbd5e1; border-radius: 12px; overflow: hidden; margin-bottom: 14px; background: #fff; }
+    .rep-th-banner { padding: 8px 14px; color: #fff; font-size: 14.5px; font-weight: 900; display: flex; justify-content: space-between; align-items: center; }
+    .rep-pt-card { border-top: 1px solid #e2e8f0; padding: 10px 14px; }
+    .rep-pt-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13.5px; }
+    .rep-ex-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .rep-ex-table th { background: #f8fafc; padding: 5px 8px; text-align: left; color: #475569; border-bottom: 1px solid #cbd5e1; }
+    .rep-ex-table td { padding: 5px 8px; border-bottom: 1px solid #f1f5f9; }
+
+    .doc-note-box {
+      width: 100%; min-height: 150px; padding: 10px; border-radius: 8px;
+      border: 1.5px solid #94a3b8; background: #f8fafc; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12.5px; line-height: 1.55; color: #0f172a;
+    }
+
+    .qr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 12px; }
+    .qr-card {
+      border: 2px solid #cbd5e1; border-radius: 12px; padding: 12px; text-align: center;
+      background: #fff; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
+
+    .toast-stack { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 7px; pointer-events: none; }
+    .toast { background: #0f172a; color: #f8fafc; padding: 9px 15px; border-radius: 10px; font-size: 13px; font-weight: 700; box-shadow: var(--shadow-lg); border: 1px solid #334155; }
+    .empty-box { text-align: center; padding: 18px 12px; color: var(--text-muted); font-size: 13px; font-weight: 600; background: rgba(255, 255, 255, 0.75); border: 1.5px dashed var(--border-strong); border-radius: 10px; }
+
+    @media print {
+      body * { visibility: hidden !important; }
+      #reportModal, #reportModal *, #qrModal, #qrModal * { visibility: visible !important; }
+      #reportModal, #qrModal { position: absolute !important; inset: 0 !important; background: #fff !important; padding: 0 !important; }
+      .modal-footer, .modal-close { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 頂部工具列 -->
+  <header id="topbar" class="topbar">
+    <div class="topbar-left">
+      <div class="brand-badge">PT</div>
+      <div style="min-width:0;">
+        <div class="brand-title" id="topbarTitle">復康運動室電子看板與排程系統</div>
+        <div class="brand-sub">
+          <span id="topbarSub">今日排程</span>
+          <span id="syncStatusPill" class="sync-pill">💾 準備連線雲端...</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="topbar-controls">
+      <div class="seg-group">
+        <button class="seg-top-btn" data-view="split" onclick="setViewMode('split')">雙畫面</button>
+        <button class="seg-top-btn" data-view="pc" onclick="setViewMode('pc')">操作台</button>
+        <button class="seg-top-btn" data-view="tv" onclick="setViewMode('tv')">全頁電視</button>
+      </div>
+
+      <button class="tool-btn btn-tv-pop" onclick="openStandaloneTVPopup()">🖥️ 獨立電視 (#tv)</button>
+      <button class="tool-btn btn-qr" onclick="openQrModal()">📱 床號 QR Code</button>
+
+      <div class="seg-group">
+        <button class="seg-top-btn" data-page="0" onclick="setTvPageSize(0)">全部顯示</button>
+        <button class="seg-top-btn" data-page="5" onclick="setTvPageSize(5)">每頁 5 人</button>
+        <button class="seg-top-btn" data-page="4" onclick="setTvPageSize(4)">每頁 4 人</button>
+      </div>
+
+      <button class="tool-btn btn-save-html" onclick="exportUpdatedSelfHtml()" title="匯出本地備份快照 HTML 檔">
+        💾 匯出本地備份檔
+      </button>
+      <button id="btnAudio" class="tool-btn is-on" onclick="toggleAudio()">🔊 提示音開</button>
+      <button class="tool-btn btn-settings" onclick="openSettingsModal('people')">⚙️ 系統設定</button>
+      <button class="tool-btn" onclick="confirmCarryOver()">🔄 延續昨日</button>
+      <button class="tool-btn btn-add" onclick="openPatientEditor(null)">＋ 新增病人</button>
+      <button class="tool-btn btn-export" onclick="openReportModal()">📊 完結報表與英文紀錄</button>
+    </div>
+  </header>
+
+  <!-- 主工作區 -->
+  <main id="workspace" class="workspace"></main>
+
+  <!-- 獨立大電視懸浮列 -->
+  <div id="tvFloatBar" class="tv-float-bar">
+    <button class="tool-btn" onclick="cycleTvPageSize()">📄 分頁: <span id="floatPageLabel">全部顯示</span></button>
+    <button id="tvFloatAudio" class="tool-btn is-on" onclick="toggleAudio()">🔊 提示音開</button>
+    <button class="tool-btn" onclick="toggleFullscreen()">⛶ 全螢幕</button>
+    <button class="tool-btn" onclick="exitStandaloneTV()">⚙️ 返回操作台</button>
+  </div>
+
+  <!-- 彈窗 1：⚙️ 系統設定 (所有設定自動同步上 Firebase 雲端) -->
+  <div id="settingsModal" class="modal-backdrop" onclick="onBackdrop(event, 'settingsModal')">
+    <div class="modal-box lg">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title">⚙️ 系統設定（全部設定自動同步至 Firebase 雲端）</div>
+          <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">修改任何設定皆會即時同步到所有電腦與手機端；病人全名與臨床備註則嚴格留於本機</div>
+        </div>
+        <button class="modal-close" onclick="closeModal('settingsModal')">✕</button>
+      </div>
+
+      <div class="settings-tabs">
+        <button class="s-tab" data-stab="people" onclick="switchSettingsTab('people')">👥 人員名單</button>
+        <button class="s-tab" data-stab="exercises" onclick="switchSettingsTab('exercises')">🏋️ 運動項目庫</button>
+        <button class="s-tab" data-stab="clinical" onclick="switchSettingsTab('clinical')">🩺 臨床與接送選項</button>
+        <button class="s-tab" data-stab="basic" onclick="switchSettingsTab('basic')">🖥️ 基本與助理記錄</button>
+        <button class="s-tab" data-stab="backup" onclick="switchSettingsTab('backup')">💾 資料夾與 Email</button>
+        <button class="s-tab" data-stab="firebase" onclick="switchSettingsTab('firebase')">☁️ Firebase 連線</button>
+      </div>
+
+      <div id="settingsBody" class="modal-body" style="min-height:400px;"></div>
+
+      <div class="modal-footer" style="justify-content:space-between;">
+        <button class="tool-btn btn-save-html" style="padding:7px 12px; font-size:12.5px;" onclick="exportUpdatedSelfHtml()">💾 匯出本地離線快照 (.html)</button>
+        <button class="btn-primary" onclick="closeModal('settingsModal')">完成並關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 彈窗 2：📱 床號 QR Code 列印與手機測試中心 -->
+  <div id="qrModal" class="modal-backdrop" onclick="onBackdrop(event, 'qrModal')">
+    <div class="modal-box lg">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title">📱 可重用床號 QR Code 卡（支援同事手機 4G/5G 掃描同步）</div>
+          <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">手機端採用零姓名去識別化設計（僅顯示床號、患側、步行協助與運動按鈕）</div>
+        </div>
+        <button class="modal-close" onclick="closeModal('qrModal')">✕</button>
+      </div>
+      <div class="modal-body" id="qrModalBody"></div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('qrModal')">關閉</button>
+        <button class="btn-primary" onclick="window.print()">🖨️ 列印全部床號 QR Code 卡</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 彈窗 3：開始運動 -->
+  <div id="startModal" class="modal-backdrop" onclick="onBackdrop(event, 'startModal')">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title" id="startModalTitle">開始運動</div>
+        <button class="modal-close" onclick="closeModal('startModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="startModalInfo" style="background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-size:13.5px; line-height:1.55;"></div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:8px 11px;">
+          <span style="font-size:12.5px; font-weight:800; color:var(--text-secondary);">今節時間：</span>
+          <div style="display:flex; align-items:center; gap:5px;">
+            <button class="step-btn" onclick="adjustStartModalMin(-5)">-5m</button>
+            <input id="startMinInput" type="number" min="1" max="90" class="tabular"
+                   style="width:54px; padding:4px; text-align:center; font-size:14px; font-weight:900; border:1.5px solid var(--border-strong); border-radius:6px;"
+                   onchange="applyStartModalMin(this.value)" />
+            <span style="font-size:12px; font-weight:700;">分鐘</span>
+            <button class="step-btn" onclick="adjustStartModalMin(5)">+5m</button>
+            <button id="startCountUpToggle" class="step-btn" onclick="toggleStartModalCountUp()">正計時</button>
+          </div>
+        </div>
+
+        <div class="field-group" id="startStaffSection">
+          <span class="field-label">點選負責助理（可同時多選超過一位，點選後按「確認開始」）：</span>
+          <div id="startStaffGrid" class="staff-grid"></div>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content:space-between;">
+        <button class="btn-secondary" style="border-color:#10b981; color:#047857;" onclick="confirmStartExercise(true)">✓ 無需計時直接完成</button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-secondary" onclick="closeModal('startModal')">取消</button>
+          <button class="btn-primary" onclick="confirmStartExercise(false)">▶ 確認開始計時</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 彈窗 4：完成 / 提早結束 / 多選交接助理 / 企車企枱分段 BP P -->
+  <div id="finishModal" class="modal-backdrop" onclick="onBackdrop(event, 'finishModal')">
+    <div class="modal-box lg" style="max-width:680px;">
+      <div class="modal-header">
+        <div class="modal-title" id="finishModalTitle">完成運動</div>
+        <button class="modal-close" onclick="closeModal('finishModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="finishSummary" style="background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-size:13px; line-height:1.55;"></div>
+
+        <div class="field-group" id="finishStaffSection">
+          <span class="field-label">結尾／交接助理（預設為開始助理，可多選超過一位）：</span>
+          <div id="finishStaffGrid" class="staff-grid"></div>
+        </div>
+
+        <div id="earlyReasonWrap" class="field-group" style="display:none;">
+          <span class="field-label" style="color:var(--red);">請點選提早結束原因：</span>
+          <div id="earlyReasonGrid" class="reason-grid"></div>
+          <input id="earlyNoteInput" type="text" class="text-input" placeholder="c/o 症狀或補充備註（如：no dizziness / 頭暈 / 右膝痛）" style="margin-top:4px;" />
+        </div>
+
+        <div id="bpExpandWrap" style="display:none;">
+          <button class="btn-secondary" style="width:100%; justify-content:center; border-color:#7dd3fc; color:#0369a1;" onclick="showBpPanelInFinish()">
+            💓 展開輸入血壓／脈搏 (SBP / DBP / HR，可新增多組時間點)
+          </button>
+        </div>
+
+        <div id="bpPanel" class="bp-panel" style="display:none;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+            <span style="font-size:13px; font-weight:800; color:#0369a1;">💓 血壓與脈搏紀錄（企車／企枱／血壓不穩支援多時段輸入）</span>
+            <button class="btn-secondary" style="padding:3px 9px; font-size:11.5px; border-color:#0284c7; color:#0369a1;" onclick="addFinishBpRow()">＋ 加多一組讀數</button>
+          </div>
+          <div id="finishBpRowsContainer" style="display:flex; flex-direction:column; gap:6px;"></div>
+          <div id="bpHistoryBar" style="font-size:12px; color:#0c4a6e;"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('finishModal')">取消</button>
+        <button id="btnFinishConfirm" class="btn-primary" onclick="confirmFinishAction()">確認儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 彈窗 5：🚶 步行紀錄管理 -->
+  <div id="walkModal" class="modal-backdrop" onclick="onBackdrop(event, 'walkModal')">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title" id="walkModalTitle">🚶 步行訓練紀錄</div>
+        <button class="modal-close" onclick="closeModal('walkModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="background:#f0fdf4; border:1.5px solid #86efac; border-radius:10px; padding:11px; display:flex; flex-direction:column; gap:9px;">
+          <div style="font-size:13px; font-weight:900; color:#166534;">＋ 新增今節步行紀錄（大電視扶行欄自動顯示 ✓ 步行）</div>
+          <div class="form-grid">
+            <div class="field-group">
+              <label class="field-label">步行距離 (米 m)</label>
+              <input id="walkDistInput" type="number" min="1" max="1000" class="text-input tabular" placeholder="例如：20" />
+            </div>
+            <div class="field-group">
+              <label class="field-label">輔助器具／協助情況</label>
+              <input id="walkAssistInput" type="text" class="text-input" placeholder="如：Rollator (1A)" />
+            </div>
+          </div>
+          <div class="field-group" id="walkStaffSection">
+            <span class="field-label">負責／協助同事（可多選）：</span>
+            <div id="walkStaffGrid" class="staff-grid"></div>
+          </div>
+          <button class="btn-primary" style="background:#16a34a; justify-content:center;" onclick="saveWalkSession()">✓ 儲存今次步行紀錄</button>
+        </div>
+
+        <div class="field-group">
+          <span class="field-label">今日已完成步行紀錄：</span>
+          <div id="walkLogList"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('walkModal')">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 彈窗 6：獨立血壓檢視與加記 -->
+  <div id="bpModal" class="modal-backdrop" onclick="onBackdrop(event, 'bpModal')">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title" id="bpModalTitle">血壓與脈搏紀錄</div>
+        <button class="modal-close" onclick="closeModal('bpModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="bp-panel">
+          <div style="font-size:13px; font-weight:800; color:#0369a1;">＋ 即時加記血壓／脈搏</div>
+          <div class="form-grid">
+            <div class="field-group">
+              <label class="field-label">量度時機</label>
+              <input id="adhocBpLabel" type="text" class="text-input" value="initial BP" />
+            </div>
+            <div class="field-group">
+              <label class="field-label">SBP / DBP / HR</label>
+              <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px;">
+                <input id="aSbp" type="number" class="bp-input tabular" placeholder="122" />
+                <input id="aDbp" type="number" class="bp-input tabular" placeholder="55" />
+                <input id="aHr" type="number" class="bp-input tabular" placeholder="60" />
+              </div>
+            </div>
+          </div>
+          <button class="btn-primary" style="justify-content:center;" onclick="saveAdhocBp()">儲存讀數</button>
+        </div>
+        <div id="bpModalTableWrap"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('bpModal')">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 彈窗 7：新增 / 編輯病人 -->
+  <div id="patientModal" class="modal-backdrop" onclick="onBackdrop(event, 'patientModal')">
+    <div class="modal-box lg">
+      <div class="modal-header">
+        <div class="modal-title" id="patientModalTitle">新增病人</div>
+        <button class="modal-close" onclick="closeModal('patientModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="field-group">
+            <label class="field-label">床號 *</label>
+            <input id="edBed" type="text" class="text-input" placeholder="如：21" />
+          </div>
+          <div class="field-group">
+            <label class="field-label">顯示名稱／代號 * <span id="edMaskLive" style="color:var(--primary);"></span></label>
+            <input id="edName" type="text" class="text-input" placeholder="如：林淑儀（僅存於本機，絕不上傳雲端）" oninput="updateLiveMaskPreview()" />
+          </div>
+          <div class="field-group">
+            <label class="field-label">出席狀態</label>
+            <div id="edAttendanceChips" class="chip-row"></div>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <span class="field-label">主診治療師：</span>
+          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:7px;">
+            <div id="edTherapistChips" class="chip-row"></div>
+            <input id="edTherapistCustom" type="text" class="text-input" placeholder="臨時輸入" style="width:100px; padding:5px 8px;" />
+          </div>
+        </div>
+
+        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+          <div class="field-group">
+            <span class="field-label">患側（健側淺綠、患側紅色）：</span>
+            <div id="edSideChips" class="chip-row"></div>
+          </div>
+          <div class="field-group">
+            <span class="field-label">協助人數：</span>
+            <div id="edAssistChips" class="chip-row"></div>
+          </div>
+        </div>
+
+        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
+          <div class="field-group">
+            <span class="field-label">助行器（單選）：</span>
+            <div id="edAidChips" class="chip-row"></div>
+          </div>
+          <div class="field-group">
+            <span class="field-label">助行器附加輔助（可多選）：</span>
+            <div id="edAidExtraChips" class="chip-row"></div>
+          </div>
+        </div>
+
+        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
+          <div class="field-group">
+            <span class="field-label">🚐 接送方式（單選，再按取消）：</span>
+            <div id="edTrModeChips" class="chip-row"></div>
+          </div>
+          <div class="field-group">
+            <span class="field-label">🪝 接送附加設備（可多選＋手動輸入）：</span>
+            <div id="edTrExtraChips" class="chip-row"></div>
+            <div class="add-inline-row" style="margin-top:4px;">
+              <input id="edCustomTrExtra" type="text" class="text-input" placeholder="手動輸入設備（如：氧氣樽）" style="flex:1; padding:5px 8px; font-size:12.5px;"
+                     onkeydown="if(event.key==='Enter') addCustomTrExtraToDraft()" />
+              <button class="btn-secondary" style="padding:5px 9px;" onclick="addCustomTrExtraToDraft()">＋加入</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <span class="field-label">安全暗號（大電視僅呈現柔和底色與極簡符號）：</span>
+          <div id="edRiskChips" class="chip-row"></div>
+        </div>
+
+        <div class="field-group">
+          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px;">
+            <label class="field-label">📌 特別注意事項（僅存於本機）：</label>
+            <label class="toggle-switch" style="font-size:12px;">
+              <input id="edShowNoteTv" type="checkbox" />
+              <span>於大電視底部置中顯示（預設不顯示）</span>
+            </label>
+          </div>
+          <input id="edSpecialNote" type="text" class="text-input" placeholder="例如：裝有心臟起搏器，企車需分段度血壓 / NSTEMI, RPE<14" />
+        </div>
+
+        <div class="field-group">
+          <span class="field-label">1-Click 運動處方矩陣（步行已設為預設項目，於大電視扶行欄顯示 Tick）：</span>
+          <div class="matrix-box" id="editorMatrixContainer"></div>
+        </div>
+
+        <div class="field-group">
+          <span class="field-label">已選運動處方：</span>
+          <div id="edDraftExList" class="draft-ex-list"></div>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content:space-between;">
+        <button id="btnRemovePatient" class="btn-secondary" style="color:var(--red); border-color:#fca5a5; display:none;" onclick="confirmDeletePatient()">永久刪除個案</button>
+        <div style="display:flex; gap:8px; margin-left:auto;">
+          <button class="btn-secondary" onclick="closeModal('patientModal')">取消</button>
+          <button class="btn-primary" onclick="savePatientEditor()">儲存病人與處方</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 彈窗 8：確認對話框 -->
+  <div id="confirmModal" class="modal-backdrop" onclick="onBackdrop(event, 'confirmModal')">
+    <div class="modal-box" style="max-width:450px;">
+      <div class="modal-header">
+        <div class="modal-title" id="confirmTitle">確認操作</div>
+        <button class="modal-close" onclick="closeModal('confirmModal')">✕</button>
+      </div>
+      <div class="modal-body"><div id="confirmBody" style="font-size:14px; line-height:1.6;"></div></div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('confirmModal')">取消</button>
+        <button id="confirmOkBtn" class="btn-primary">確認</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 彈窗 9：每日完結報表 -->
+  <div id="reportModal" class="modal-backdrop" onclick="onBackdrop(event, 'reportModal')">
+    <div class="modal-box xl">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title" id="reportModalTitle">每日完結運動紀錄與英文病歷格式</div>
+          <div id="reportMetaLine" style="font-size:12px; color:var(--text-muted); margin-top:2px;"></div>
+        </div>
+        <button class="modal-close" onclick="closeModal('reportModal')">✕</button>
+      </div>
+      <div class="modal-body" id="reportModalBody"></div>
+      <div class="modal-footer" style="justify-content:space-between;">
+        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+          <button class="btn-secondary" onclick="copyAllEnglishDocs()">📋 一鍵複製全部英文紀錄</button>
+          <button class="btn-primary" style="background:#0284c7;" onclick="sendReportEmail()">✉️ 有網絡時發 Email 給指定同事</button>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+          <button class="btn-secondary" onclick="window.print()">🖨️ 列印</button>
+          <button class="btn-primary" style="background:#059669;" onclick="saveDailyReportToFolderOrDownload()">📥 儲存每日報告 (CSV + 英文紀錄)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastStack" class="toast-stack"></div>
+  <script id="embeddedStateScript" type="application/json">null</script>
+
+  <script>
+    'use strict';
+
+    const STORAGE_KEY = 'rehab_gym_board_v7_cloud_settings';
+    const CHANNEL_NAME = 'rehab_gym_sync_v7';
+    const SIDES = ['L', 'R', 'Bi', '無'];
+    const EX_CATEGORIES = ['器械計時', '功能訓練', '自訂快捷'];
+    const THERAPIST_PALETTE = [
+      '#4f46e5', '#0f766e', '#be185d', '#b45309', '#1d4ed8',
+      '#7e22ce', '#047857', '#c2410c', '#0369a1', '#374151'
+    ];
+
+    // 內建你的 Firebase 預設連線資訊，上傳 GitHub 後開機即自動連線
+    const BUILTIN_FIREBASE_CONFIG = JSON.stringify({
+      apiKey: "AIzaSyDJ3ej-k33nzzVo9a1vHp5CN4mrhdblIRo",
+      authDomain: "rehab-gym-sync.firebaseapp.com",
+      databaseURL: "https://rehab-gym-sync-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "rehab-gym-sync",
+      storageBucket: "rehab-gym-sync.firebasestorage.app",
+      messagingSenderId: "433714950156",
+      appId: "1:433714950156:web:e502e6ca5fa02910087e29"
+    }, null, 2);
+
+    function uid(prefix = 'id') {
+      return prefix + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+    }
+
+    function esc(v) {
+      if (v === null || v === undefined) return '';
+      return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function getTherapistColor(name) {
+      if (!name) return '#334155';
+      const list = (state && state.settings && state.settings.therapists) || [];
+      const idx = list.indexOf(name);
+      if (idx >= 0) return THERAPIST_PALETTE[idx % THERAPIST_PALETTE.length];
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      return THERAPIST_PALETTE[Math.abs(hash) % THERAPIST_PALETTE.length];
+    }
+
+    function renderSideVisual(side) {
+      const s = String(side || '無').trim();
+      const leftBad = s === 'L' || s === 'Bi';
+      const rightBad = s === 'R' || s === 'Bi';
+      return `<span class="side-box" title="患側：${esc(s)}"><span class="side-half ${leftBad ? 'side-bad' : 'side-ok'}">左</span><span class="side-half ${rightBad ? 'side-bad' : 'side-ok'}">右</span></span>`;
+    }
+
+    function createDefaultExerciseLibrary() {
+      const equip = ['綠平衡', '藍平衡', 'NuStep', '手單車', '腳單車', '震震機', '企車', '企枱', '跑步機', '電療', '冰敷', '熱敷'];
+      const func = ['沙包', '吊住行', 'OB手', 'OB腳', '對鏡練(企)', '對鏡練(坐)', 'Sling手', 'Sling腳', '舉棍', '踏級(高)', '踏級(低)', '治療師拉筋'];
+      const custom = ['Leg press', '拱橋', '側臥抬腿', '觸地企', '拋波'];
+      const make = (name, category) => ({ id: uid('lib'), name, category, mode: 'countdown', defaultMin: 15 });
+      return [...equip.map(n => make(n, '器械計時')), ...func.map(n => make(n, '功能訓練')), ...custom.map(n => make(n, '自訂快捷'))];
+    }
+
+    function createDefaultSettings() {
+      return {
+        systemTitle: '復康運動室電子看板與排程系統',
+        tvTitle: '運動室實時看板',
+        defaultExMin: 15,
+        pageIntervalSec: 10,
+        overtimeAlertMin: 3,
+        voiceEnabled: true,
+        trackStaffAssignment: true,
+        therapists: ['江', '馬', '陳', '李'],
+        assistants: ['A', 'B', 'C', 'G', 'H', 'J', 'K', 'R', 'Y'],
+        aids: ['W/C', 'Frame', 'Rollator', 'Quad', 'Stick', 'Unaided'],
+        aidExtras: ['Gaiter', '綁腳', 'AFO'],
+        assists: ['Indep', 'SBA', '1A', '2A', '不宜行'],
+        assistHighlightTag: '不宜行',
+        transportModes: ['車', '企車', '跟車'],
+        transportExtras: ['吊機', '雙人'],
+        earlyReasons: ['疲倦', '頭暈／血壓不適', '痛楚', '檢查／覆診', '其他'],
+        emailRecipients: '',
+        firebaseConfigText: BUILTIN_FIREBASE_CONFIG,
+        firebaseRoomId: 'gym_room_1',
+        exerciseLibrary: createDefaultExerciseLibrary()
+      };
+    }
+
+    /* ========================================================================
+       應用程式狀態
+       ======================================================================== */
+    let state = null;
+    let viewMode = 'split';
+    let isStandaloneTV = false;
+    let mobileBedNum = null;
+    let mobileStaffSelected = [];
+    let therapistFilter = 'ALL';
+    let reportTherapistFilter = 'ALL';
+    let pcSortMode = 'clinical';
+    let openTransportPickerPtId = null;
+    let showDutyDrawer = false;
+    let currentSettingsTab = 'people';
+    let hasUnsavedDailyWork = false;
+    let savedDirectoryHandle = null;
+
+    let tvPageIndex = 0;
+    let tvPageElapsedMs = 0;
+
+    let uiCtx = {
+      patientId: null,
+      exId: null,
+      startMin: 15,
+      startCountUp: false,
+      selectedStartStaff: [],
+      finishMode: 'completed',
+      selectedFinishStaff: [],
+      finishBpRows: [],
+      earlyReason: '',
+      editPatientId: null,
+      draft: null,
+      bpPatientId: null,
+      walkPatientId: null,
+      selectedWalkStaff: []
+    };
+
+    /* ========================================================================
+       Firebase 全設定＋去識別化排程 雙向即時同步引擎
+       ======================================================================== */
+    let fbDb = null;
+    let fbRef = null;
+    let fbConnected = false;
+    let isApplyingRemoteUpdate = false;
+
+    function updateSyncPill(status, text) {
+      const el = document.getElementById('syncStatusPill');
+      if (!el) return;
+      el.className = 'sync-pill ' + (status === 'online' ? 'online' : (status === 'error' ? 'error' : ''));
+      el.textContent = text;
+    }
+
+    function parseFirebaseConfig(raw) {
+      if (!raw || !raw.trim()) return null;
+      try {
+        let str = raw.trim();
+        const firstBrace = str.indexOf('{');
+        const lastBrace = str.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1) {
+          str = str.slice(firstBrace, lastBrace + 1);
+        }
+        // 僅將左括號或逗號後的屬性鍵名加上引號，避開 https:// 內的冒號
+        const jsonLike = str
+          .replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')
+          .replace(/'/g, '"')
+          .replace(/,\s*}/g, '}');
+        const obj = JSON.parse(jsonLike);
+        if (obj && obj.apiKey && obj.databaseURL) return obj;
+        if (obj && obj.apiKey && obj.projectId) {
+          obj.databaseURL = `https://${obj.projectId}-default-rtdb.asia-southeast1.firebasedatabase.app`;
+          return obj;
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    function initFirebaseSync() {
+      const cfg = parseFirebaseConfig(state.settings.firebaseConfigText);
+      if (!cfg) {
+        fbConnected = false;
+        updateSyncPill('local', '💾 本機單機模式');
+        return;
+      }
+
+      if (!navigator.onLine) {
+        updateSyncPill('error', '⚠️ 離線中（暫存本機）');
+        return;
+      }
+
+      updateSyncPill('local', '⏳ 連接雲端中...');
+      const loadScript = (src) => new Promise((res, rej) => {
+        if (document.querySelector(`script[src="${src}"]`)) return res();
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = res;
+        s.onerror = rej;
+        document.head.appendChild(s);
+      });
+
+      Promise.all([
+        loadScript('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js'),
+        loadScript('https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js')
+      ]).then(() => {
+        if (!window.firebase) return;
+        const app = window.firebase.apps.length ? window.firebase.app() : window.firebase.initializeApp(cfg);
+        fbDb = app.database();
+        const room = (state.settings.firebaseRoomId || 'gym_room_1').replace(/[^a-zA-Z0-9_-]/g, '_');
+        fbRef = fbDb.ref(`rehab_boards/${room}`);
+
+        fbRef.on('value', (snap) => {
+          fbConnected = true;
+          updateSyncPill('online', '☁️ 全設定＋排程已雲端同步');
+          const remote = snap.val();
+          if (!remote) {
+            pushStateToFirebase();
+            return;
+          }
+          if (remote.updatedAt && remote.updatedAt <= (state._lastUpdatedAt || 0)) return;
+          isApplyingRemoteUpdate = true;
+          mergeRemoteState(remote);
+          persistLocalOnly();
+          renderWorkspace();
+          if (document.getElementById('settingsModal')?.classList.contains('open')) {
+            renderSettingsTabContent();
+          }
+          isApplyingRemoteUpdate = false;
+        }, () => {
+          fbConnected = false;
+          updateSyncPill('error', '❌ Firebase 連線失敗');
+        });
+      }).catch(() => {
+        updateSyncPill('error', '⚠️ 無法載入雲端模組（離線運作中）');
+      });
+    }
+
+    /** 把全部系統設定＋去識別化排程上傳至 Firebase（病人全名與臨床備註絕不上傳） */
+    function pushStateToFirebase() {
+      if (!fbRef || isApplyingRemoteUpdate) return;
+      const now = Date.now();
+      state._lastUpdatedAt = now;
+
+      // 複製所有非敏感設定同步上雲端（不含本地連線字串本身）
+      const syncableSettings = Object.assign({}, state.settings);
+      delete syncableSettings.firebaseConfigText;
+
+      const safePatients = state.patients.map(pt => ({
+        id: pt.id,
+        bed: pt.bed,
+        therapist: pt.therapist || '',
+        side: pt.side,
+        aid: pt.aid,
+        aidExtras: pt.aidExtras || [],
+        assist: pt.assist,
+        transportMode: pt.transportMode || '',
+        transportExtras: pt.transportExtras || [],
+        riskFall: Boolean(pt.riskFall),
+        riskBp: Boolean(pt.riskBp),
+        riskPacemaker: Boolean(pt.riskPacemaker),
+        attendance: pt.attendance,
+        transportOrder: pt.transportOrder || null,
+        transportStaff: pt.transportStaff || '',
+        transportTime: pt.transportTime || '',
+        walkLogs: pt.walkLogs || [],
+        bpLogs: pt.bpLogs || [],
+        exercises: pt.exercises || []
+      }));
+
+      fbRef.set({
+        updatedAt: now,
+        date: state.date,
+        tvPageSize: state.tvPageSize,
+        onDutyTransport: state.onDutyTransport,
+        transportCounter: state.transportCounter,
+        settings: syncableSettings,
+        patients: safePatients
+      }).catch(() => {});
+    }
+
+    function mergeRemoteState(remote) {
+      state._lastUpdatedAt = remote.updatedAt || Date.now();
+      if (remote.tvPageSize !== undefined) state.tvPageSize = Number(remote.tvPageSize);
+      if (Array.isArray(remote.onDutyTransport)) state.onDutyTransport = remote.onDutyTransport;
+      if (remote.transportCounter !== undefined) state.transportCounter = Number(remote.transportCounter) || 0;
+
+      // 同步所有雲端系統設定（治療師、助理、運動項目庫、接送設備等）
+      if (remote.settings && typeof remote.settings === 'object') {
+        const keepFbCfg = state.settings.firebaseConfigText;
+        const keepRoomId = state.settings.firebaseRoomId;
+        state.settings = Object.assign({}, state.settings, remote.settings, {
+          firebaseConfigText: keepFbCfg,
+          firebaseRoomId: keepRoomId
+        });
+      }
+
+      if (Array.isArray(remote.patients)) {
+        const localMap = new Map(state.patients.map(p => [p.id, p]));
+        state.patients = remote.patients.map(rp => {
+          const lp = localMap.get(rp.id);
+          return {
+            ...rp,
+            name: lp ? lp.name : `${rp.bed}號床`,
+            specialNote: lp ? lp.specialNote : '',
+            showNoteOnTv: lp ? lp.showNoteOnTv : false
+          };
+        });
+      }
+      state = ensureStateIntegrity(state);
+    }
+
+    let syncChannel = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        syncChannel = new BroadcastChannel(CHANNEL_NAME);
+        syncChannel.onmessage = (evt) => {
+          if (evt.data && evt.data.type === 'SYNC_STATE' && evt.data.state) {
+            state = ensureStateIntegrity(evt.data.state);
+            renderWorkspace();
+          }
+        };
+      }
+    } catch (e) {}
+
+    window.addEventListener('storage', (evt) => {
+      if (evt.key === STORAGE_KEY && evt.newValue) {
+        try {
+          state = ensureStateIntegrity(JSON.parse(evt.newValue));
+          renderWorkspace();
+        } catch (e) {}
+      }
+    });
+
+    /* ========================================================================
+       防意外關閉網頁保障機制
+       ======================================================================== */
+    window.addEventListener('beforeunload', (e) => {
+      if (mobileBedNum) return;
+      const hasRunning = state && state.patients && state.patients.some(p => p.exercises.some(ex => ex.status === 'running' || ex.status === 'paused'));
+      if (hasRunning || hasUnsavedDailyWork) {
+        e.preventDefault();
+        e.returnValue = '運動室仍有計時進行中或未匯出的今日紀錄，確定要離開嗎？';
+        return e.returnValue;
+      }
+    });
+
+    /* ========================================================================
+       基礎工具函式
+       ======================================================================== */
+    function maskName(name) {
+      const s = (name || '').trim();
+      if (!s) return '—';
+      if (s.endsWith('號床')) return s;
+      const chars = Array.from(s);
+      if (chars.length === 1) return chars[0];
+      if (chars.length === 2) return chars[0] + 'X';
+      return chars[0] + 'X' + chars[chars.length - 1];
+    }
+
+    function todayISO() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    function weekdayZh() { return ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'][new Date().getDay()]; }
+    function nowHHMM() { const d = new Date(); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; }
+    function nowHHMMSS() { const d = new Date(); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`; }
+    function formatMMSS(sec) { const s = Math.max(0, Math.floor(Math.abs(sec))); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; }
+    function secToWholeMin(sec) { return Math.max(1, Math.round(Math.max(0, sec) / 60)); }
+
+    function isScheduledToday(schedule) {
+      if (!schedule || schedule === '每日') return true;
+      const day = new Date().getDay();
+      if (day === 0 || day === 6) return true;
+      if (schedule === '1,3,5') return day === 1 || day === 3 || day === 5;
+      if (schedule === '2,4') return day === 2 || day === 4;
+      return true;
+    }
+
+    function getRiskInfo(pt) {
+      let cls = 'risk-none';
+      if (pt.riskFall && pt.riskBp) cls = 'risk-both';
+      else if (pt.riskFall) cls = 'risk-fall';
+      else if (pt.riskBp) cls = 'risk-bp';
+
+      let symHtml = '';
+      if (pt.riskFall) symHtml += `<span class="sym fall">▲</span>`;
+      if (pt.riskBp) symHtml += `<span class="sym bp">～</span>`;
+      if (pt.riskPacemaker) symHtml += `<span class="sym pm" title="心臟起搏器">♥</span>`;
+
+      const labels = [];
+      if (pt.riskFall) labels.push('▲高危跌倒');
+      if (pt.riskBp) labels.push('～血壓不穩');
+      if (pt.riskPacemaker) labels.push('♥起搏器');
+      return { cls, symHtml, label: labels.join(' ') || '一般', highRisk: Boolean(pt.riskFall || pt.riskBp || pt.riskPacemaker) };
+    }
+
+    function getOvertimeAlertSec(pt) {
+      const baseMin = Math.max(1, Number(state.settings.overtimeAlertMin) || 3);
+      const isHigh = Boolean(pt && (pt.riskFall || pt.riskBp));
+      return (isHigh ? Math.max(1, baseMin - 1) : baseMin) * 60;
+    }
+
+    function computeExMetrics(ex, pt = null) {
+      const defMin = Math.max(1, Number(state?.settings?.defaultExMin) || 15);
+      const isCountUp = Boolean(ex.countUp) || !(Number(ex.plannedMin) > 0);
+      const plannedSec = isCountUp ? 0 : (Number(ex.plannedMin) || defMin) * 60;
+
+      let elapsedSec = Number(ex.accumulatedSec) || 0;
+      if (ex.status === 'running' && ex.startedAt) {
+        elapsedSec += Math.max(0, (Date.now() - ex.startedAt) / 1000);
+      }
+
+      const isCountdown = !isCountUp;
+      const remainingSec = isCountdown ? plannedSec - elapsedSec : null;
+      const overdueSec = isCountdown && remainingSec < 0 ? Math.abs(remainingSec) : 0;
+      const criticalSec = getOvertimeAlertSec(pt);
+
+      let stage = 'normal';
+      if ((ex.status === 'running' || ex.status === 'paused') && isCountdown) {
+        if (overdueSec >= criticalSec) stage = 'critical';
+        else if (remainingSec <= 0) stage = 'due';
+        else if (remainingSec <= 120) stage = 'warn';
+      }
+
+      let pct = 0;
+      if (isCountdown) pct = Math.min(100, Math.max(0, (elapsedSec / plannedSec) * 100));
+      else if (ex.status === 'running' || ex.status === 'paused') pct = 100;
+
+      return { plannedSec, elapsedSec, isCountdown, remainingSec, overdueSec, criticalSec, stage, pct };
+    }
+
+    function isPatientUrgent(pt) {
+      return pt.exercises.some((ex) => {
+        if (ex.status !== 'running' && ex.status !== 'paused') return false;
+        const m = computeExMetrics(ex, pt);
+        return m.stage === 'warn' || m.stage === 'due' || m.stage === 'critical';
+      });
+    }
+
+    function isAssistHighlighted(assistVal) {
+      const hl = state.settings.assistHighlightTag;
+      return Boolean(hl && assistVal === hl);
+    }
+
+    function formatStaffList(arr) {
+      if (!arr) return '';
+      if (Array.isArray(arr)) return arr.join('+');
+      return String(arr);
+    }
+
+    function isStandExerciseName(name) {
+      const s = String(name || '');
+      return s.includes('企車') || s.includes('企枱') || s.includes('企台') || s.toLowerCase().includes('standing');
+    }
+
+    /* ========================================================================
+       範例個案與狀態初始化
+       ======================================================================== */
+    function makeEx(name, opts = {}) {
+      const defMin = (state && state.settings && state.settings.defaultExMin) ? Number(state.settings.defaultExMin) : 15;
+      return {
+        id: uid('ex'),
+        name,
+        plannedMin: opts.plannedMin !== undefined ? Number(opts.plannedMin) : defMin,
+        countUp: Boolean(opts.countUp),
+        mustDo: Boolean(opts.mustDo),
+        note: opts.note || '',
+        schedule: opts.schedule || '每日',
+        status: 'pending',
+        startStaffList: [],
+        endStaffList: [],
+        startedAt: null,
+        accumulatedSec: 0,
+        finishedAt: null,
+        earlyReason: '',
+        earlyNote: '',
+        bpRecords: [],
+        alertedDue: false,
+        alertedCritical: false
+      };
+    }
+
+    function createDemoPatients() {
+      return [
+        {
+          id: uid('pt'), bed: '17', name: '陳志強', therapist: '江',
+          side: 'L', aid: 'Frame', aidExtras: ['AFO'], assist: '1A',
+          transportMode: '車', transportExtras: [],
+          riskFall: false, riskBp: false, riskPacemaker: false,
+          specialNote: '', showNoteOnTv: false, attendance: 'present',
+          transportOrder: 1, transportStaff: 'G', transportTime: '09:02',
+          walkLogs: [{ id: uid('wk'), dist: 25, assist: 'Frame (1A)', staffList: ['G'], time: '09:20' }],
+          bpLogs: [],
+          exercises: [makeEx('觸地企', { mustDo: true }), makeEx('側臥抬腿', { note: '10下x3組' }), makeEx('Leg press')]
+        },
+        {
+          id: uid('pt'), bed: '21', name: '林淑儀', therapist: '馬',
+          side: 'R', aid: 'Quad', aidExtras: [], assist: '1A',
+          transportMode: '車', transportExtras: [],
+          riskFall: false, riskBp: true, riskPacemaker: false,
+          specialNote: 'NSTEMI, RPE<14', showNoteOnTv: true, attendance: 'present',
+          transportOrder: 2, transportStaff: 'J', transportTime: '09:08',
+          walkLogs: [],
+          bpLogs: [{ id: uid('bp'), label: 'initial BP', sbp: 122, dbp: 55, hr: 60, time: '09:10' }],
+          exercises: [makeEx('藍平衡', { mustDo: true }), makeEx('NuStep'), makeEx('舉棍', { note: '2lb' })]
+        },
+        {
+          id: uid('pt'), bed: '25', name: '張美玲', therapist: '江',
+          side: 'Bi', aid: 'W/C', aidExtras: ['綁腳'], assist: '不宜行',
+          transportMode: '企車', transportExtras: ['吊機', '雙人'],
+          riskFall: true, riskBp: true, riskPacemaker: true,
+          specialNote: '裝有心臟起搏器，企車需分段度血壓', showNoteOnTv: true, attendance: 'present',
+          transportOrder: null, transportStaff: '', transportTime: '',
+          walkLogs: [],
+          bpLogs: [{ id: uid('bp'), label: 'initial BP', sbp: 125, dbp: 76, hr: 64, time: '09:15' }],
+          exercises: [makeEx('震震機', { mustDo: true }), makeEx('企車', { note: 'in standing w/c' }), makeEx('踏級(低)')]
+        },
+        {
+          id: uid('pt'), bed: '29', name: '李國明', therapist: '江',
+          side: 'R', aid: 'Quad', aidExtras: ['Gaiter', 'AFO'], assist: '2A',
+          transportMode: '企車', transportExtras: [],
+          riskFall: true, riskBp: false, riskPacemaker: false,
+          specialNote: '', showNoteOnTv: false, attendance: 'present',
+          transportOrder: null, transportStaff: '', transportTime: '',
+          walkLogs: [],
+          bpLogs: [],
+          exercises: [makeEx('企車'), makeEx('沙包', { note: '2lb SB' }), makeEx('踏級(低)')]
+        }
+      ];
+    }
+
+    function createInitialState() {
+      return {
+        date: todayISO(),
+        settings: createDefaultSettings(),
+        audioOn: true,
+        tvPageSize: 0,
+        onDutyTransport: ['G', 'H', 'J', 'K', 'R', 'Y'],
+        transportCounter: 2,
+        _lastUpdatedAt: Date.now(),
+        patients: createDemoPatients()
+      };
+    }
+
+    function ensureStateIntegrity(raw) {
+      const def = createDefaultSettings();
+      const s = raw || createInitialState();
+      s.settings = Object.assign({}, def, s.settings || {});
+      if (!s.settings.firebaseConfigText) s.settings.firebaseConfigText = BUILTIN_FIREBASE_CONFIG;
+      if (!Array.isArray(s.settings.therapists) || !s.settings.therapists.length) s.settings.therapists = [...def.therapists];
+      if (!Array.isArray(s.settings.assistants) || !s.settings.assistants.length) s.settings.assistants = [...def.assistants];
+      if (!Array.isArray(s.settings.aids) || !s.settings.aids.length) s.settings.aids = [...def.aids];
+      if (!Array.isArray(s.settings.aidExtras)) s.settings.aidExtras = [...def.aidExtras];
+      if (!Array.isArray(s.settings.assists) || !s.settings.assists.length) s.settings.assists = [...def.assists];
+      if (!Array.isArray(s.settings.transportModes)) s.settings.transportModes = [...def.transportModes];
+      if (!Array.isArray(s.settings.transportExtras)) s.settings.transportExtras = [...def.transportExtras];
+      if (!Array.isArray(s.settings.earlyReasons)) s.settings.earlyReasons = [...def.earlyReasons];
+      if (!Array.isArray(s.settings.exerciseLibrary) || !s.settings.exerciseLibrary.length) s.settings.exerciseLibrary = createDefaultExerciseLibrary();
+      if (typeof s.settings.trackStaffAssignment !== 'boolean') s.settings.trackStaffAssignment = true;
+      if (!Array.isArray(s.patients)) s.patients = [];
+      s.patients.forEach(pt => {
+        if (!Array.isArray(pt.aidExtras)) pt.aidExtras = [];
+        if (!Array.isArray(pt.transportExtras)) pt.transportExtras = [];
+        if (!Array.isArray(pt.walkLogs)) pt.walkLogs = [];
+        if (!Array.isArray(pt.bpLogs)) pt.bpLogs = [];
+        if (!Array.isArray(pt.exercises)) pt.exercises = [];
+        pt.exercises.forEach(ex => {
+          if (!Array.isArray(ex.startStaffList)) ex.startStaffList = ex.startStaff ? [ex.startStaff] : [];
+          if (!Array.isArray(ex.endStaffList)) ex.endStaffList = ex.endStaff ? [ex.endStaff] : [];
+          if (!Array.isArray(ex.bpRecords)) ex.bpRecords = ex.bp ? [ex.bp] : [];
+        });
+      });
+      return s;
+    }
+
+    function loadState() {
+      let embedded = null;
+      try {
+        const embEl = document.getElementById('embeddedStateScript');
+        if (embEl && embEl.textContent && embEl.textContent.trim() !== 'null') {
+          embedded = JSON.parse(embEl.textContent);
+        }
+      } catch (e) {}
+
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (embedded && (!parsed._embeddedVersion || embedded._embeddedVersion > parsed._embeddedVersion)) {
+            state = ensureStateIntegrity(embedded);
+            persistLocalOnly();
+            return;
+          }
+          state = ensureStateIntegrity(parsed);
+          return;
+        }
+      } catch (e) {}
+
+      state = ensureStateIntegrity(embedded || createInitialState());
+      persistLocalOnly();
+    }
+
+    function persistLocalOnly() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    }
+
+    function persistState(broadcast = true) {
+      hasUnsavedDailyWork = true;
+      persistLocalOnly();
+      if (broadcast && syncChannel) {
+        try { syncChannel.postMessage({ type: 'SYNC_STATE', state }); } catch (e) {}
+      }
+      if (broadcast) pushStateToFirebase();
+    }
+
+    function exportUpdatedSelfHtml() {
+      const snapshot = JSON.parse(JSON.stringify(state));
+      snapshot._embeddedVersion = Date.now();
+      const jsonPayload = JSON.stringify(snapshot).replace(/<\/script>/gi, '<\\/script>');
+
+      const docClone = document.documentElement.cloneNode(true);
+      const emb = docClone.querySelector('#embeddedStateScript');
+      if (emb) emb.textContent = jsonPayload;
+
+      const ws = docClone.querySelector('#workspace');
+      if (ws) ws.innerHTML = '';
+
+      const htmlStr = '<!DOCTYPE html>\n' + docClone.outerHTML;
+      const blob = new Blob([htmlStr], { type: 'text/html;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `rehab_gym_backup_${todayISO()}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast('💾 已下載本地離線快照 HTML 備份檔');
+    }
+
+    /* ========================================================================
+       音效與語音報時
+       ======================================================================== */
+    let audioCtx = null;
+    function unlockAudio() {
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        if (!audioCtx) audioCtx = new Ctx();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+      } catch (e) {}
+    }
+    document.addEventListener('pointerdown', unlockAudio, { passive: true });
+
+    function playChime(isSecond = false) {
+      if (!state.audioOn) return;
+      try {
+        unlockAudio();
+        if (!audioCtx) return;
+        const now = audioCtx.currentTime;
+        const freqs = isSecond ? [659.25, 880, 659.25] : [587.33, 880];
+        freqs.forEach((f, idx) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(f, now + idx * 0.22);
+          gain.gain.setValueAtTime(0.0001, now + idx * 0.22);
+          gain.gain.exponentialRampToValueAtTime(0.25, now + idx * 0.22 + 0.03);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.22 + 0.55);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now + idx * 0.22);
+          osc.stop(now + idx * 0.22 + 0.6);
+        });
+      } catch (e) {}
+    }
+
+    function speakCantonese(text) {
+      if (!state.audioOn || !state.settings.voiceEnabled || typeof window.speechSynthesis === 'undefined') return;
+      try {
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'zh-HK';
+        u.rate = 0.96;
+        window.speechSynthesis.speak(u);
+      } catch (e) {}
+    }
+
+    /* ========================================================================
+       自動排序與大電視分頁
+       ======================================================================== */
+    function bedNumeric(bed) {
+      const n = parseInt(String(bed).replace(/[^\d]/g, ''), 10);
+      return isNaN(n) ? 9999 : n;
+    }
+
+    function sortExercisesForPatient(pt) {
+      return pt.exercises.filter(ex => isScheduledToday(ex.schedule)).slice().sort((a, b) => {
+        const tier = (ex) => ex.status === 'running' ? 0 : (ex.status === 'paused' ? 1 : (ex.status === 'pending' && ex.mustDo ? 2 : (ex.status === 'pending' ? 3 : 4)));
+        return tier(a) - tier(b);
+      });
+    }
+
+    function categorizePatients(filterTherapist = 'ALL') {
+      const waiting = [], active = [], done = [], inactive = [];
+      state.patients.forEach(pt => {
+        if (filterTherapist !== 'ALL' && pt.therapist !== filterTherapist) return;
+        if (pt.attendance !== 'present') { inactive.push(pt); return; }
+
+        const todayEx = pt.exercises.filter(ex => isScheduledToday(ex.schedule));
+        const runningEx = todayEx.filter(ex => ex.status === 'running' || ex.status === 'paused');
+        const pendingEx = todayEx.filter(ex => ex.status === 'pending');
+
+        if (runningEx.length > 0) {
+          let minRem = Infinity;
+          runningEx.forEach(ex => {
+            const m = computeExMetrics(ex, pt);
+            if (m.isCountdown && m.remainingSec < minRem) minRem = m.remainingSec;
+          });
+          active.push({ pt, key: minRem });
+        } else if (pendingEx.length > 0 || todayEx.length === 0) {
+          waiting.push(pt);
+        } else {
+          done.push(pt);
+        }
+      });
+      waiting.sort((a, b) => bedNumeric(a.bed) - bedNumeric(b.bed));
+      active.sort((a, b) => a.key - b.key);
+      done.sort((a, b) => bedNumeric(a.bed) - bedNumeric(b.bed));
+      inactive.sort((a, b) => bedNumeric(a.bed) - bedNumeric(b.bed));
+      return { waiting, active: active.map(x => x.pt), done, inactive };
+    }
+
+    function computeTVPageModel() {
+      const groups = categorizePatients('ALL');
+      const allOrdered = [...groups.waiting, ...groups.active, ...groups.done];
+      const pageSize = Number(state.tvPageSize) || 0;
+
+      if (pageSize <= 0 || allOrdered.length <= pageSize) {
+        return {
+          groups, visibleRows: allOrdered,
+          pinnedIds: new Set(allOrdered.filter(isPatientUrgent).map(p => p.id)),
+          doneIds: new Set(groups.done.map(p => p.id)),
+          isPaginated: false, currentPage: 1, totalPages: 1
+        };
+      }
+
+      const urgentActive = groups.active.filter(isPatientUrgent);
+      const urgentIds = new Set(urgentActive.map(p => p.id));
+      const regular = allOrdered.filter(p => !urgentIds.has(p.id));
+      const slots = Math.max(1, pageSize - urgentActive.length);
+      const totalPages = Math.max(1, Math.ceil(regular.length / slots));
+      const safeIdx = tvPageIndex % totalPages;
+      return {
+        groups,
+        visibleRows: [...urgentActive, ...regular.slice(safeIdx * slots, (safeIdx + 1) * slots)],
+        pinnedIds: urgentIds,
+        doneIds: new Set(groups.done.map(p => p.id)),
+        isPaginated: totalPages > 1,
+        currentPage: safeIdx + 1,
+        totalPages
+      };
+    }
+
+    /* ========================================================================
+       路由與主渲染
+       ======================================================================== */
+    function parseHashRoute() {
+      const h = window.location.hash || '';
+      if (h.startsWith('#bed=')) {
+        mobileBedNum = decodeURIComponent(h.slice(5)).trim();
+        isStandaloneTV = false;
+      } else if (h === '#tv') {
+        mobileBedNum = null;
+        isStandaloneTV = true;
+        viewMode = 'tv';
+      } else {
+        mobileBedNum = null;
+        isStandaloneTV = false;
+      }
+      document.body.classList.toggle('standalone-tv', isStandaloneTV);
+    }
+
+    function setViewMode(m) {
+      if (isStandaloneTV && m !== 'tv') {
+        isStandaloneTV = false;
+        document.body.classList.remove('standalone-tv');
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+      viewMode = m;
+      renderWorkspace();
+    }
+
+    function setTvPageSize(sz) {
+      state.tvPageSize = Number(sz);
+      tvPageIndex = 0;
+      tvPageElapsedMs = 0;
+      persistState(true);
+      renderWorkspace();
+    }
+
+    function cycleTvPageSize() {
+      const order = [0, 5, 4];
+      setTvPageSize(order[(order.indexOf(Number(state.tvPageSize)) + 1) % order.length]);
+    }
+
+    function stepTvPage(delta) {
+      const model = computeTVPageModel();
+      if (!model.isPaginated) return;
+      tvPageIndex = (tvPageIndex + delta + model.totalPages) % model.totalPages;
+      tvPageElapsedMs = 0;
+      renderWorkspace();
+    }
+
+    function renderWorkspace() {
+      const ws = document.getElementById('workspace');
+
+      if (mobileBedNum) {
+        document.getElementById('topbar').style.display = 'none';
+        document.getElementById('tvFloatBar').style.display = 'none';
+        ws.className = 'workspace';
+        ws.innerHTML = renderMobileBedView(mobileBedNum);
+        return;
+      }
+
+      document.getElementById('topbar').style.display = isStandaloneTV ? 'none' : 'flex';
+      document.getElementById('tvFloatBar').style.display = isStandaloneTV ? 'flex' : 'none';
+      document.getElementById('topbarTitle').textContent = state.settings.systemTitle;
+      document.getElementById('topbarSub').textContent = `${todayISO()}（${weekdayZh()}）`;
+
+      document.querySelectorAll('[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === viewMode));
+      document.querySelectorAll('[data-page]').forEach(b => b.classList.toggle('active', Number(b.dataset.page) === Number(state.tvPageSize)));
+
+      const aText = state.audioOn ? '🔊 提示音開' : '🔇 靜音中';
+      document.getElementById('btnAudio').textContent = aText;
+      document.getElementById('tvFloatAudio').textContent = aText;
+      document.getElementById('floatPageLabel').textContent = Number(state.tvPageSize) > 0 ? `每頁 ${state.tvPageSize} 人` : '全部顯示';
+
+      if (isStandaloneTV || viewMode === 'tv') {
+        ws.className = 'workspace mode-tv';
+        ws.innerHTML = renderTVBoard();
+      } else if (viewMode === 'pc') {
+        ws.className = 'workspace mode-pc';
+        ws.innerHTML = renderPCConsole();
+      } else {
+        const pcPane = ws.querySelector('.split-pane-pc');
+        const pcScroll = pcPane ? pcPane.scrollTop : 0;
+        ws.className = 'workspace mode-split';
+        ws.innerHTML = `
+          <section class="split-pane split-pane-pc">
+            <div class="pane-banner" style="margin:-10px -12px 9px -12px;">
+              <span>💻 電腦操作台 (46%)</span>
+              <span>全設定雲端同步・步行預設</span>
+            </div>
+            ${renderPCConsole()}
+          </section>
+          <section class="split-pane split-pane-tv">
+            <div class="pane-banner">
+              <span>📺 46吋大電視預覽 (54%・${Number(state.tvPageSize) > 0 ? '每頁 ' + state.tvPageSize + ' 人' : '全部顯示'})</span>
+              <span style="color:#38bdf8;">統一字號・貼邊放大・步行Tick</span>
+            </div>
+            ${renderTVBoard()}
+          </section>
+        `;
+        const newPc = ws.querySelector('.split-pane-pc');
+        if (newPc) newPc.scrollTop = pcScroll;
+      }
+    }
+
+    /* ========================================================================
+       手機掃描床號 QR Code 專屬極簡操作介面 (#bed=21)
+       ======================================================================== */
+    function renderMobileBedView(bedNum) {
+      const pt = state.patients.find(p => String(p.bed) === String(bedNum));
+      if (!pt) {
+        return `
+          <div class="mobile-bed-app" style="justify-content:center; align-items:center; text-align:center;">
+            <div style="font-size:28px; font-weight:900;">找不到 ${esc(bedNum)} 號床排程</div>
+            <div style="color:#94a3b8; font-size:15px;">請確認主電腦已啟動並開啟今日排程</div>
+          </div>
+        `;
+      }
+
+      const r = getRiskInfo(pt);
+      const trackStaff = state.settings.trackStaffAssignment;
+      const walkDone = (pt.walkLogs || []).length > 0;
+      const totalWalkDist = (pt.walkLogs || []).reduce((s, w) => s + (Number(w.dist) || 0), 0);
+
+      const staffSelectorHtml = trackStaff ? `
+        <div style="background:#1e293b; border-radius:14px; padding:12px;">
+          <div style="font-size:13px; font-weight:800; color:#94a3b8; margin-bottom:8px;">1. 先點選你的代號（可多選超過一人）：</div>
+          <div style="display:flex; flex-wrap:wrap; gap:8px;">
+            ${state.settings.assistants.map(ch => `
+              <button class="m-staff-chip ${mobileStaffSelected.includes(ch) ? 'selected' : ''}" onclick="toggleMobileStaff('${esc(ch)}')">${esc(ch)}</button>
+            `).join('')}
+          </div>
+        </div>
+      ` : '';
+
+      const exCardsHtml = sortExercisesForPatient(pt).map(ex => {
+        const m = computeExMetrics(ex, pt);
+        if (ex.status === 'pending') {
+          return `
+            <button class="m-ex-btn" onclick="mobileStartEx('${pt.id}', '${ex.id}')">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:22px; font-weight:900;">${ex.mustDo ? '★ ' : ''}${esc(ex.name)}</span>
+                <span style="font-size:16px; font-weight:800; color:#0369a1; background:#e0f2fe; padding:4px 10px; border-radius:8px;">▶ 點擊開始 (${ex.plannedMin}m)</span>
+              </div>
+              ${ex.note ? `<div style="font-size:14px; color:#64748b; font-weight:700;">備註：${esc(ex.note)}</div>` : ''}
+            </button>
+          `;
+        }
+        if (ex.status === 'running' || ex.status === 'paused') {
+          const timeStr = m.isCountdown ? (m.remainingSec < 0 ? `+${formatMMSS(m.overdueSec)}` : formatMMSS(m.remainingSec)) : formatMMSS(m.elapsedSec);
+          const staffStr = formatStaffList(ex.startStaffList);
+          return `
+            <div class="m-ex-btn is-running">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:22px; font-weight:900;">${esc(ex.name)}</span>
+                ${staffStr ? `<span style="background:#0f172a; color:#fff; padding:3px 9px; border-radius:7px; font-weight:900;">${esc(staffStr)}</span>` : ''}
+              </div>
+              <div style="font-size:38px; font-weight:900; color:#0369a1;" class="tabular">${timeStr}</div>
+              <div style="display:flex; gap:10px; margin-top:4px;">
+                <button style="flex:1; padding:14px; border-radius:10px; background:#059669; color:#fff; font-size:18px; font-weight:900;"
+                        onclick="openFinishModal('${pt.id}', '${ex.id}', 'completed')">✓ 完成</button>
+                <button style="flex:1; padding:14px; border-radius:10px; background:#fee2e2; border:2px solid #dc2626; color:#991b1b; font-size:18px; font-weight:900;"
+                        onclick="openFinishModal('${pt.id}', '${ex.id}', 'early_stopped')">⏹ 提早結束</button>
+              </div>
+            </div>
+          `;
+        }
+        return `
+          <div class="m-ex-btn is-done">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:19px; font-weight:900;">✓ ${esc(ex.name)}</span>
+              <span style="font-size:14px; font-weight:800;">已完成 (${formatMMSS(ex.accumulatedSec)})</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="mobile-bed-app">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:13px; font-weight:800; color:#38bdf8;">☁️ 運動室床邊即時同步端（零姓名去識別化）</span>
+            <span class="tabular" style="font-size:13px; color:#94a3b8;">${nowHHMM()}</span>
+          </div>
+
+          <div class="m-bed-card ${r.cls}">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+              <div style="font-size:44px; font-weight:900; line-height:1;">${esc(pt.bed)}號床 ${r.symHtml}</div>
+              ${renderSideVisual(pt.side)}
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; align-items:center;">
+              <span style="font-size:20px; font-weight:900; background:rgba(15,23,42,0.08); padding:4px 12px; border-radius:8px;">${esc(pt.aid)}</span>
+              <span style="font-size:20px; font-weight:900; background:${isAssistHighlighted(pt.assist) ? '#c2410c' : 'rgba(15,23,42,0.08)'}; color:${isAssistHighlighted(pt.assist) ? '#fff' : '#0f172a'}; padding:4px 12px; border-radius:8px;">${esc(pt.assist)}</span>
+              ${pt.transportMode ? `<span style="font-size:16px; font-weight:900; background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:8px;">🚐 ${esc(pt.transportMode)}</span>` : ''}
+            </div>
+          </div>
+
+          ${staffSelectorHtml}
+
+          <button style="width:100%; padding:15px; border-radius:14px; background:${walkDone ? '#16a34a' : '#ffffff'}; color:${walkDone ? '#ffffff' : '#166534'}; border:2.5px solid #16a34a; font-size:19px; font-weight:900; display:flex; justify-content:space-between; align-items:center;"
+                  onclick="openWalkModal('${pt.id}')">
+            <span>🚶 步行訓練 (${esc(pt.aid)} · ${esc(pt.assist)})</span>
+            <span>${walkDone ? `✓ 已行 ${totalWalkDist}m (＋加記)` : '＋ 記錄步行'}</span>
+          </button>
+
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            ${exCardsHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    function toggleMobileStaff(ch) {
+      if (mobileStaffSelected.includes(ch)) mobileStaffSelected = mobileStaffSelected.filter(x => x !== ch);
+      else mobileStaffSelected.push(ch);
+      renderWorkspace();
+    }
+
+    function mobileStartEx(ptId, exId) {
+      const { pt, ex } = getPtEx(ptId, exId);
+      if (!pt || !ex) return;
+      if (state.settings.trackStaffAssignment && mobileStaffSelected.length === 0) {
+        showToast('請先在上方點選你的助理代號（可多選）');
+        return;
+      }
+      ex.status = 'running';
+      ex.startStaffList = [...mobileStaffSelected];
+      ex.startedAt = Date.now();
+      ex.accumulatedSec = 0;
+      persistState(true);
+      renderWorkspace();
+      showToast(`▶ ${pt.bed}號床「${ex.name}」已開始並同步大電視`);
+    }
+
+    /* ========================================================================
+       46 吋大電視看板渲染
+       ======================================================================== */
+    function renderTVBoard() {
+      const model = computeTVPageModel();
+      const rows = model.visibleRows;
+      const rowCount = Math.max(1, rows.length);
+
+      const availH = (isStandaloneTV || viewMode === 'tv') ? (window.innerHeight - 64) : (window.innerHeight - 96);
+      const rowH = Math.max(46, Math.floor((availH - (rowCount - 1) * 4) / rowCount));
+
+      const bedFont = Math.min(72, Math.max(24, Math.floor(rowH * 0.62)));
+      const symFont = Math.min(34, Math.max(14, Math.floor(bedFont * 0.46)));
+      const nameFont = Math.min(48, Math.max(19, Math.floor(rowH * 0.44)));
+      const mobFont = Math.min(28, Math.max(13, Math.floor(rowH * 0.27)));
+      const thFont = Math.min(34, Math.max(14, Math.floor(rowH * 0.34)));
+      const noteFont = Math.min(22, Math.max(12, Math.floor(rowH * 0.22)));
+      const timerFont = Math.min(54, Math.max(20, Math.floor(rowH * 0.46)));
+      const staffFont = Math.min(24, Math.max(12, Math.floor(rowH * 0.24)));
+
+      const colBedW = Math.round(bedFont * 1.9 + thFont * 1.2 + 24);
+      const colNameW = Math.round(nameFont * 3.3 + 12);
+      const colMobW = Math.round(mobFont * 7.8 + 16);
+
+      const boardVars = `
+        --tv-bed:${bedFont}px;
+        --tv-sym:${symFont}px;
+        --tv-name:${nameFont}px;
+        --tv-mob:${mobFont}px;
+        --tv-therapist:${thFont}px;
+        --tv-note:${noteFont}px;
+        --tv-timer:${timerFont}px;
+        --tv-staff:${staffFont}px;
+        --tv-col-bed:${colBedW}px;
+        --tv-col-name:${colNameW}px;
+        --tv-col-mob:${colMobW}px;
+      `;
+
+      const boardW = (isStandaloneTV || viewMode === 'tv') ? window.innerWidth : Math.floor(window.innerWidth * 0.54);
+      const availExW = Math.max(240, boardW - colBedW - colNameW - colMobW - 36);
+
+      const rowsHtml = rows.length === 0
+        ? '<div style="flex:1; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:28px; font-weight:900;">今日暫無出席排程</div>'
+        : rows.map(pt => renderTVRow(pt, model.doneIds.has(pt.id), model.isPaginated && model.pinnedIds.has(pt.id), rowH, availExW)).join('');
+
+      const pageNavHtml = model.isPaginated ? `
+        <div class="tv-page-nav">
+          <button class="tv-nav-btn" onclick="stepTvPage(-1)">◀</button>
+          <span class="tv-page-badge tabular">第 ${model.currentPage}/${model.totalPages} 頁</span>
+          <button class="tv-nav-btn" onclick="stepTvPage(1)">▶</button>
+        </div>
+      ` : '';
+
+      return `
+        <div class="tv-board" style="${boardVars}">
+          <div class="tv-header">
+            <div class="tv-head-left">
+              <span class="tv-board-title">${esc(state.settings.tvTitle)}</span>
+              ${pageNavHtml}
+              <div class="tv-kpi-inline tabular">
+                <span class="tv-kpi-chip">等待 ${model.groups.waiting.length}</span>
+                <span class="tv-kpi-chip running">計時 ${model.groups.active.length}</span>
+                <span class="tv-kpi-chip">完成 ${model.groups.done.length}</span>
+              </div>
+            </div>
+            <div class="tv-clock tabular">${nowHHMMSS()}</div>
+          </div>
+          <div class="tv-rows">${rowsHtml}</div>
+        </div>
+      `;
+    }
+
+    function renderTVRow(pt, isAllDone, isPinned, rowH, availExW) {
+      const r = getRiskInfo(pt);
+      const exList = sortExercisesForPatient(pt);
+      const warnAssist = isAssistHighlighted(pt.assist);
+      const tCol = getTherapistColor(pt.therapist);
+      const walkDone = (pt.walkLogs || []).length > 0;
+      const showNote = Boolean(pt.showNoteOnTv && pt.specialNote && pt.specialNote.trim());
+      const trackStaff = state.settings.trackStaffAssignment;
+
+      const effectiveRowH = showNote ? Math.floor(rowH * 0.74) : rowH;
+      const totalChars = exList.reduce((acc, ex) => acc + Array.from(ex.name).length + (ex.status === 'running' ? 6 : 1), 0) || 4;
+      const byWidth = Math.floor((availExW - exList.length * 18) / (totalChars * 1.08));
+      const byHeight = Math.floor(effectiveRowH * 0.56);
+      const exFont = Math.min(44, Math.max(14, Math.min(byWidth, byHeight)));
+
+      const exCardsHtml = exList.map(ex => {
+        const m = computeExMetrics(ex, pt);
+        const stageCls = m.stage !== 'normal' ? `stage-${m.stage}` : '';
+        if (ex.status === 'pending') {
+          return `
+            <div class="tv-ex status-pending ${ex.mustDo ? 'must-do' : ''}" style="--row-ex-font:${exFont}px;">
+              <span class="tv-ex-name-pending">${ex.mustDo ? '<span style="color:#d97706;">★</span>' : ''}${esc(ex.name)}</span>
+            </div>
+          `;
+        }
+        if (ex.status === 'running' || ex.status === 'paused') {
+          const timeText = m.isCountdown ? (m.remainingSec < 0 ? `+${formatMMSS(m.overdueSec)}` : formatMMSS(m.remainingSec)) : formatMMSS(m.elapsedSec);
+          const staffStr = trackStaff ? formatStaffList(ex.startStaffList) : '';
+          const fillCol = m.stage === 'critical' ? '#ffffff' : (m.stage === 'due' ? '#dc2626' : (m.stage === 'warn' ? '#d97706' : '#0d9488'));
+          return `
+            <div class="tv-ex status-${ex.status} ${stageCls}" style="--row-ex-active-font:${exFont}px;">
+              <div class="tv-ex-active-row">
+                <span class="tv-ex-name-active">${esc(ex.name)}</span>
+                <span class="tv-ex-timer tabular" data-timer-ex="${ex.id}">${timeText}</span>
+                ${staffStr ? `<span class="tv-staff">${esc(staffStr)}</span>` : ''}
+              </div>
+              <div class="tv-prog-track"><div class="tv-prog-fill" data-prog-ex="${ex.id}" style="width:${m.pct}%; background:${fillCol};"></div></div>
+            </div>
+          `;
+        }
+        return `
+          <div class="tv-ex status-${ex.status}" style="--row-ex-font:${exFont}px;">
+            <span class="tv-ex-name-pending" style="text-decoration:${ex.status === 'completed' ? 'line-through' : 'none'};">✓${esc(ex.name)}</span>
+          </div>
+        `;
+      }).join('');
+
+      const footerNoteHtml = showNote
+        ? `<div class="tv-row-footer-note">📌 ${esc(pt.specialNote.trim())}</div>`
+        : '';
+
+      return `
+        <div class="tv-row ${r.cls} ${isAllDone ? 'is-all-done' : ''} ${isPinned ? 'is-pinned' : ''}">
+          <div class="tv-col tv-col-bed tabular">
+            ${pt.therapist ? `<span class="tv-therapist-corner" style="background:${tCol};">${esc(pt.therapist)}</span>` : ''}
+            <span class="tv-bed-num">${esc(pt.bed)}</span>
+            ${r.symHtml}
+          </div>
+          <div class="tv-col tv-col-name">${esc(maskName(pt.name))}</div>
+          <div class="tv-col tv-col-mob">
+            <div class="tv-mob-top">
+              ${renderSideVisual(pt.side)}
+              <span class="tv-mob-aid">${esc(pt.aid)}</span>
+            </div>
+            <div class="tv-mob-bottom">
+              ${warnAssist ? `<span class="tv-mob-warn">${esc(pt.assist)}</span>` : `<span class="tv-mob-assist">${esc(pt.assist)}</span>`}
+              <span class="tv-walk-badge ${walkDone ? 'done' : ''}">${walkDone ? '✓ 步行' : '步行'}</span>
+            </div>
+          </div>
+          <div class="tv-col tv-col-ex">${exCardsHtml}</div>
+          ${footerNoteHtml}
+        </div>
+      `;
+    }
+
+    /* ========================================================================
+       電腦操作台渲染 (PC Console)
+       ======================================================================== */
+    function renderPCConsole() {
+      const therapists = Array.from(new Set([...state.settings.therapists, ...state.patients.map(p => p.therapist).filter(Boolean)]));
+      const groups = categorizePatients(therapistFilter);
+      const dutyList = state.onDutyTransport.filter(s => state.settings.assistants.includes(s));
+      const trCounts = {};
+      dutyList.forEach(s => { trCounts[s] = 0; });
+      state.patients.forEach(p => { if (p.attendance === 'present' && p.transportStaff) trCounts[p.transportStaff] = (trCounts[p.transportStaff] || 0) + 1; });
+      const minTr = dutyList.length ? Math.min(...dutyList.map(s => trCounts[s] || 0)) : 0;
+
+      const renderGroup = (title, badgeCls, list, isDone = false, isInactive = false) => {
+        if (!list.length) return '';
+        return `
+          <div class="band-header"><span>${title}</span><span class="band-count ${badgeCls}">${list.length} 位</span></div>
+          ${list.map(pt => renderPCPatientCard(pt, isDone, isInactive)).join('')}
+        `;
+      };
+
+      return `
+        <div class="transport-bar">
+          <div class="transport-bar-top">
+            <span class="transport-title">🚐 今日接送輪流計數（綠框＝接送最少）</span>
+            <div style="display:flex; gap:5px;">
+              <button class="mini-action-btn" onclick="showDutyDrawer=!showDutyDrawer; renderWorkspace();">${showDutyDrawer ? '▲ 收合' : '👤 當值助理'}</button>
+              <button class="seg-btn ${pcSortMode === 'clinical' ? 'active' : ''}" onclick="pcSortMode='clinical'; renderWorkspace();">排程順序</button>
+              <button class="seg-btn ${pcSortMode === 'transport' ? 'active' : ''}" onclick="pcSortMode='transport'; renderWorkspace();">接送次序</button>
+            </div>
+          </div>
+          <div class="transport-pills">
+            ${dutyList.map(ch => `<span class="tr-stat-pill ${(trCounts[ch] || 0) === minTr ? 'next-turn' : ''}">${esc(ch)} <span class="tr-stat-num tabular">${trCounts[ch] || 0}</span></span>`).join('')}
+          </div>
+          ${showDutyDrawer ? `
+            <div class="duty-drawer">
+              <span style="font-size:11.5px; font-weight:800;">勾選今日當值接送：</span>
+              ${state.settings.assistants.map(ch => `<button class="duty-chip ${state.onDutyTransport.includes(ch) ? 'on' : ''}" onclick="toggleAssistantOnDuty('${esc(ch)}')">${state.onDutyTransport.includes(ch) ? '✓ ' : ''}${esc(ch)}</button>`).join('')}
+            </div>
+          ` : ''}
+        </div>
+
+        <div class="pc-toolbar">
+          <div class="filter-chips">
+            <button class="filter-chip ${therapistFilter === 'ALL' ? 'active' : ''}" onclick="therapistFilter='ALL'; renderWorkspace();">全部 (${state.patients.length})</button>
+            ${therapists.map(t => {
+              const col = getTherapistColor(t);
+              const act = therapistFilter === t;
+              return `<button class="filter-chip ${act ? 'active' : ''}" style="${act ? `background:${col}; border-color:${col};` : `border-color:${col}; color:${col};`}" onclick="therapistFilter='${esc(t)}'; renderWorkspace();">${esc(t)}</button>`;
+            }).join('')}
+          </div>
+          <button class="btn-primary" onclick="openPatientEditor(null)">＋ 新增病人</button>
+        </div>
+
+        ${renderGroup('① 等待開始', 'waiting', groups.waiting)}
+        ${renderGroup('② 運動計時中', 'active', groups.active)}
+        ${renderGroup('③ 今日運動全部完成', 'done', groups.done, true)}
+        ${renderGroup('⏸ 請假・檢查／出院', 'inactive', groups.inactive, false, true)}
+      `;
+    }
+
+    function renderPCPatientCard(pt, isAllDone, isInactive) {
+      const r = getRiskInfo(pt);
+      const exList = sortExercisesForPatient(pt);
+      const isPickerOpen = openTransportPickerPtId === pt.id;
+      const warnAssist = isAssistHighlighted(pt.assist);
+      const tCol = getTherapistColor(pt.therapist);
+      const walkDone = (pt.walkLogs || []).length > 0;
+      const totalWalkDist = (pt.walkLogs || []).reduce((s, w) => s + (Number(w.dist) || 0), 0);
+      const bpCnt = (pt.bpLogs || []).length;
+      const trackStaff = state.settings.trackStaffAssignment;
+
+      const pickerHtml = isPickerOpen ? `
+        <div class="tr-inline-picker">
+          <div class="tr-picker-row">
+            <span style="font-size:11.5px; font-weight:800;">接送方式：</span>
+            ${state.settings.transportModes.map(m => `<button class="tr-mode-btn ${pt.transportMode === m ? 'is-mode' : ''}" onclick="togglePtTrMode('${pt.id}','${esc(m)}')">${esc(m)}</button>`).join('')}
+            <span style="font-size:11.5px; font-weight:800; margin-left:6px;">設備：</span>
+            ${Array.from(new Set([...state.settings.transportExtras, ...(pt.transportExtras || [])])).map(ex => `<button class="tr-mode-btn ${(pt.transportExtras || []).includes(ex) ? 'is-extra' : ''}" onclick="togglePtTrExtra('${pt.id}','${esc(ex)}')">${esc(ex)}</button>`).join('')}
+          </div>
+          <div class="tr-picker-row">
+            <span style="font-size:11.5px; font-weight:800;">指派接送助理：</span>
+            ${state.onDutyTransport.map(ch => `<button class="tr-pick-btn ${pt.transportStaff === ch ? 'is-current' : ''}" onclick="assignTransport('${pt.id}','${esc(ch)}')">${esc(ch)}</button>`).join('')}
+            ${pt.transportStaff ? `<button class="mini-action-btn" style="color:var(--red);" onclick="clearTransport('${pt.id}')">清除</button>` : ''}
+            <button class="mini-action-btn" style="margin-left:auto;" onclick="openTransportPickerPtId=null; renderWorkspace();">收合</button>
+          </div>
+        </div>
+      ` : '';
+
+      return `
+        <article class="pc-card ${r.cls} ${isAllDone ? 'is-all-done' : ''} ${isInactive ? 'is-inactive' : ''}">
+          <div class="pc-card-top">
+            <div class="pc-meta-left">
+              <span class="bed-badge tabular">${esc(pt.bed)}${r.symHtml}</span>
+              <span class="pc-name">${esc(pt.name)}</span>
+              ${pt.therapist ? `<span class="pc-tag therapist" style="background:${tCol};">${esc(pt.therapist)}</span>` : ''}
+              ${pt.transportStaff
+                ? `<button class="tr-assigned-pill" onclick="openTransportPickerPtId='${pt.id}'; renderWorkspace();">#${pt.transportOrder} ${esc(pt.transportStaff)}</button>`
+                : `<button class="tr-assign-btn" onclick="openTransportPickerPtId='${pt.id}'; renderWorkspace();">＋接送</button>`}
+              ${pt.transportMode ? `<span class="pc-tag tr-mode">🚐 ${esc(pt.transportMode)}</span>` : ''}
+              ${(pt.transportExtras || []).map(x => `<span class="pc-tag tr-extra">🪝 ${esc(x)}</span>`).join('')}
+              ${renderSideVisual(pt.side)}
+              <span class="pc-tag">${esc(pt.aid)}</span>
+              ${(pt.aidExtras || []).map(x => `<span class="pc-tag aid-extra">+${esc(x)}</span>`).join('')}
+              ${warnAssist ? `<span class="assist-warn-badge">⛔ ${esc(pt.assist)}</span>` : `<span class="pc-tag">${esc(pt.assist)}</span>`}
+              <button class="pc-tag walk-btn ${walkDone ? 'done' : ''}" onclick="openWalkModal('${pt.id}')">🚶 步行${walkDone ? ` ✓ ${totalWalkDist}m` : ''}</button>
+              <button class="pc-tag bp-btn" onclick="openBpModal('${pt.id}')">💓 血壓${bpCnt ? ` (${bpCnt})` : ''}</button>
+            </div>
+            <div class="pc-card-actions">
+              <select class="att-select" onchange="changeAttendance('${pt.id}', this.value)">
+                <option value="present" ${pt.attendance === 'present' ? 'selected' : ''}>今日出席</option>
+                <option value="absent" ${pt.attendance === 'absent' ? 'selected' : ''}>請假・檢查</option>
+                <option value="discharged" ${pt.attendance === 'discharged' ? 'selected' : ''}>已出院</option>
+              </select>
+              <button class="mini-action-btn" onclick="openPatientEditor('${pt.id}')">✏️ 編輯</button>
+            </div>
+          </div>
+
+          ${pt.specialNote ? `<div class="pc-note-banner"><span>📌 ${esc(pt.specialNote)}</span><span>${pt.showNoteOnTv ? '📺 大電視顯示中' : '💻 僅操作台顯示'}</span></div>` : ''}
+          ${pickerHtml}
+
+          <div class="pc-ex-row">
+            ${exList.map(ex => {
+              const m = computeExMetrics(ex, pt);
+              const stageCls = m.stage !== 'normal' ? `stage-${m.stage}` : '';
+              if (ex.status === 'pending') {
+                return `
+                  <div class="pc-ex status-pending ${ex.mustDo ? 'must-do' : ''}" onclick="handlePendingExClick('${pt.id}', '${ex.id}')">
+                    <div class="ex-head"><span class="ex-name">${ex.mustDo ? '<span class="star-mark">★</span>' : ''}${esc(ex.name)}</span><span style="font-size:11px; font-weight:800; color:#64748b;">${ex.plannedMin}m</span></div>
+                    <div class="ex-sub"><span>${esc(ex.note || '點一下開始')}</span></div>
+                  </div>
+                `;
+              }
+              if (ex.status === 'running' || ex.status === 'paused') {
+                const timeStr = m.isCountdown ? (m.remainingSec < 0 ? `+${formatMMSS(m.overdueSec)}` : formatMMSS(m.remainingSec)) : formatMMSS(m.elapsedSec);
+                const staffStr = trackStaff ? formatStaffList(ex.startStaffList) : '';
+                const fillCol = m.stage === 'critical' ? '#fff' : (m.stage === 'due' ? '#dc2626' : (m.stage === 'warn' ? '#d97706' : '#0d9488'));
+                return `
+                  <div class="pc-ex status-${ex.status} ${stageCls}">
+                    <div class="ex-head"><span class="ex-name">${esc(ex.name)}</span>${staffStr ? `<span class="staff-pill">${esc(staffStr)}</span>` : ''}</div>
+                    <div class="ex-head"><span class="pc-timer-text tabular" data-timer-ex="${ex.id}">${timeStr}</span><span style="font-size:11px; font-weight:800;">${ex.status === 'paused' ? '暫停' : '計時中'}</span></div>
+                    <div class="prog-track"><div class="prog-fill" data-prog-ex="${ex.id}" style="width:${m.pct}%; background:${fillCol};"></div></div>
+                    <div class="ex-btn-row">
+                      <button class="ex-ctrl pause" onclick="togglePause('${pt.id}','${ex.id}')">${ex.status === 'paused' ? '▶' : '⏸'}</button>
+                      <button class="ex-ctrl done" onclick="openFinishModal('${pt.id}','${ex.id}','completed')">✓ 完成</button>
+                      <button class="ex-ctrl early" onclick="openFinishModal('${pt.id}','${ex.id}','early_stopped')">⏹ 提早</button>
+                    </div>
+                  </div>
+                `;
+              }
+              const sStart = formatStaffList(ex.startStaffList);
+              const sEnd = formatStaffList(ex.endStaffList);
+              const staffBadge = trackStaff ? (sEnd && sEnd !== sStart ? `${sStart}→${sEnd}` : (sEnd || sStart)) : '';
+              return `
+                <div class="pc-ex status-${ex.status}">
+                  <div class="ex-head"><span class="ex-name" style="text-decoration:${ex.status === 'completed' ? 'line-through' : 'none'};">${ex.status === 'early_stopped' ? '⚠' : '✓'} ${esc(ex.name)}</span>${staffBadge ? `<span class="staff-pill" style="background:#475569;">${esc(staffBadge)}</span>` : ''}</div>
+                  <div class="ex-sub"><span class="tabular">${formatMMSS(ex.accumulatedSec)}</span><button style="color:var(--primary); font-weight:800;" onclick="resetExercise('${pt.id}','${ex.id}')">重做</button></div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </article>
+      `;
+    }
+
+    /* ========================================================================
+       開始運動、多選助理、完成與企車企枱分段 BP P
+       ======================================================================== */
+    function getPtEx(ptId, exId) {
+      const pt = state.patients.find(p => p.id === ptId);
+      const ex = pt ? pt.exercises.find(e => e.id === exId) : null;
+      return { pt, ex };
+    }
+
+    function handlePendingExClick(ptId, exId) {
+      const { pt, ex } = getPtEx(ptId, exId);
+      if (!pt || !ex) return;
+
+      if (!state.settings.trackStaffAssignment) {
+        unlockAudio();
+        ex.status = 'running';
+        ex.startStaffList = [];
+        ex.startedAt = Date.now();
+        ex.accumulatedSec = 0;
+        ex.alertedDue = false;
+        ex.alertedCritical = false;
+        persistState(true);
+        renderWorkspace();
+        showToast(`▶ ${pt.bed}號床「${ex.name}」已直接開始計時`);
+        return;
+      }
+
+      openStartModal(ptId, exId);
+    }
+
+    function openStartModal(ptId, exId) {
+      const { pt, ex } = getPtEx(ptId, exId);
+      if (!pt || !ex) return;
+      uiCtx.patientId = ptId;
+      uiCtx.exId = exId;
+      uiCtx.startMin = Number(ex.plannedMin) || state.settings.defaultExMin;
+      uiCtx.startCountUp = Boolean(ex.countUp);
+      uiCtx.selectedStartStaff = [];
+
+      document.getElementById('startModalTitle').textContent = `開始運動：${pt.bed}號床 — ${ex.name}`;
+      document.getElementById('startModalInfo').innerHTML = `<strong>${esc(pt.bed)}號床 ${esc(pt.name)}</strong>｜運動：<strong>${esc(ex.name)}</strong> ${ex.note ? `(${esc(ex.note)})` : ''}`;
+      document.getElementById('startStaffSection').style.display = state.settings.trackStaffAssignment ? 'flex' : 'none';
+      syncStartDurationUI();
+      renderStartStaffGrid();
+      openModal('startModal');
+    }
+
+    function renderStartStaffGrid() {
+      document.getElementById('startStaffGrid').innerHTML = state.settings.assistants.map(ch => `
+        <button class="staff-tile ${uiCtx.selectedStartStaff.includes(ch) ? 'selected' : ''}" onclick="toggleStartStaff('${esc(ch)}')">${esc(ch)}</button>
+      `).join('');
+    }
+    function toggleStartStaff(ch) {
+      if (uiCtx.selectedStartStaff.includes(ch)) uiCtx.selectedStartStaff = uiCtx.selectedStartStaff.filter(x => x !== ch);
+      else uiCtx.selectedStartStaff.push(ch);
+      renderStartStaffGrid();
+    }
+
+    function syncStartDurationUI() {
+      const inp = document.getElementById('startMinInput');
+      inp.value = uiCtx.startMin;
+      inp.disabled = uiCtx.startCountUp;
+      document.getElementById('startCountUpToggle').classList.toggle('countup-on', uiCtx.startCountUp);
+    }
+    function adjustStartModalMin(d) { uiCtx.startCountUp = false; uiCtx.startMin = Math.max(1, Math.min(90, uiCtx.startMin + d)); syncStartDurationUI(); }
+    function applyStartModalMin(v) { uiCtx.startMin = Math.max(1, Math.min(90, parseInt(v, 10) || 15)); syncStartDurationUI(); }
+    function toggleStartModalCountUp() { uiCtx.startCountUp = !uiCtx.startCountUp; syncStartDurationUI(); }
+
+    function confirmStartExercise(directDone) {
+      const { pt, ex } = getPtEx(uiCtx.patientId, uiCtx.exId);
+      if (!pt || !ex) return;
+      if (state.settings.trackStaffAssignment && uiCtx.selectedStartStaff.length === 0) {
+        showToast('請至少點選一位負責助理');
+        return;
+      }
+      unlockAudio();
+      closeModal('startModal');
+
+      ex.plannedMin = uiCtx.startMin;
+      ex.countUp = uiCtx.startCountUp;
+      ex.startStaffList = [...uiCtx.selectedStartStaff];
+      ex.endStaffList = [...uiCtx.selectedStartStaff];
+
+      if (directDone) {
+        ex.accumulatedSec = ex.countUp ? 0 : ex.plannedMin * 60;
+        if (pt.riskBp || isStandExerciseName(ex.name)) {
+          ex.status = 'paused';
+          persistState(true);
+          openFinishModal(pt.id, ex.id, 'completed');
+          return;
+        }
+        ex.status = 'completed';
+        ex.finishedAt = Date.now();
+        persistState(true);
+        renderWorkspace();
+        showToast(`✓ 已直接標記 ${pt.bed}號床「${ex.name}」完成`);
+        return;
+      }
+
+      ex.status = 'running';
+      ex.startedAt = Date.now();
+      ex.accumulatedSec = 0;
+      ex.alertedDue = false;
+      ex.alertedCritical = false;
+      persistState(true);
+      renderWorkspace();
+      showToast(`▶ ${pt.bed}號床「${ex.name}」開始計時`);
+    }
+
+    function togglePause(ptId, exId) {
+      const { pt, ex } = getPtEx(ptId, exId);
+      if (!pt || !ex) return;
+      if (ex.status === 'running') {
+        if (ex.startedAt) ex.accumulatedSec += Math.max(0, (Date.now() - ex.startedAt) / 1000);
+        ex.startedAt = null;
+        ex.status = 'paused';
+      } else {
+        ex.startedAt = Date.now();
+        ex.status = 'running';
+      }
+      persistState(true);
+      renderWorkspace();
+    }
+
+    function openFinishModal(ptId, exId, mode) {
+      const { pt, ex } = getPtEx(ptId, exId);
+      if (!pt || !ex) return;
+
+      const m = computeExMetrics(ex, pt);
+      uiCtx.patientId = ptId;
+      uiCtx.exId = exId;
+      uiCtx.finishMode = mode;
+      uiCtx.selectedFinishStaff = [...(ex.startStaffList || [])];
+      uiCtx.earlyReason = '';
+
+      const isEarly = mode === 'early_stopped';
+      const isStand = isStandExerciseName(ex.name);
+      const shouldOpenBp = Boolean(pt.riskBp || isStand);
+
+      document.getElementById('finishModalTitle').textContent = isEarly ? `提早結束：${pt.bed}號床 — ${ex.name}` : `完成運動：${pt.bed}號床 — ${ex.name}`;
+      document.getElementById('finishSummary').innerHTML = `
+        <strong>${esc(pt.bed)}號床 ${esc(pt.name)}</strong>｜運動：<strong>${esc(ex.name)}</strong>｜實際時間：<strong class="tabular">${formatMMSS(m.elapsedSec)}</strong>
+      `;
+
+      document.getElementById('finishStaffSection').style.display = state.settings.trackStaffAssignment ? 'flex' : 'none';
+      renderFinishStaffGrid();
+
+      document.getElementById('earlyReasonWrap').style.display = isEarly ? 'flex' : 'none';
+      document.getElementById('earlyNoteInput').value = '';
+      if (isEarly) {
+        document.getElementById('earlyReasonGrid').innerHTML = state.settings.earlyReasons.map(r => `
+          <button class="reason-btn" onclick="uiCtx.earlyReason='${esc(r)}'; document.querySelectorAll('.reason-btn').forEach(b=>b.classList.toggle('selected', b.textContent==='${esc(r)}'))">${esc(r)}</button>
+        `).join('');
+      }
+
+      if (isStand) {
+        uiCtx.finishBpRows = [
+          { timing: 'Post standing 5min', sbp: '', dbp: '', hr: '' },
+          { timing: 'Post standing 10min', sbp: '', dbp: '', hr: '' },
+          { timing: 'Post standing 15min', sbp: '', dbp: '', hr: '' }
+        ];
+      } else {
+        uiCtx.finishBpRows = [
+          { timing: isEarly ? `Early terminated at ${secToWholeMin(m.elapsedSec)} min` : 'Post exercise', sbp: '', dbp: '', hr: '' }
+        ];
+      }
+
+      renderFinishBpRows();
+      document.getElementById('bpPanel').style.display = shouldOpenBp ? 'flex' : 'none';
+      document.getElementById('bpExpandWrap').style.display = shouldOpenBp ? 'none' : 'block';
+
+      const logs = pt.bpLogs || [];
+      document.getElementById('bpHistoryBar').innerHTML = logs.length
+        ? `早前讀數：` + logs.map(b => `${esc(b.label)} ${esc(b.sbp)}/${esc(b.dbp)} HR ${esc(b.hr)}`).join('； ')
+        : '';
+
+      const okBtn = document.getElementById('btnFinishConfirm');
+      okBtn.textContent = isEarly ? '確認提早結束並儲存' : '確認完成並儲存';
+      okBtn.style.background = isEarly ? '#dc2626' : '#059669';
+      openModal('finishModal');
+    }
+
+    function renderFinishStaffGrid() {
+      document.getElementById('finishStaffGrid').innerHTML = state.settings.assistants.map(ch => `
+        <button class="staff-tile ${uiCtx.selectedFinishStaff.includes(ch) ? 'selected' : ''}" onclick="toggleFinishStaff('${esc(ch)}')">${esc(ch)}</button>
+      `).join('');
+    }
+    function toggleFinishStaff(ch) {
+      if (uiCtx.selectedFinishStaff.includes(ch)) uiCtx.selectedFinishStaff = uiCtx.selectedFinishStaff.filter(x => x !== ch);
+      else uiCtx.selectedFinishStaff.push(ch);
+      renderFinishStaffGrid();
+    }
+
+    function renderFinishBpRows() {
+      const timings = [
+        'initial BP', 'Post standing 1min', 'Post standing 2min', 'Post standing 3min',
+        'Post standing 5min', 'Post standing 8min', 'Post standing 10min', 'Post standing 12min',
+        'Post standing 15min', 'Post standing 20min', 'Post standing 25min', 'Post standing 30min',
+        'Post exercise', 'R/C BP in sitting position'
+      ];
+      document.getElementById('finishBpRowsContainer').innerHTML = uiCtx.finishBpRows.map((row, idx) => `
+        <div class="bp-multi-row">
+          <select class="text-input" style="padding:5px; font-size:12px;" onchange="uiCtx.finishBpRows[${idx}].timing=this.value">
+            ${Array.from(new Set([row.timing, ...timings])).map(t => `<option value="${esc(t)}" ${row.timing === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}
+          </select>
+          <input type="number" class="bp-input tabular" placeholder="SBP" value="${esc(row.sbp)}" oninput="uiCtx.finishBpRows[${idx}].sbp=this.value" />
+          <input type="number" class="bp-input tabular" placeholder="DBP" value="${esc(row.dbp)}" oninput="uiCtx.finishBpRows[${idx}].dbp=this.value" />
+          <input type="number" class="bp-input tabular" placeholder="HR" value="${esc(row.hr)}" oninput="uiCtx.finishBpRows[${idx}].hr=this.value" />
+          <button class="step-btn" style="color:var(--red);" onclick="uiCtx.finishBpRows.splice(${idx},1); renderFinishBpRows();">✕</button>
+        </div>
+      `).join('');
+    }
+
+    function addFinishBpRow() {
+      uiCtx.finishBpRows.push({ timing: 'R/C BP in sitting position', sbp: '', dbp: '', hr: '' });
+      renderFinishBpRows();
+    }
+
+    function showBpPanelInFinish() {
+      document.getElementById('bpPanel').style.display = 'flex';
+      document.getElementById('bpExpandWrap').style.display = 'none';
+    }
+
+    function confirmFinishAction() {
+      const { pt, ex } = getPtEx(uiCtx.patientId, uiCtx.exId);
+      if (!pt || !ex) return;
+      const isEarly = uiCtx.finishMode === 'early_stopped';
+      if (isEarly && !uiCtx.earlyReason) { showToast('請點選提早結束原因'); return; }
+
+      if (ex.status === 'running' && ex.startedAt) ex.accumulatedSec += Math.max(0, (Date.now() - ex.startedAt) / 1000);
+      ex.startedAt = null;
+      ex.status = isEarly ? 'early_stopped' : 'completed';
+      ex.endStaffList = uiCtx.selectedFinishStaff.length ? [...uiCtx.selectedFinishStaff] : [...(ex.startStaffList || [])];
+      ex.finishedAt = Date.now();
+      ex.earlyReason = isEarly ? uiCtx.earlyReason : '';
+      ex.earlyNote = isEarly ? document.getElementById('earlyNoteInput').value.trim() : '';
+
+      const validBps = uiCtx.finishBpRows.filter(r => String(r.sbp).trim() || String(r.dbp).trim() || String(r.hr).trim());
+      ex.bpRecords = validBps.map(r => ({
+        id: uid('bp'),
+        label: r.timing,
+        sbp: String(r.sbp).trim() || '-',
+        dbp: String(r.dbp).trim() || '-',
+        hr: String(r.hr).trim() || '-',
+        time: nowHHMM()
+      }));
+      if (ex.bpRecords.length) {
+        pt.bpLogs.push(...ex.bpRecords);
+      }
+
+      closeModal('finishModal');
+      persistState(true);
+      renderWorkspace();
+      showToast(`✓ ${pt.bed}號床「${ex.name}」已儲存`);
+    }
+
+    function resetExercise(ptId, exId) {
+      const { pt, ex } = getPtEx(ptId, exId);
+      if (!pt || !ex) return;
+      ex.status = 'pending';
+      ex.startStaffList = [];
+      ex.endStaffList = [];
+      ex.startedAt = null;
+      ex.accumulatedSec = 0;
+      ex.bpRecords = [];
+      persistState(true);
+      renderWorkspace();
+    }
+
+    /* ========================================================================
+       步行紀錄彈窗
+       ======================================================================== */
+    function openWalkModal(ptId) {
+      const pt = state.patients.find(p => p.id === ptId);
+      if (!pt) return;
+      uiCtx.walkPatientId = ptId;
+      uiCtx.selectedWalkStaff = [...mobileStaffSelected];
+      document.getElementById('walkModalTitle').textContent = `🚶 ${pt.bed}號床 — 步行訓練紀錄`;
+      document.getElementById('walkDistInput').value = '';
+      document.getElementById('walkAssistInput').value = `${pt.aid} (${pt.assist})`;
+      document.getElementById('walkStaffSection').style.display = state.settings.trackStaffAssignment ? 'flex' : 'none';
+      renderWalkStaffGrid();
+      renderWalkLogList(pt);
+      openModal('walkModal');
+    }
+
+    function renderWalkStaffGrid() {
+      document.getElementById('walkStaffGrid').innerHTML = state.settings.assistants.map(ch => `
+        <button class="staff-tile ${uiCtx.selectedWalkStaff.includes(ch) ? 'selected' : ''}" onclick="toggleWalkStaff('${esc(ch)}')">${esc(ch)}</button>
+      `).join('');
+    }
+    function toggleWalkStaff(ch) {
+      if (uiCtx.selectedWalkStaff.includes(ch)) uiCtx.selectedWalkStaff = uiCtx.selectedWalkStaff.filter(x => x !== ch);
+      else uiCtx.selectedWalkStaff.push(ch);
+      renderWalkStaffGrid();
+    }
+
+    function saveWalkSession() {
+      const pt = state.patients.find(p => p.id === uiCtx.walkPatientId);
+      if (!pt) return;
+      const dist = parseFloat(document.getElementById('walkDistInput').value);
+      const assist = document.getElementById('walkAssistInput').value.trim() || `${pt.aid} (${pt.assist})`;
+      if (!dist || dist <= 0) { showToast('請輸入步行距離（米）'); return; }
+      if (state.settings.trackStaffAssignment && uiCtx.selectedWalkStaff.length === 0) { showToast('請選擇至少一位協助同事'); return; }
+
+      pt.walkLogs.push({
+        id: uid('wk'),
+        dist,
+        assist,
+        staffList: [...uiCtx.selectedWalkStaff],
+        time: nowHHMM()
+      });
+      document.getElementById('walkDistInput').value = '';
+      persistState(true);
+      renderWalkLogList(pt);
+      renderWorkspace();
+      showToast(`✓ 已記錄 ${pt.bed}號床步行 ${dist}m（大電視已顯示 Tick）`);
+    }
+
+    function renderWalkLogList(pt) {
+      const wrap = document.getElementById('walkLogList');
+      if (!pt.walkLogs || !pt.walkLogs.length) {
+        wrap.innerHTML = '<div class="empty-box" style="padding:10px;">今日暫無步行紀錄</div>';
+        return;
+      }
+      wrap.innerHTML = pt.walkLogs.map((w, i) => `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; margin-bottom:5px; font-size:13px;">
+          <span><strong>第 ${i + 1} 次 (${esc(w.time)})：</strong>${esc(w.assist)} × <strong>${esc(w.dist)}m</strong> ${w.staffList && w.staffList.length ? `[${esc(formatStaffList(w.staffList))}]` : ''}</span>
+          <button style="color:var(--red); font-weight:800;" onclick="deleteWalkLog('${pt.id}','${w.id}')">刪除</button>
+        </div>
+      `).join('');
+    }
+
+    function deleteWalkLog(ptId, wkId) {
+      const pt = state.patients.find(p => p.id === ptId);
+      if (!pt) return;
+      pt.walkLogs = pt.walkLogs.filter(w => w.id !== wkId);
+      persistState(true);
+      renderWalkLogList(pt);
+      renderWorkspace();
+    }
+
+    /* ========================================================================
+       獨立血壓紀錄彈窗
+       ======================================================================== */
+    function openBpModal(ptId) {
+      const pt = state.patients.find(p => p.id === ptId);
+      if (!pt) return;
+      uiCtx.bpPatientId = ptId;
+      document.getElementById('bpModalTitle').textContent = `💓 ${pt.bed}號床 ${pt.name} — 血壓紀錄`;
+      renderBpModalTable(pt);
+      openModal('bpModal');
+    }
+
+    function renderBpModalTable(pt) {
+      const wrap = document.getElementById('bpModalTableWrap');
+      if (!pt.bpLogs || !pt.bpLogs.length) {
+        wrap.innerHTML = '<div class="empty-box" style="padding:12px;">今日暫無血壓紀錄</div>';
+        return;
+      }
+      wrap.innerHTML = pt.bpLogs.map(b => `
+        <div style="display:flex; justify-content:space-between; padding:6px 10px; border-bottom:1px solid #e2e8f0; font-size:13px;">
+          <span>${esc(b.time)} <strong>${esc(b.label)}</strong>: ${esc(b.sbp)}/${esc(b.dbp)}, HR ${esc(b.hr)}</span>
+          <button style="color:var(--red);" onclick="ptDeleteBp('${pt.id}','${b.id}')">刪除</button>
+        </div>
+      `).join('');
+    }
+
+    function saveAdhocBp() {
+      const pt = state.patients.find(p => p.id === uiCtx.bpPatientId);
+      if (!pt) return;
+      const label = document.getElementById('adhocBpLabel').value.trim() || 'initial BP';
+      const sbp = document.getElementById('aSbp').value.trim();
+      const dbp = document.getElementById('aDbp').value.trim();
+      const hr = document.getElementById('aHr').value.trim();
+      if (!sbp && !dbp && !hr) return;
+      pt.bpLogs.push({ id: uid('bp'), label, sbp: sbp || '-', dbp: dbp || '-', hr: hr || '-', time: nowHHMM() });
+      document.getElementById('aSbp').value = '';
+      document.getElementById('aDbp').value = '';
+      document.getElementById('aHr').value = '';
+      persistState(true);
+      renderBpModalTable(pt);
+      renderWorkspace();
+    }
+
+    function ptDeleteBp(ptId, bpId) {
+      const pt = state.patients.find(p => p.id === ptId);
+      if (!pt) return;
+      pt.bpLogs = pt.bpLogs.filter(b => b.id !== bpId);
+      persistState(true);
+      renderBpModalTable(pt);
+      renderWorkspace();
+    }
+
+    /* ========================================================================
+       接送與病人編輯器
+       ======================================================================== */
+    function toggleAssistantOnDuty(ch) {
+      if (state.onDutyTransport.includes(ch)) {
+        if (state.onDutyTransport.length <= 1) return;
+        state.onDutyTransport = state.onDutyTransport.filter(s => s !== ch);
+      } else state.onDutyTransport.push(ch);
+      persistState(true);
+      renderWorkspace();
+    }
+
+    function togglePtTrMode(ptId, m) {
+      const pt = state.patients.find(p => p.id === ptId);
+      if (!pt) return;
+      pt.transportMode = pt.transportMode === m ? '' : m;
+      persistState(true);
+      renderWorkspace();
+    }
+
+    function togglePtTrExtra(ptId, ex) {
+      const pt = state.patients.find(p => p.id === ptId);
+      if (!pt) return;
+      if (!Array.isArray(pt.transportExtras)) pt.transportExtras = [];
+      if (pt.transportExtras.includes(ex)) pt.transportExtras = pt.transportExtras.filter(x => x !== ex);
+      else pt.transportExtras.push(ex);
+      persistState(true);
+      renderWorkspace();
+    }
+
+    function assignTransport(ptId, staff) {
+      const pt = state.patients.find(p => p.id === ptId);
+      if (!pt) return;
+      if (!pt.transportOrder) { state.transportCounter = (Number(state.transportCounter) || 0) + 1; pt.transportOrder = state.transportCounter; }
+      pt.transportStaff = staff;
+      pt.transportTime = nowHHMM();
+      openTransportPickerPtId = null;
+      persistState(true);
+      renderWorkspace();
+    }
+
+    function clearTransport(ptId) {
+      const pt = state.patients.find(p => p.id === ptId);
+      if (!pt) return;
+      pt.transportStaff = ''; pt.transportOrder = null; pt.transportTime = '';
+      openTransportPickerPtId = null;
+      persistState(true);
+      renderWorkspace();
+    }
+
+    function changeAttendance(ptId, val) {
+      const pt = state.patients.find(p => p.id === ptId);
+      if (!pt) return;
+      pt.attendance = val;
+      persistState(true);
+      renderWorkspace();
+    }
+
+    function openPatientEditor(ptId) {
+      uiCtx.editPatientId = ptId;
+      const existing = ptId ? state.patients.find(p => p.id === ptId) : null;
+      const s = state.settings;
+      if (existing) {
+        uiCtx.draft = JSON.parse(JSON.stringify(existing));
+        document.getElementById('patientModalTitle').textContent = `編輯病人：${existing.bed}號床`;
+        document.getElementById('btnRemovePatient').style.display = 'inline-block';
+      } else {
+        uiCtx.draft = {
+          id: uid('pt'), bed: '', name: '', therapist: s.therapists[0] || '',
+          side: 'L', aid: s.aids[1] || s.aids[0] || 'Frame', aidExtras: [],
+          assist: s.assists.includes('1A') ? '1A' : (s.assists[0] || ''),
+          transportMode: '', transportExtras: [],
+          riskFall: false, riskBp: false, riskPacemaker: false,
+          specialNote: '', showNoteOnTv: false, attendance: 'present',
+          transportOrder: null, transportStaff: '', transportTime: '',
+          walkLogs: [], bpLogs: [], exercises: []
+        };
+        document.getElementById('patientModalTitle').textContent = '＋ 新增病人（已預設包含步行訓練）';
+        document.getElementById('btnRemovePatient').style.display = 'none';
+      }
+      document.getElementById('edBed').value = uiCtx.draft.bed;
+      document.getElementById('edName').value = uiCtx.draft.name;
+      document.getElementById('edSpecialNote').value = uiCtx.draft.specialNote || '';
+      document.getElementById('edShowNoteTv').checked = Boolean(uiCtx.draft.showNoteOnTv);
+      document.getElementById('edTherapistCustom').value = s.therapists.includes(uiCtx.draft.therapist) ? '' : (uiCtx.draft.therapist || '');
+      updateLiveMaskPreview();
+      renderEditorChips();
+      renderPrescriptionMatrix();
+      renderDraftExercises();
+      openModal('patientModal');
+    }
+
+    function updateLiveMaskPreview() {
+      const v = document.getElementById('edName').value.trim();
+      document.getElementById('edMaskLive').textContent = v ? `(大電視：${maskName(v)})` : '';
+    }
+
+    function renderEditorChips() {
+      const d = uiCtx.draft;
+      const s = state.settings;
+      document.getElementById('edAttendanceChips').innerHTML = [
+        { v: 'present', t: '今日出席' }, { v: 'absent', t: '請假・檢查' }, { v: 'discharged', t: '已出院' }
+      ].map(o => `<button class="chip ${d.attendance === o.v ? 'selected' : ''}" onclick="uiCtx.draft.attendance='${o.v}'; renderEditorChips();">${o.t}</button>`).join('');
+
+      document.getElementById('edTherapistChips').innerHTML = s.therapists.map(t => `<button class="chip ${d.therapist === t ? 'selected' : ''}" onclick="uiCtx.draft.therapist='${esc(t)}'; renderEditorChips();">${esc(t)}</button>`).join('');
+      document.getElementById('edSideChips').innerHTML = SIDES.map(side => `<button class="chip ${d.side === side ? 'selected' : ''}" onclick="uiCtx.draft.side='${side}'; renderEditorChips();">${renderSideVisual(side)} ${side}</button>`).join('');
+      document.getElementById('edAidChips').innerHTML = s.aids.map(a => `<button class="chip ${d.aid === a ? 'selected' : ''}" onclick="uiCtx.draft.aid='${esc(a)}'; renderEditorChips();">${esc(a)}</button>`).join('');
+      document.getElementById('edAidExtraChips').innerHTML = s.aidExtras.map(x => `<button class="chip ${(d.aidExtras || []).includes(x) ? 'selected-extra' : ''}" onclick="toggleDraftArr('aidExtras','${esc(x)}')">${esc(x)}</button>`).join('');
+      document.getElementById('edAssistChips').innerHTML = s.assists.map(a => `<button class="chip ${d.assist === a ? (isAssistHighlighted(a) ? 'selected-warn' : 'selected') : ''}" onclick="uiCtx.draft.assist='${esc(a)}'; renderEditorChips();">${esc(a)}</button>`).join('');
+      document.getElementById('edTrModeChips').innerHTML = s.transportModes.map(m => `<button class="chip ${d.transportMode === m ? 'selected-warn' : ''}" onclick="uiCtx.draft.transportMode=(uiCtx.draft.transportMode==='${esc(m)}'?'':'${esc(m)}'); renderEditorChips();">${esc(m)}</button>`).join('');
+
+      const allTrEx = Array.from(new Set([...s.transportExtras, ...(d.transportExtras || [])]));
+      document.getElementById('edTrExtraChips').innerHTML = allTrEx.map(x => `<button class="chip ${(d.transportExtras || []).includes(x) ? 'selected-extra' : ''}" onclick="toggleDraftArr('transportExtras','${esc(x)}')">${esc(x)}</button>`).join('');
+
+      document.getElementById('edRiskChips').innerHTML = `
+        <button class="chip ${d.riskFall ? 'selected-fall' : ''}" onclick="uiCtx.draft.riskFall=!uiCtx.draft.riskFall; renderEditorChips();">▲ 高危跌倒</button>
+        <button class="chip ${d.riskBp ? 'selected-bp' : ''}" onclick="uiCtx.draft.riskBp=!uiCtx.draft.riskBp; renderEditorChips();">～ 血壓不穩</button>
+        <button class="chip ${d.riskPacemaker ? 'selected-pm' : ''}" onclick="uiCtx.draft.riskPacemaker=!uiCtx.draft.riskPacemaker; renderEditorChips();">♥ 心臟起搏器</button>
+      `;
+    }
+
+    function toggleDraftArr(key, val) {
+      if (!Array.isArray(uiCtx.draft[key])) uiCtx.draft[key] = [];
+      if (uiCtx.draft[key].includes(val)) uiCtx.draft[key] = uiCtx.draft[key].filter(x => x !== val);
+      else uiCtx.draft[key].push(val);
+      renderEditorChips();
+    }
+
+    function addCustomTrExtraToDraft() {
+      const inp = document.getElementById('edCustomTrExtra');
+      const v = inp.value.trim();
+      if (!v) return;
+      if (!uiCtx.draft.transportExtras.includes(v)) uiCtx.draft.transportExtras.push(v);
+      inp.value = '';
+      renderEditorChips();
+    }
+
+    function renderPrescriptionMatrix() {
+      const lib = state.settings.exerciseLibrary || [];
+      document.getElementById('editorMatrixContainer').innerHTML = EX_CATEGORIES.map(cat => {
+        const items = lib.filter(x => x.category === cat);
+        if (!items.length) return '';
+        return `
+          <div>
+            <div style="font-size:11px; font-weight:800; color:var(--primary); margin-bottom:4px;">${cat}</div>
+            <div class="chip-row">${items.map(item => `<button class="preset-btn" onclick="uiCtx.draft.exercises.push(makeEx('${esc(item.name)}',{plannedMin:${item.defaultMin},countUp:${item.mode === 'stopwatch'}})); renderDraftExercises();">＋ ${esc(item.name)}</button>`).join('')}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderDraftExercises() {
+      const list = uiCtx.draft.exercises;
+      document.getElementById('edDraftExList').innerHTML = !list.length
+        ? '<div class="empty-box" style="padding:10px;">步行已設為預設項目；可點上方加入其他器械或功能運動</div>'
+        : list.map((ex, idx) => `
+          <div class="draft-ex-row ${ex.mustDo ? 'is-must' : ''}">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <button class="step-btn ${ex.mustDo ? 'must-on' : ''}" onclick="uiCtx.draft.exercises[${idx}].mustDo=!uiCtx.draft.exercises[${idx}].mustDo; renderDraftExercises();">${ex.mustDo ? '★ 必做' : '☆ 一般'}</button>
+              <strong>${esc(ex.name)}</strong>
+              <input type="text" value="${esc(ex.note || '')}" placeholder="備註 (如 with 2lb SB)" oninput="uiCtx.draft.exercises[${idx}].note=this.value" style="width:130px; padding:3px 6px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px;" />
+            </div>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <input type="number" min="1" max="90" value="${ex.plannedMin}" onchange="uiCtx.draft.exercises[${idx}].plannedMin=Number(this.value)||15" style="width:48px; padding:3px; text-align:center; border:1px solid #cbd5e1; border-radius:6px;" />
+              <span style="font-size:11px;">分</span>
+              <button class="step-btn" style="color:var(--red);" onclick="uiCtx.draft.exercises.splice(${idx},1); renderDraftExercises();">✕</button>
+            </div>
+          </div>
+        `).join('');
+    }
+
+    function savePatientEditor() {
+      const bed = document.getElementById('edBed').value.trim();
+      const name = document.getElementById('edName').value.trim();
+      const customT = document.getElementById('edTherapistCustom').value.trim();
+      if (!bed || !name) { showToast('請填寫床號與名稱'); return; }
+      const d = uiCtx.draft;
+      d.bed = bed; d.name = name;
+      if (customT) d.therapist = customT;
+      d.specialNote = document.getElementById('edSpecialNote').value.trim();
+      d.showNoteOnTv = document.getElementById('edShowNoteTv').checked;
+
+      if (uiCtx.editPatientId) {
+        const idx = state.patients.findIndex(p => p.id === uiCtx.editPatientId);
+        if (idx !== -1) state.patients[idx] = d;
+      } else state.patients.push(d);
+
+      closeModal('patientModal');
+      persistState(true);
+      renderWorkspace();
+      showToast(`✓ 已儲存 ${d.bed}號床並同步雲端`);
+    }
+
+    function confirmDeletePatient() {
+      const pt = state.patients.find(p => p.id === uiCtx.editPatientId);
+      if (!pt) return;
+      openConfirm('永久刪除個案', `確定刪除 <strong>${esc(pt.bed)}號床 ${esc(pt.name)}</strong>？`, '確定刪除', '#dc2626', () => {
+        state.patients = state.patients.filter(p => p.id !== pt.id);
+        closeModal('patientModal');
+        persistState(true);
+        renderWorkspace();
+      });
+    }
+
+    /* ========================================================================
+       床號 QR Code 卡彈窗
+       ======================================================================== */
+    function openQrModal() {
+      const baseUrl = window.location.href.split('#')[0];
+      const presentPts = state.patients.filter(p => p.attendance === 'present').sort((a, b) => bedNumeric(a.bed) - bedNumeric(b.bed));
+      const isLocalFile = baseUrl.startsWith('file://');
+
+      document.getElementById('qrModalBody').innerHTML = `
+        ${isLocalFile ? `
+          <div style="background:#fef3c7; border:1.5px solid #f59e0b; border-radius:10px; padding:10px 12px; font-size:13px; color:#92400e;">
+            ⚠️ 目前你正在用本地電腦檔案（<code>file://</code>）開啟；請先將本檔案存為 <code>index.html</code> 上傳至免費 <strong>GitHub Pages</strong>，再用 GitHub 網址打開本頁列印 QR Code，同事手機 4G/5G 才能掃描進入。
+          </div>
+        ` : `<div style="background:#ecfdf5; border:1.5px solid #10b981; border-radius:10px; padding:9px 12px; font-size:13px; color:#065f46; font-weight:800;">✓ 雲端網址已就緒！列印以下可重複使用過膠床號 QR Code 卡，同事手機一掃即與大電視毫秒級同步。</div>`}
+        <div class="qr-grid">
+          ${presentPts.map(pt => {
+            const targetUrl = `${baseUrl}#bed=${encodeURIComponent(pt.bed)}`;
+            const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(targetUrl)}`;
+            return `
+              <div class="qr-card">
+                <div style="font-size:24px; font-weight:900;">${esc(pt.bed)} 號床</div>
+                <img src="${qrImg}" alt="${esc(pt.bed)}號床 QR" style="width:140px; height:140px; border:1px solid #e2e8f0; border-radius:8px;" />
+                <div style="font-size:12px; font-weight:800; color:#475569;">${esc(pt.side)} · ${esc(pt.aid)} · ${esc(pt.assist)}</div>
+                <a href="#bed=${encodeURIComponent(pt.bed)}" target="_blank" class="mini-action-btn" style="width:100%; justify-content:center;">📱 預覽此床手機畫面</a>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+      openModal('qrModal');
+    }
+
+    /* ========================================================================
+       每日完結報表與英文 Clinical Documentation
+       ======================================================================== */
+    function generateEnglishDocumentation(pt) {
+      const items = [];
+      const doneEx = pt.exercises.filter(ex => isScheduledToday(ex.schedule) && (ex.status === 'completed' || ex.status === 'early_stopped' || ex.status === 'running'));
+
+      doneEx.forEach(ex => {
+        const m = computeExMetrics(ex, pt);
+        const mins = secToWholeMin(m.elapsedSec);
+        const noteStr = ex.note ? ` (${ex.note})` : '';
+        let seg = `${ex.name}${noteStr} x ${mins} min`;
+
+        const bpParts = [];
+        if (items.length === 0 && pt.bpLogs) {
+          pt.bpLogs.filter(b => b.label.toLowerCase().includes('initial')).forEach(b => {
+            bpParts.push(`${b.label} ${b.sbp}/${b.dbp}, HR ${b.hr}`);
+          });
+        }
+        if (ex.bpRecords && ex.bpRecords.length) {
+          ex.bpRecords.forEach(b => {
+            bpParts.push(`${b.label}, BP ${b.sbp}/${b.dbp}, HR ${b.hr}`);
+          });
+        }
+        if (ex.status === 'early_stopped') {
+          const co = [ex.earlyReason, ex.earlyNote].filter(Boolean).join(' - ');
+          bpParts.push(`Early terminated at ${mins} min${co ? `, c/o: ${co}` : ''}`);
+        }
+        if (bpParts.length) {
+          seg += ` // ${bpParts.join('. ')}`;
+        }
+        items.push(seg);
+      });
+
+      if (pt.walkLogs && pt.walkLogs.length > 0) {
+        const dists = pt.walkLogs.map(w => `${w.dist}m`).join(' + ');
+        items.push(`Walking exercise with ${pt.aid} (${pt.assist}) x ${dists}`);
+      } else {
+        items.push(`Walking exercise with ${pt.aid} (${pt.assist}) [Not performed]`);
+      }
+
+      return `- ${items.join(', ')}`;
+    }
+
+    function openReportModal() {
+      const presentPts = state.patients.filter(p => p.attendance === 'present');
+      const therapists = Array.from(new Set(presentPts.map(p => p.therapist || '未指派')));
+      if (reportTherapistFilter !== 'ALL' && !therapists.includes(reportTherapistFilter)) reportTherapistFilter = 'ALL';
+
+      const shownTherapists = reportTherapistFilter === 'ALL' ? therapists : [reportTherapistFilter];
+      const allDocs = [];
+
+      const blocksHtml = shownTherapists.map(th => {
+        const thPts = presentPts.filter(p => (p.therapist || '未指派') === th).sort((a, b) => bedNumeric(a.bed) - bedNumeric(b.bed));
+        const col = getTherapistColor(th);
+
+        const ptCardsHtml = thPts.map(pt => {
+          const r = getRiskInfo(pt);
+          const docLine = generateEnglishDocumentation(pt);
+          allDocs.push(`[Bed ${pt.bed} ${pt.name}]\n${docLine}`);
+          const aidFull = [pt.aid, ...(pt.aidExtras || [])].join(' + ');
+          const trFull = [pt.transportMode, ...(pt.transportExtras || [])].filter(Boolean).join(' + ') || '-';
+          const doneEx = pt.exercises.filter(ex => isScheduledToday(ex.schedule));
+
+          return `
+            <div class="rep-pt-card">
+              <div class="rep-pt-head">
+                <strong style="font-size:15px;">${esc(pt.bed)}號床 ${esc(pt.name)}</strong>
+                <span>${esc(pt.side)} · ${esc(aidFull)} · ${esc(pt.assist)}</span>
+                <span>🚐 ${esc(trFull)}</span>
+                ${r.label !== '一般' ? `<span style="color:#b91c1c; font-weight:800;">${esc(r.label)}</span>` : ''}
+                ${pt.specialNote ? `<span style="color:#9a3412;">📌 ${esc(pt.specialNote)}</span>` : ''}
+              </div>
+              <table class="rep-ex-table">
+                <thead><tr><th>項目</th><th>狀態</th><th>時間 (分)</th><th>執行／交接</th><th>血壓／備註</th></tr></thead>
+                <tbody>
+                  ${doneEx.map(ex => {
+                    const m = computeExMetrics(ex, pt);
+                    const stMap = { completed: '完成', early_stopped: '提早結束', running: '進行中', paused: '暫停', pending: '未做' };
+                    const staffStr = state.settings.trackStaffAssignment
+                      ? `${formatStaffList(ex.startStaffList)}${ex.endStaffList && formatStaffList(ex.endStaffList) !== formatStaffList(ex.startStaffList) ? ' → ' + formatStaffList(ex.endStaffList) : ''}`
+                      : '-';
+                    const bpStr = (ex.bpRecords || []).map(b => `${b.label}: ${b.sbp}/${b.dbp} HR${b.hr}`).join('； ');
+                    return `
+                      <tr>
+                        <td><strong>${esc(ex.name)}</strong> ${ex.note ? `(${esc(ex.note)})` : ''}</td>
+                        <td>${stMap[ex.status] || ex.status}</td>
+                        <td class="tabular">${ex.status === 'pending' ? '-' : secToWholeMin(m.elapsedSec)}</td>
+                        <td>${esc(staffStr || '-')}</td>
+                        <td>${esc([bpStr, ex.earlyReason, ex.earlyNote].filter(Boolean).join('｜') || '-')}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                  <tr>
+                    <td><strong>🚶 步行訓練</strong></td>
+                    <td>${pt.walkLogs.length ? `完成 (${pt.walkLogs.length}次)` : '未做'}</td>
+                    <td class="tabular">${pt.walkLogs.length ? pt.walkLogs.map(w => w.dist + 'm').join(' + ') : '-'}</td>
+                    <td>${state.settings.trackStaffAssignment && pt.walkLogs.length ? esc(pt.walkLogs.map(w => formatStaffList(w.staffList)).join('；')) : '-'}</td>
+                    <td>${esc(pt.aid)} (${esc(pt.assist)})</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div style="margin-top:6px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:6px 9px; font-family:monospace; font-size:12px; color:#0f172a;">
+                ${esc(docLine)}
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <div class="rep-therapist-block">
+            <div class="rep-th-banner" style="background:${col};">
+              <span>主診治療師：${esc(th)}（共 ${thPts.length} 位病人・已按床號順序排列）</span>
+            </div>
+            ${ptCardsHtml}
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('reportMetaLine').textContent = `日期：${todayISO()}（${weekdayZh()}）｜已按治療師分類及床號排序`;
+      document.getElementById('reportModalBody').innerHTML = `
+        <div class="filter-chips" style="margin-bottom:4px;">
+          <button class="filter-chip ${reportTherapistFilter === 'ALL' ? 'active' : ''}" onclick="reportTherapistFilter='ALL'; openReportModal();">全部治療師</button>
+          ${therapists.map(t => `<button class="filter-chip ${reportTherapistFilter === t ? 'active' : ''}" onclick="reportTherapistFilter='${esc(t)}'; openReportModal();">${esc(t)}</button>`).join('')}
+        </div>
+        ${blocksHtml}
+        <div class="field-group">
+          <span class="field-label">📝 英文 Clinical Documentation 總匯（可直接複製貼入 CMS / 病歷）：</span>
+          <textarea id="allEnglishDocArea" class="doc-note-box" readonly>${esc(allDocs.join('\n\n'))}</textarea>
+        </div>
+      `;
+      openModal('reportModal');
+    }
+
+    function copyAllEnglishDocs() {
+      const area = document.getElementById('allEnglishDocArea');
+      if (!area) return;
+      area.select();
+      navigator.clipboard?.writeText(area.value).catch(() => document.execCommand('copy'));
+      showToast('📋 已複製全部英文病歷紀錄！');
+    }
+
+    function sendReportEmail() {
+      if (!navigator.onLine) {
+        showToast('⚠️ 目前主電腦處於離線狀態，請先連接網絡再發送');
+        return;
+      }
+      const to = (state.settings.emailRecipients || '').trim();
+      const area = document.getElementById('allEnglishDocArea');
+      const bodyText = area ? area.value : '';
+      const subject = encodeURIComponent(`復康運動室每日紀錄 (${todayISO()})`);
+      const body = encodeURIComponent(bodyText);
+      window.location.href = `mailto:${encodeURIComponent(to)}?subject=${subject}&body=${body}`;
+      showToast(to ? `✉️ 正在開啟郵件程式寄送至 ${to}` : '✉️ 正在開啟郵件程式（可在系統設定預設收件同事 Email）');
+    }
+
+    async function saveDailyReportToFolderOrDownload() {
+      const area = document.getElementById('allEnglishDocArea');
+      const docText = area ? area.value : '';
+      const fileName = `運動室每日紀錄_${todayISO()}.txt`;
+
+      if (savedDirectoryHandle) {
+        try {
+          const fh = await savedDirectoryHandle.getFileHandle(fileName, { create: true });
+          const writable = await fh.createWritable();
+          await writable.write(docText);
+          await writable.close();
+          hasUnsavedDailyWork = false;
+          showToast(`📂 已自動儲存至指定資料夾：${fileName}`);
+          return;
+        } catch (e) {}
+      }
+
+      const blob = new Blob(['\uFEFF' + docText], { type: 'text/plain;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      hasUnsavedDailyWork = false;
+      showToast(`📥 已下載 ${fileName}（可於系統設定綁定固定資料夾）`);
+    }
+
+    /* ========================================================================
+       ⚙️ 系統設定（全部設定自動雲端同步）
+       ======================================================================== */
+    function openSettingsModal(tab = 'people') {
+      currentSettingsTab = tab;
+      renderSettingsTabContent();
+      openModal('settingsModal');
+    }
+    function switchSettingsTab(tab) { currentSettingsTab = tab; renderSettingsTabContent(); }
+
+    function renderSettingsTabContent() {
+      document.querySelectorAll('.s-tab').forEach(b => b.classList.toggle('active', b.dataset.stab === currentSettingsTab));
+      const body = document.getElementById('settingsBody');
+      const s = state.settings;
+
+      if (currentSettingsTab === 'people') {
+        body.innerHTML = `
+          <div class="settings-section">
+            <div class="settings-section-title">🧑‍⚕️ 治療師名單（自動配對專屬色・雲端同步）</div>
+            <div class="tag-chip-list">${s.therapists.map(t => `<span class="removable-chip" style="border-color:${getTherapistColor(t)};">${esc(t)}<button class="chip-x" onclick="removeList('therapists','${esc(t)}')">×</button></span>`).join('')}</div>
+            <div class="add-inline-row">
+              <input id="inpTh" type="text" class="text-input" style="max-width:200px;" placeholder="新增治療師..." />
+              <button class="btn-primary" onclick="addList('therapists','inpTh')">＋新增</button>
+            </div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-section-title">🪪 助理代號／名稱（支援多選協作・雲端同步）</div>
+            <div class="tag-chip-list">${s.assistants.map(a => `<span class="removable-chip">${esc(a)}<button class="chip-x" onclick="removeList('assistants','${esc(a)}')">×</button></span>`).join('')}</div>
+            <div class="add-inline-row">
+              <input id="inpAs" type="text" class="text-input" style="max-width:200px;" placeholder="新增助理代號..." />
+              <button class="btn-primary" onclick="addList('assistants','inpAs')">＋新增</button>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (currentSettingsTab === 'exercises') {
+        body.innerHTML = `
+          <div class="settings-section">
+            <div class="settings-section-title">＋ 新增預設運動項目（自動同步至所有電腦與平板）</div>
+            <div class="add-inline-row">
+              <input id="libAddName" type="text" class="text-input" style="flex:2;" placeholder="運動名稱..." />
+              <select id="libAddCat" class="text-input" style="flex:1;">${EX_CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}</select>
+              <input id="libAddMin" type="number" value="15" class="text-input" style="width:70px;" />
+              <button class="btn-primary" onclick="addLibEx()">＋新增</button>
+            </div>
+          </div>
+          <div style="max-height:300px; overflow-y:auto;">
+            ${s.exerciseLibrary.map((item, i) => `
+              <div style="display:flex; justify-content:space-between; padding:6px 8px; border-bottom:1px solid #e2e8f0;">
+                <span><strong>${esc(item.name)}</strong> (${esc(item.category)} · ${item.defaultMin}m)</span>
+                <button style="color:var(--red);" onclick="state.settings.exerciseLibrary.splice(${i},1); persistState(true); renderSettingsTabContent();">刪除</button>
+              </div>
+            `).join('')}
+          </div>
+        `;
+        return;
+      }
+
+      if (currentSettingsTab === 'clinical') {
+        body.innerHTML = `
+          <div class="settings-section">
+            <div class="settings-section-title">🚐 接送附加設備（雲端同步）</div>
+            <div class="tag-chip-list">${s.transportExtras.map(x => `<span class="removable-chip">${esc(x)}<button class="chip-x" onclick="removeList('transportExtras','${esc(x)}')">×</button></span>`).join('')}</div>
+            <div class="add-inline-row">
+              <input id="inpTrEx" type="text" class="text-input" style="max-width:200px;" placeholder="新增接送設備..." />
+              <button class="btn-primary" onclick="addList('transportExtras','inpTrEx')">＋新增</button>
+            </div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-section-title">🦵 助行器附加輔助（可多選・雲端同步）</div>
+            <div class="tag-chip-list">${s.aidExtras.map(x => `<span class="removable-chip">${esc(x)}<button class="chip-x" onclick="removeList('aidExtras','${esc(x)}')">×</button></span>`).join('')}</div>
+            <div class="add-inline-row">
+              <input id="inpAidEx" type="text" class="text-input" style="max-width:200px;" placeholder="新增附加輔助..." />
+              <button class="btn-primary" onclick="addList('aidExtras','inpAidEx')">＋新增</button>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (currentSettingsTab === 'basic') {
+        body.innerHTML = `
+          <div class="settings-section">
+            <div class="settings-section-title">👷 助理記錄開關與看板設定（雲端同步）</div>
+            <label class="toggle-switch">
+              <input type="checkbox" ${s.trackStaffAssignment ? 'checked' : ''} onchange="state.settings.trackStaffAssignment=this.checked; persistState(true); renderWorkspace();" />
+              <span>記錄及顯示誰 Set up 及結束運動（關閉後：點選運動直接一鍵倒數，並隱藏所有助理代號）</span>
+            </label>
+            <div class="form-grid">
+              <div class="field-group">
+                <label class="field-label">系統標題</label>
+                <input type="text" class="text-input" value="${esc(s.systemTitle)}" onchange="state.settings.systemTitle=this.value; persistState(true); renderWorkspace();" />
+              </div>
+              <div class="field-group">
+                <label class="field-label">大電視看板標題</label>
+                <input type="text" class="text-input" value="${esc(s.tvTitle)}" onchange="state.settings.tvTitle=this.value; persistState(true); renderWorkspace();" />
+              </div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (currentSettingsTab === 'backup') {
+        body.innerHTML = `
+          <div class="settings-section">
+            <div class="settings-section-title">📂 綁定每日報告自動儲存資料夾</div>
+            <div class="field-hint">點擊下方按鈕選擇電腦內的目標資料夾後，每日按「完結報表 → 儲存每日報告」會直接靜默存入該資料夾。</div>
+            <div>
+              <button class="btn-primary" onclick="bindReportDirectory()">📂 選擇並綁定每日報告資料夾</button>
+              <span id="dirBindStatus" style="margin-left:8px; font-size:12.5px; font-weight:800; color:var(--green);">${savedDirectoryHandle ? '✓ 已綁定資料夾：' + savedDirectoryHandle.name : ''}</span>
+            </div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-section-title">✉️ 每日自動電郵收件人設定（雲端同步）</div>
+            <div class="field-group">
+              <label class="field-label">指定同事電郵地址（多位同事請用逗號分隔）</label>
+              <input type="text" class="text-input" value="${esc(s.emailRecipients)}" placeholder="colleague1@ha.org.hk, colleague2@ha.org.hk"
+                     onchange="state.settings.emailRecipients=this.value.trim(); persistState(true);" />
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (currentSettingsTab === 'firebase') {
+        body.innerHTML = `
+          <div class="settings-section">
+            <div class="settings-section-title">☁️ Google Firebase Realtime Database 連線狀態</div>
+            <div class="field-hint">
+              已內建你的 <code>rehab-gym-sync</code> 新加坡資料庫連線設定。所有系統設定、治療師、運動項目庫及去識別化排程皆會自動同步。
+            </div>
+            <div class="field-group">
+              <label class="field-label">運動室房間代碼 (Room ID)</label>
+              <input id="setFbRoom" type="text" class="text-input" value="${esc(s.firebaseRoomId)}" placeholder="gym_room_1" />
+            </div>
+            <div class="field-group">
+              <label class="field-label">Firebase Config JSON：</label>
+              <textarea id="setFbCfg" class="doc-note-box" style="min-height:130px;">${esc(s.firebaseConfigText)}</textarea>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn-primary" onclick="saveFirebaseConfig()">☁️ 儲存並重新連線</button>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    function saveFirebaseConfig() {
+      state.settings.firebaseRoomId = document.getElementById('setFbRoom').value.trim() || 'gym_room_1';
+      state.settings.firebaseConfigText = document.getElementById('setFbCfg').value.trim();
+      persistState(true);
+      initFirebaseSync();
+      showToast('☁️ 已更新 Firebase 連線設定');
+    }
+
+    async function bindReportDirectory() {
+      if (!window.showDirectoryPicker) {
+        showToast('此瀏覽器不支援直接綁定資料夾，儲存時將使用標準下載');
+        return;
+      }
+      try {
+        savedDirectoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        renderSettingsTabContent();
+        showToast(`📂 已成功綁定資料夾：${savedDirectoryHandle.name}`);
+      } catch (e) {}
+    }
+
+    function addList(key, inpId) {
+      const inp = document.getElementById(inpId);
+      const v = inp.value.trim();
+      if (!v) return;
+      if (!state.settings[key].includes(v)) state.settings[key].push(v);
+      persistState(true);
+      renderWorkspace();
+      renderSettingsTabContent();
+      showToast('☁️ 已新增並同步上雲端');
+    }
+
+    function removeList(key, val) {
+      state.settings[key] = state.settings[key].filter(x => x !== val);
+      persistState(true);
+      renderWorkspace();
+      renderSettingsTabContent();
+      showToast('☁️ 已更新並同步上雲端');
+    }
+
+    function addLibEx() {
+      const n = document.getElementById('libAddName').value.trim();
+      const c = document.getElementById('libAddCat').value;
+      const m = parseInt(document.getElementById('libAddMin').value, 10) || 15;
+      if (!n) return;
+      state.settings.exerciseLibrary.unshift({ id: uid('lib'), name: n, category: c, mode: 'countdown', defaultMin: m });
+      persistState(true);
+      renderSettingsTabContent();
+      showToast(`☁️ 已新增「${n}」並同步上雲端`);
+    }
+
+    /* ========================================================================
+       其他工具與計時心跳
+       ======================================================================== */
+    function openStandaloneTVPopup() {
+      const base = window.location.href.split('#')[0];
+      window.open(`${base}#tv`, 'RehabTV', 'width=1440,height=860');
+    }
+    function exitStandaloneTV() { isStandaloneTV = false; document.body.classList.remove('standalone-tv'); viewMode = 'split'; history.replaceState(null, '', window.location.pathname); renderWorkspace(); }
+    function toggleFullscreen() { if (!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.(); }
+    function toggleAudio() { state.audioOn = !state.audioOn; persistState(true); renderWorkspace(); }
+
+    function confirmCarryOver() {
+      openConfirm('🔄 延續昨日名單', '保留所有病人、設定與處方，清空今日計時、血壓、步行與接送紀錄？', '確認延續', '#0f4c81', () => {
+        state.date = todayISO();
+        state.transportCounter = 0;
+        hasUnsavedDailyWork = false;
+        state.patients.forEach(pt => {
+          pt.transportOrder = null; pt.transportStaff = ''; pt.transportTime = '';
+          pt.walkLogs = []; pt.bpLogs = [];
+          pt.exercises.forEach(ex => {
+            ex.status = 'pending'; ex.startStaffList = []; ex.endStaffList = [];
+            ex.startedAt = null; ex.accumulatedSec = 0; ex.bpRecords = [];
+            ex.alertedDue = false; ex.alertedCritical = false;
+          });
+        });
+        persistState(true);
+        renderWorkspace();
+        showToast('🔄 已開啟新一日排程並同步雲端');
+      });
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+    function onBackdrop(e, id) { if (e.target && e.target.id === id) closeModal(id); }
+
+    function openConfirm(title, html, okLabel, okBg, onOk) {
+      document.getElementById('confirmTitle').textContent = title;
+      document.getElementById('confirmBody').innerHTML = html;
+      const btn = document.getElementById('confirmOkBtn');
+      btn.textContent = okLabel;
+      btn.style.background = okBg || '#0f4c81';
+      btn.onclick = () => { closeModal('confirmModal'); onOk(); };
+      openModal('confirmModal');
+    }
+
+    function showToast(msg) {
+      const stack = document.getElementById('toastStack');
+      const div = document.createElement('div');
+      div.className = 'toast';
+      div.textContent = msg;
+      stack.appendChild(div);
+      setTimeout(() => div.remove(), 3400);
+    }
+
+    function onTick() {
+      let alertHit = false;
+      state.patients.forEach(pt => {
+        if (pt.attendance !== 'present') return;
+        pt.exercises.forEach(ex => {
+          if (ex.status !== 'running') return;
+          const m = computeExMetrics(ex, pt);
+          if (!m.isCountdown) return;
+          if (m.remainingSec <= 0 && !ex.alertedDue) {
+            ex.alertedDue = true; alertHit = true;
+            playChime(false);
+            speakCantonese(`${pt.bed}號床，${ex.name}時間到`);
+            showToast(`⏰ ${pt.bed}號床「${ex.name}」時間到！`);
+          }
+          if (m.overdueSec >= m.criticalSec && !ex.alertedCritical) {
+            ex.alertedCritical = true; alertHit = true;
+            playChime(true);
+            speakCantonese(`提醒，${pt.bed}號床，${ex.name}已超時`);
+          }
+        });
+      });
+      if (alertHit) { persistState(true); renderWorkspace(); }
+
+      document.querySelectorAll('.tv-clock').forEach(el => { el.textContent = nowHHMMSS(); });
+      state.patients.forEach(pt => {
+        pt.exercises.forEach(ex => {
+          if (ex.status !== 'running' && ex.status !== 'paused') return;
+          const m = computeExMetrics(ex, pt);
+          const timeText = m.isCountdown ? (m.remainingSec < 0 ? `+${formatMMSS(m.overdueSec)}` : formatMMSS(m.remainingSec)) : formatMMSS(m.elapsedSec);
+          document.querySelectorAll(`[data-timer-ex="${ex.id}"]`).forEach(el => { el.textContent = timeText; });
+          document.querySelectorAll(`[data-prog-ex="${ex.id}"]`).forEach(el => { el.style.width = `${m.pct}%`; });
+        });
+      });
+
+      const model = computeTVPageModel();
+      if (model.isPaginated) {
+        tvPageElapsedMs += 1000;
+        if (tvPageElapsedMs >= (Number(state.settings.pageIntervalSec) || 10) * 1000) {
+          tvPageElapsedMs = 0;
+          tvPageIndex = (tvPageIndex + 1) % model.totalPages;
+          renderWorkspace();
+        }
+      }
+    }
+
+    function init() {
+      loadState();
+      parseHashRoute();
+      renderWorkspace();
+      initFirebaseSync();
+      setInterval(onTick, 1000);
+    }
+
+    window.addEventListener('hashchange', () => { parseHashRoute(); renderWorkspace(); });
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+  </script>
+</body>
+</html>
