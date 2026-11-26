@@ -1452,6 +1452,7 @@
       const safePatients = state.patients.map(pt => ({
         id: pt.id,
         bed: pt.bed,
+        surnameLabel: getSurnameTitle(pt),
         therapist: pt.therapist || '',
         side: pt.side,
         aid: pt.aid,
@@ -1551,6 +1552,16 @@
     /* ========================================================================
        基礎工具函式
        ======================================================================== */
+    function getSurnameTitle(pt) {
+      const raw = (pt.name || '').trim();
+      if (!raw || raw.endsWith('號床')) return pt.surnameLabel || '';
+      const surname = Array.from(raw)[0] || '';
+      const num = bedNumeric(pt.bed);
+      let title = '';
+      if (num >= 1 && num <= 15) title = '女士';
+      else if (num >= 16 && num <= 30) title = '先生';
+      return surname ? `${surname}${title}` : '';
+    }
     function maskName(name) {
       const s = (name || '').trim();
       if (!s) return '—';
@@ -2085,6 +2096,7 @@
       }
 
       const r = getRiskInfo(pt);
+      const surnameStr = getSurnameTitle(pt);
       const trackStaff = state.settings.trackStaffAssignment;
       const walkDone = (pt.walkLogs || []).length > 0;
       const totalWalkDist = (pt.walkLogs || []).reduce((s, w) => s + (Number(w.dist) || 0), 0);
@@ -2145,13 +2157,13 @@
       return `
         <div class="mobile-bed-app">
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:13px; font-weight:800; color:#38bdf8;">☁️ 運動室床邊即時同步端（零姓名去識別化）</span>
-            <span class="tabular" style="font-size:13px; color:#94a3b8;">${nowHHMM()}</span>
-          </div>
+         <span style="font-size:15px; font-weight:900; color:#38bdf8;">☁️ 運動記錄</span>
+         <span class="tabular" style="font-size:13px; color:#94a3b8;">${nowHHMM()}</span>
+       </div>
 
-          <div class="m-bed-card ${r.cls}">
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-              <div style="font-size:44px; font-weight:900; line-height:1;">${esc(pt.bed)}號床 ${r.symHtml}</div>
+       <div class="m-bed-card ${r.cls}">
+         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+           <div style="font-size:38px; font-weight:900; line-height:1;">${esc(pt.bed)}號床 ${surnameStr ? `<span style="font-size:28px; margin-left:4px;">${esc(surnameStr)}</span>` : ''} ${r.symHtml}</div>
               ${renderSideVisual(pt.side)}
             </div>
             <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; align-items:center;">
