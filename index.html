@@ -1218,7 +1218,23 @@
       </div>
     </div>
   </div>
-
+<!-- 彈窗 10：🚐 接送總表（按助理分組，吊機／雙人高亮） -->
+  <div id="transportSummaryModal" class="modal-backdrop" onclick="onBackdrop(event, 'transportSummaryModal')">
+    <div class="modal-box lg">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title">🚐 今日接送總表（按助理分組）</div>
+          <div id="transportSummaryMeta" style="font-size:12px; color:var(--text-muted); margin-top:2px;"></div>
+        </div>
+        <button class="modal-close" onclick="closeModal('transportSummaryModal')">✕</button>
+      </div>
+      <div id="transportSummaryBody" class="modal-body"></div>
+      <div class="modal-footer" style="justify-content:space-between;">
+        <button class="btn-secondary" onclick="copyTransportSummary()">📋 複製文字版</button>
+        <button class="btn-primary" onclick="closeModal('transportSummaryModal')">關閉</button>
+      </div>
+    </div>
+  </div>
   <div id="toastStack" class="toast-stack"></div>
   <script id="embeddedStateScript" type="application/json">null</script>
 
@@ -2382,6 +2398,7 @@
           <div class="transport-bar-top">
             <span class="transport-title">🚐 今日接送輪流計數（綠框＝接送最少）</span>
             <div style="display:flex; gap:5px;">
+            <button class="btn-primary" style="padding:4px 9px; font-size:11.5px; background:#0f766e;" onclick="openTransportSummaryModal()">📋 接送總表</button>
               <button class="mini-action-btn" onclick="showDutyDrawer=!showDutyDrawer; renderWorkspace();">${showDutyDrawer ? '▲ 收合' : '👤 當值助理'}</button>
               <button class="seg-btn ${pcSortMode === 'clinical' ? 'active' : ''}" onclick="pcSortMode='clinical'; renderWorkspace();">排程順序</button>
               <button class="seg-btn ${pcSortMode === 'transport' ? 'active' : ''}" onclick="pcSortMode='transport'; renderWorkspace();">接送次序</button>
@@ -2964,7 +2981,113 @@
       persistState(true);
       renderWorkspace();
     }
+function openTransportSummaryModal() {
+      const presentPts = state.patients.filter(p => p.attendance === 'present');
+      const assignedMap = new Map();
+      const unassigned = [];
 
+      presentPts.forEach(pt => {
+        const staff = (pt.transportStaff || '').trim();
+        if (!staff) {
+          unassigned.push(pt);
+        } else {
+          if (!assignedMap.has(staff)) assignedMap.set(staff, []);
+          assignedMap.get(staff).push(pt);
+        }
+      });
+
+      const isSpecial = (pt) => (pt.transportExtras || []).some(x => x.includes('吊機') || x.includes('雙人'));
+
+      const renderRow = (pt) => {
+        const extras = pt.transportExtras || [];
+        const special = isSpecial(pt);
+        const rowStyle = special
+          ? 'background:#fef2f2; border-left:4px solid #dc2626;'
+          : 'background:#ffffff;';
+        const extrasHtml = extras.length
+          ? extras.map(x => {
+              const isKey = x.includes('吊機') || x.includes('雙人');
+              return isKey
+                ? `<span style="display:inline-block; padding:2px 8px; border-radius:999px; background:#dc2626; color:#fff; font-weight:900; font-size:12px; margin-right:4px;">⚠️ ${esc(x)}</span>`
+                : `<span style="display:inline-block; padding:2px 7px; border-radius:6px; background:#ede9fe; color:#5b21b6; font-weight:800; font-size:12px; margin-right:4px;">🪝 ${esc(x)}</span>`;
+            }).join('')
+          : '<span style="color:#94a3b8;">-</span>';
+
+        return `
+          <tr style="${rowStyle}">
+            <td class="tabular" style="font-weight:900; font-size:15px; width:76px;">${esc(pt.bed)}號床</td>
+            <td style="font-weight:900; font-size:14px; width:100px;">${esc(pt.name)}</td>
+            <td style="width:96px;">${pt.transportMode ? `<span style="padding:2px 8px; border-radius:6px; background:#fef3c7; border:1px solid #fcd34d; color:#92400e; font-weight:800; font-size:12.5px;">🚐 ${esc(pt.transportMode)}</span>` : '<span style="color:#94a3b8;">未選</span>'}</td>
+            <td>${extrasHtml}</td>
+          </tr>
+        `;
+      };
+
+      let html = '';
+      if (assignedMap.size === 0) {
+        html += '<div class="empty-box">目前尚未指派任何接送助理</div>';
+      } else {
+        assignedMap.forEach((pts, staff) => {
+          pts.sort((a, b) => (a.transportOrder || 999) - (b.transportOrder || 999) || bedNumeric(a.bed) - bedNumeric(b.bed));
+          const specialCnt = pts.filter(isSpecial).length;
+          html += `
+            <div style="border:2px solid #0f766e; border-radius:10px; overflow:hidden; margin-bottom:10px; flex-shrink:0;">
+              <div style="background:#0f766e; color:#fff; padding:7px 12px; font-weight:900; font-size:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                <span>👤 接送助理：${esc(staff)}（共 ${pts.length} 位）</span>
+                ${specialCnt > 0 ? `<span style="background:#dc2626; color:#fff; padding:2px 8px; border-radius:999px; font-size:12px;">⚠️ 含 ${specialCnt} 位吊機／雙人</span>` : ''}
+              </div>
+              <table class="rep-ex-table">
+                <thead><tr><th>床號</th><th>姓名</th><th>接送方式</th><th>特別設備／提醒</th></tr></thead>
+                <tbody>${pts.map(renderRow).join('')}</tbody>
+              </table>
+            </div>
+          `;
+        });
+      }
+
+      if (unassigned.length > 0) {
+        unassigned.sort((a, b) => bedNumeric(a.bed) - bedNumeric(b.bed));
+        html += `
+          <div style="border:2px dashed #94a3b8; border-radius:10px; overflow:hidden; margin-bottom:6px; flex-shrink:0;">
+            <div style="background:#f1f5f9; color:#475569; padding:7px 12px; font-weight:900; font-size:13.5px;">
+              ⏳ 尚未指派接送助理（共 ${unassigned.length} 位）
+            </div>
+            <table class="rep-ex-table">
+              <thead><tr><th>床號</th><th>姓名</th><th>接送方式</th><th>特別設備／提醒</th></tr></thead>
+              <tbody>${unassigned.map(renderRow).join('')}</tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      document.getElementById('transportSummaryMeta').textContent = `日期：${todayISO()}｜已指派 ${presentPts.length - unassigned.length} 位，未指派 ${unassigned.length} 位`;
+      document.getElementById('transportSummaryBody').innerHTML = html;
+      openModal('transportSummaryModal');
+    }
+
+    function copyTransportSummary() {
+      const presentPts = state.patients.filter(p => p.attendance === 'present');
+      const assignedMap = new Map();
+      presentPts.forEach(pt => {
+        const staff = (pt.transportStaff || '').trim() || '未指派';
+        if (!assignedMap.has(staff)) assignedMap.set(staff, []);
+        assignedMap.get(staff).push(pt);
+      });
+
+      const lines = [`【今日接送總表 ${todayISO()}】`];
+      assignedMap.forEach((pts, staff) => {
+        pts.sort((a, b) => (a.transportOrder || 999) - (b.transportOrder || 999) || bedNumeric(a.bed) - bedNumeric(b.bed));
+        lines.push(`\n👤 ${staff} (${pts.length}位):`);
+        pts.forEach(pt => {
+          const mode = pt.transportMode ? `[${pt.transportMode}]` : '';
+          const extras = (pt.transportExtras || []).map(x => (x.includes('吊機') || x.includes('雙人')) ? `⚠️${x}` : x).join(' ');
+          lines.push(`- ${pt.bed}號床 ${pt.name} ${mode} ${extras}`.trim());
+        });
+      });
+
+      const text = lines.join('\n');
+      navigator.clipboard?.writeText(text).then(() => showToast('📋 已複製接送總表文字版！')).catch(() => showToast('複製失敗，請手動選取'));
+    }
     function changeAttendance(ptId, val) {
       const pt = state.patients.find(p => p.id === ptId);
       if (!pt) return;
@@ -3482,14 +3605,29 @@
         return;
       }
 
-      if (currentSettingsTab === 'clinical') {
+ if (currentSettingsTab === 'clinical') {
         body.innerHTML = `
           <div class="settings-section">
-            <div class="settings-section-title">🚐 接送附加設備（雲端同步）</div>
-            <div class="tag-chip-list">${s.transportExtras.map(x => `<span class="removable-chip">${esc(x)}<button class="chip-x" onclick="removeList('transportExtras','${esc(x)}')">×</button></span>`).join('')}</div>
+            <div class="settings-section-title">🦯 Walking aid 助行器選項（單選・雲端同步）</div>
+            <div class="tag-chip-list">${s.aids.map(x => `<span class="removable-chip">${esc(x)}<button class="chip-x" onclick="removeList('aids','${esc(x)}')">×</button></span>`).join('')}</div>
             <div class="add-inline-row">
-              <input id="inpTrEx" type="text" class="text-input" style="max-width:200px;" placeholder="新增接送設備..." />
-              <button class="btn-primary" onclick="addList('transportExtras','inpTrEx')">＋新增</button>
+              <input id="inpAid" type="text" class="text-input" style="max-width:200px;" placeholder="新增助行器（如：Elbow crutch）..." />
+              <button class="btn-primary" onclick="addList('aids','inpAid')">＋新增</button>
+            </div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-section-title">🤝 協助者／步行協助選項（雲端同步）</div>
+            <div class="tag-chip-list">${s.assists.map(x => `<span class="removable-chip">${esc(x)}<button class="chip-x" onclick="removeList('assists','${esc(x)}')">×</button></span>`).join('')}</div>
+            <div class="add-inline-row">
+              <input id="inpAssistOpt" type="text" class="text-input" style="max-width:200px;" placeholder="新增協助程度（如：Standby）..." />
+              <button class="btn-primary" onclick="addList('assists','inpAssistOpt')">＋新增</button>
+            </div>
+            <div class="field-group" style="margin-top:4px;">
+              <label class="field-label">大電視與操作台醒目紅橙色警示標籤：</label>
+              <select class="text-input" style="max-width:220px;" onchange="state.settings.assistHighlightTag=this.value; persistState(true); renderWorkspace();">
+                <option value="" ${!s.assistHighlightTag ? 'selected' : ''}>不特別標示</option>
+                ${s.assists.map(x => `<option value="${esc(x)}" ${s.assistHighlightTag === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}
+              </select>
             </div>
           </div>
           <div class="settings-section">
@@ -3500,12 +3638,43 @@
               <button class="btn-primary" onclick="addList('aidExtras','inpAidEx')">＋新增</button>
             </div>
           </div>
+          <div class="settings-section">
+            <div class="settings-section-title">🚐 接送附加設備（雲端同步）</div>
+            <div class="tag-chip-list">${s.transportExtras.map(x => `<span class="removable-chip">${esc(x)}<button class="chip-x" onclick="removeList('transportExtras','${esc(x)}')">×</button></span>`).join('')}</div>
+            <div class="add-inline-row">
+              <input id="inpTrEx" type="text" class="text-input" style="max-width:200px;" placeholder="新增接送設備..." />
+              <button class="btn-primary" onclick="addList('transportExtras','inpTrEx')">＋新增</button>
+            </div>
+          </div>
         `;
         return;
       }
 
       if (currentSettingsTab === 'basic') {
         body.innerHTML = `
+          <div class="settings-section">
+            <div class="settings-section-title">🔔 提示音與語音報時設定</div>
+            <label class="toggle-switch">
+              <input type="checkbox" ${state.audioOn ? 'checked' : ''} onchange="state.audioOn=this.checked; persistState(true); renderWorkspace();" />
+              <span>啟用計時結束提示音（關閉後整體靜音）</span>
+            </label>
+            <label class="toggle-switch">
+              <input type="checkbox" ${s.voiceEnabled ? 'checked' : ''} onchange="state.settings.voiceEnabled=this.checked; persistState(true);" />
+              <span>計時到期／超時時啟用廣東話語音廣播（雲端同步）</span>
+            </label>
+            <div class="form-grid" style="margin-top:4px;">
+              <div class="field-group">
+                <label class="field-label">超時提醒門檻（分鐘，高危跌倒／血壓自動少 1 分鐘）</label>
+                <input type="number" min="1" max="30" class="text-input tabular" value="${s.overtimeAlertMin || 3}"
+                       onchange="state.settings.overtimeAlertMin=Math.max(1,parseInt(this.value,10)||3); persistState(true);" />
+              </div>
+              <div class="field-group">
+                <label class="field-label">大電視自動翻頁間隔（秒）</label>
+                <input type="number" min="3" max="60" class="text-input tabular" value="${s.pageIntervalSec || 10}"
+                       onchange="state.settings.pageIntervalSec=Math.max(3,parseInt(this.value,10)||10); persistState(true);" />
+              </div>
+            </div>
+          </div>
           <div class="settings-section">
             <div class="settings-section-title">👷 助理記錄開關與看板設定（雲端同步）</div>
             <label class="toggle-switch">
