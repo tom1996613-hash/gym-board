@@ -3086,7 +3086,7 @@
       });
       const text = lines.join('\n');
       navigator.clipboard?.writeText(text).then(() => showToast('📋 已複製接送總表文字版！')).catch(() => showToast('複製失敗，請手動選取'));
-    });
+    }
     
     function changeAttendance(ptId, val) {
       const pt = state.patients.find(p => p.id === ptId);
