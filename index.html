@@ -788,6 +788,8 @@
     .step-btn.countup-on { background: #0d9488; border-color: #0f766e; color: #fff; }
 
     /* 報表治療師分組卡片 */
+    #reportModalBody > * { flex-shrink: 0; }
+    .rep-pt-card > div:last-child { white-space: pre-line; }
     .rep-therapist-block { border: 2px solid #cbd5e1; border-radius: 12px; overflow: hidden; margin-bottom: 14px; background: #fff; }
     .rep-th-banner { padding: 8px 14px; color: #fff; font-size: 14.5px; font-weight: 900; display: flex; justify-content: space-between; align-items: center; }
     .rep-pt-card { border-top: 1px solid #e2e8f0; padding: 10px 14px; }
@@ -3168,18 +3170,63 @@
     /* ========================================================================
        每日完結報表與英文 Clinical Documentation
        ======================================================================== */
+    const EX_EN_DICT = {
+      'Lokomat': 'Lokomat robotic-assisted gait training',
+      '綠平衡': 'Balance training on green rocker board',
+      '藍平衡': 'Balance training on blue rocker board',
+      'NuStep': 'NuStep',
+      '手單車': 'Upper limb ergometer training',
+      '腳單車': 'static bike exercise',
+      '震震機': 'vibration therapy to affected limb',
+      '企車': 'Passive standing exercise in standing w/c',
+      '企枱': 'standing training in theratrainer',
+      '跑步機': 'Treadmill gait training',
+      '電療': 'Electrical stimulation (ES)',
+      '冰敷': 'Ice therapy',
+      '熱敷': 'Hot pack therapy',
+      '側抬腿(站)': 'Standing hip abduction exercise',
+      '練企': 'Standing training',
+      '沙包': 'Lower limb strengthening exercise with sandbag',
+      '吊住行': 'level ground walking with hoist for protection',
+      'OB手': 'Upper limb strengthening exercise with OB pulley',
+      'OB腳': 'Lower limb strengthening exercise with OB pulley',
+      '對鏡練(企)': 'Standing balance training with mirror feedback',
+      '對鏡練(坐)': 'Sitting balance training with mirror feedback',
+      'Sling手': 'Upper limb sling suspension exercise',
+      'Sling腳': 'Lower limb sling suspension exercise',
+      '舉棍': 'ULs elevation exercise with therabar',
+      '踏級(高)': 'Step-up exercise (high step)',
+      '踏級(低)': 'Step-up exercise (low step)',
+      '治療師拉筋': 'Passive stretching exercise by PT',
+      'Leg press': 'Leg press strengthening exercise',
+      '拱橋': 'Bridging exercise',
+      '側臥抬腿': 'Side-lying hip abduction exercise',
+      '拋波': 'Ball throwing and catching exercise'
+    };
+
+    function formatDocNote(rawNote) {
+      if (!rawNote || !rawNote.trim()) return '';
+      // 若備註欄以中文寫了左/右/雙側，自動轉為英文簡稱方便貼入 CMS
+      const cleaned = rawNote.trim()
+        .replace(/雙側|兩側/g, 'Bi')
+        .replace(/左側|左/g, 'L')
+        .replace(/右側|右/g, 'R');
+      return ` (${cleaned})`;
+    }
+
     function generateEnglishDocumentation(pt) {
-      const items = [];
+      const lines = [];
       const doneEx = pt.exercises.filter(ex => isScheduledToday(ex.schedule) && (ex.status === 'completed' || ex.status === 'early_stopped' || ex.status === 'running'));
 
-      doneEx.forEach(ex => {
+      doneEx.forEach((ex, idx) => {
         const m = computeExMetrics(ex, pt);
         const mins = secToWholeMin(m.elapsedSec);
-        const noteStr = ex.note ? ` (${ex.note})` : '';
-        let seg = `${ex.name}${noteStr} x ${mins} min`;
+        const enName = EX_EN_DICT[ex.name] || ex.name;
+        const noteStr = formatDocNote(ex.note);
+        let line = `- ${enName}${noteStr} x ${mins} min`;
 
         const bpParts = [];
-        if (items.length === 0 && pt.bpLogs) {
+        if (idx === 0 && pt.bpLogs) {
           pt.bpLogs.filter(b => b.label.toLowerCase().includes('initial')).forEach(b => {
             bpParts.push(`${b.label} ${b.sbp}/${b.dbp}, HR ${b.hr}`);
           });
@@ -3194,21 +3241,20 @@
           bpParts.push(`Early terminated at ${mins} min${co ? `, c/o: ${co}` : ''}`);
         }
         if (bpParts.length) {
-          seg += ` // ${bpParts.join('. ')}`;
+          line += ` // ${bpParts.join('. ')}`;
         }
-        items.push(seg);
+        lines.push(line);
       });
 
       if (pt.walkLogs && pt.walkLogs.length > 0) {
         const dists = pt.walkLogs.map(w => `${w.dist}m`).join(' + ');
-        items.push(`Walking exercise with ${pt.aid} (${pt.assist}) x ${dists}`);
+        lines.push(`- Walking exercise with ${pt.aid} (${pt.assist}) x ${dists}`);
       } else {
-        items.push(`Walking exercise with ${pt.aid} (${pt.assist}) [Not performed]`);
+        lines.push(`- Walking exercise with ${pt.aid} (${pt.assist}) [Not performed]`);
       }
 
-      return `- ${items.join(', ')}`;
+      return lines.join('\n');
     }
-
     function openReportModal() {
       const presentPts = state.patients.filter(p => p.attendance === 'present');
       const therapists = Array.from(new Set(presentPts.map(p => p.therapist || '未指派')));
