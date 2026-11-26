@@ -2424,7 +2424,7 @@
           </div>
           <div class="tr-picker-row">
             <span style="font-size:11.5px; font-weight:800;">指派接送助理：</span>
-            ${state.onDutyTransport.map(ch => `<button class="tr-pick-btn ${pt.transportStaff === ch ? 'is-current' : ''}" onclick="assignTransport('${pt.id}','${esc(ch)}')">${esc(ch)}</button>`).join('')}
+            ${state.onDutyTransport.filter(ch => state.settings.assistants.includes(ch)).map(ch => `<button class="tr-pick-btn ${pt.transportStaff === ch ? 'is-current' : ''}" onclick="assignTransport('${pt.id}','${esc(ch)}')">${esc(ch)}</button>`).join('')}
             ${pt.transportStaff ? `<button class="mini-action-btn" style="color:var(--red);" onclick="clearTransport('${pt.id}')">清除</button>` : ''}
             <button class="mini-action-btn" style="margin-left:auto;" onclick="openTransportPickerPtId=null; renderWorkspace();">收合</button>
           </div>
@@ -3521,24 +3521,30 @@
       } catch (e) {}
     }
 
-    function addList(key, inpId) {
-      const inp = document.getElementById(inpId);
-      const v = inp.value.trim();
-      if (!v) return;
-      if (!state.settings[key].includes(v)) state.settings[key].push(v);
-      persistState(true);
-      renderWorkspace();
-      renderSettingsTabContent();
-      showToast('☁️ 已新增並同步上雲端');
-    }
+  function addList(key, inpId) {
+   const inp = document.getElementById(inpId);
+   const v = inp.value.trim();
+   if (!v) return;
+   if (!state.settings[key].includes(v)) state.settings[key].push(v);
+   if (key === 'assistants' && !state.onDutyTransport.includes(v)) {
+     state.onDutyTransport.push(v);
+   }
+   persistState(true);
+   renderWorkspace();
+   renderSettingsTabContent();
+   showToast('☁️ 已新增並同步上雲端');
+ }
 
-    function removeList(key, val) {
-      state.settings[key] = state.settings[key].filter(x => x !== val);
-      persistState(true);
-      renderWorkspace();
-      renderSettingsTabContent();
-      showToast('☁️ 已更新並同步上雲端');
-    }
+ function removeList(key, val) {
+   state.settings[key] = state.settings[key].filter(x => x !== val);
+   if (key === 'assistants') {
+     state.onDutyTransport = state.onDutyTransport.filter(x => x !== val);
+   }
+   persistState(true);
+   renderWorkspace();
+   renderSettingsTabContent();
+   showToast('☁️ 已更新並同步上雲端');
+ }
 
     function addLibEx() {
       const n = document.getElementById('libAddName').value.trim();
