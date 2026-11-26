@@ -2983,96 +2983,110 @@
     }
 function openTransportSummaryModal() {
       const presentPts = state.patients.filter(p => p.attendance === 'present');
-      const assignedMap = new Map();
-      const unassigned = [];
-
-      presentPts.forEach(pt => {
-        const staff = (pt.transportStaff || '').trim();
-        if (!staff) {
-          unassigned.push(pt);
-        } else {
-          if (!assignedMap.has(staff)) assignedMap.set(staff, []);
-          assignedMap.get(staff).push(pt);
-        }
-      });
-
       const isSpecial = (pt) => (pt.transportExtras || []).some(x => x.includes('吊機') || x.includes('雙人'));
 
-      const renderRow = (pt) => {
-        const extras = pt.transportExtras || [];
-        const special = isSpecial(pt);
-        const rowStyle = special
-          ? 'background:#fef2f2; border-left:4px solid #dc2626;'
-          : 'background:#ffffff;';
-        const extrasHtml = extras.length
-          ? extras.map(x => {
-              const isKey = x.includes('吊機') || x.includes('雙人');
-              return isKey
-                ? `<span style="display:inline-block; padding:2px 8px; border-radius:999px; background:#dc2626; color:#fff; font-weight:900; font-size:12px; margin-right:4px;">⚠️ ${esc(x)}</span>`
-                : `<span style="display:inline-block; padding:2px 7px; border-radius:6px; background:#ede9fe; color:#5b21b6; font-weight:800; font-size:12px; margin-right:4px;">🪝 ${esc(x)}</span>`;
-            }).join('')
-          : '<span style="color:#94a3b8;">-</span>';
+      // 依助理分組並串接成單一連續表格（同一助理的病人排在一起，未指派排在最後）
+      const staffOrder = [];
+      const groups = new Map();
 
-        return `
-          <tr style="${rowStyle}">
-            <td class="tabular" style="font-weight:900; font-size:15px; width:76px;">${esc(pt.bed)}號床</td>
-            <td style="font-weight:900; font-size:14px; width:100px;">${esc(pt.name)}</td>
-            <td style="width:96px;">${pt.transportMode ? `<span style="padding:2px 8px; border-radius:6px; background:#fef3c7; border:1px solid #fcd34d; color:#92400e; font-weight:800; font-size:12.5px;">🚐 ${esc(pt.transportMode)}</span>` : '<span style="color:#94a3b8;">未選</span>'}</td>
-            <td>${extrasHtml}</td>
-          </tr>
-        `;
-      };
+      presentPts.forEach(pt => {
+        const key = (pt.transportStaff || '').trim() || '__UNASSIGNED__';
+        if (!groups.has(key)) {
+          groups.set(key, []);
+          staffOrder.push(key);
+        }
+        groups.get(key).push(pt);
+      });
 
-      let html = '';
-      if (assignedMap.size === 0) {
-        html += '<div class="empty-box">目前尚未指派任何接送助理</div>';
-      } else {
-        assignedMap.forEach((pts, staff) => {
-          pts.sort((a, b) => (a.transportOrder || 999) - (b.transportOrder || 999) || bedNumeric(a.bed) - bedNumeric(b.bed));
-          const specialCnt = pts.filter(isSpecial).length;
-          html += `
-            <div style="border:2px solid #0f766e; border-radius:10px; overflow:hidden; margin-bottom:10px; flex-shrink:0;">
-              <div style="background:#0f766e; color:#fff; padding:7px 12px; font-weight:900; font-size:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-                <span>👤 接送助理：${esc(staff)}（共 ${pts.length} 位）</span>
-                ${specialCnt > 0 ? `<span style="background:#dc2626; color:#fff; padding:2px 8px; border-radius:999px; font-size:12px;">⚠️ 含 ${specialCnt} 位吊機／雙人</span>` : ''}
-              </div>
-              <table class="rep-ex-table">
-                <thead><tr><th>床號</th><th>姓名</th><th>接送方式</th><th>特別設備／提醒</th></tr></thead>
-                <tbody>${pts.map(renderRow).join('')}</tbody>
-              </table>
-            </div>
-          `;
+      staffOrder.sort((a, b) => {
+        if (a === '__UNASSIGNED__') return 1;
+        if (b === '__UNASSIGNED__') return -1;
+        return a.localeCompare(b, 'zh-Hant');
+      });
+
+      const orderedPts = [];
+      let assignedCnt = 0;
+      let specialCnt = 0;
+
+      staffOrder.forEach(key => {
+        const list = groups.get(key);
+        list.sort((a, b) => (a.transportOrder || 999) - (b.transportOrder || 999) || bedNumeric(a.bed) - bedNumeric(b.bed));
+        list.forEach(pt => {
+          orderedPts.push(pt);
+          if ((pt.transportStaff || '').trim()) assignedCnt++;
+          if (isSpecial(pt)) specialCnt++;
         });
-      }
+      });
 
-      if (unassigned.length > 0) {
-        unassigned.sort((a, b) => bedNumeric(a.bed) - bedNumeric(b.bed));
-        html += `
-          <div style="border:2px dashed #94a3b8; border-radius:10px; overflow:hidden; margin-bottom:6px; flex-shrink:0;">
-            <div style="background:#f1f5f9; color:#475569; padding:7px 12px; font-weight:900; font-size:13.5px;">
-              ⏳ 尚未指派接送助理（共 ${unassigned.length} 位）
-            </div>
-            <table class="rep-ex-table">
-              <thead><tr><th>床號</th><th>姓名</th><th>接送方式</th><th>特別設備／提醒</th></tr></thead>
-              <tbody>${unassigned.map(renderRow).join('')}</tbody>
-            </table>
-          </div>
-        `;
-      }
+      const rowsHtml = !orderedPts.length
+        ? `<tr><td colspan="5" style="text-align:center; padding:14px; color:#64748b;">目前沒有今日出席病人</td></tr>`
+        : orderedPts.map(pt => {
+            const extras = pt.transportExtras || [];
+            const special = isSpecial(pt);
+            const staff = (pt.transportStaff || '').trim();
+            const rowStyle = special
+              ? 'background:#fef2f2; border-left:4px solid #dc2626;'
+              : (staff ? 'background:#ffffff;' : 'background:#f8fafc;');
 
-      document.getElementById('transportSummaryMeta').textContent = `日期：${todayISO()}｜已指派 ${presentPts.length - unassigned.length} 位，未指派 ${unassigned.length} 位`;
+            const extrasHtml = extras.length
+              ? extras.map(x => {
+                  const isKey = x.includes('吊機') || x.includes('雙人');
+                  return isKey
+                    ? `<span style="display:inline-block; padding:1px 7px; border-radius:999px; background:#dc2626; color:#fff; font-weight:900; font-size:11.5px; margin-right:4px;">⚠️ ${esc(x)}</span>`
+                    : `<span style="display:inline-block; padding:1px 6px; border-radius:5px; background:#ede9fe; color:#5b21b6; font-weight:800; font-size:11.5px; margin-right:4px;">${esc(x)}</span>`;
+                }).join('')
+              : '<span style="color:#94a3b8;">-</span>';
+
+            const staffHtml = staff
+              ? `<span style="display:inline-block; padding:2px 8px; border-radius:999px; background:#0f766e; color:#fff; font-weight:900; font-size:12px;">${esc(staff)}</span>`
+              : `<span style="display:inline-block; padding:2px 7px; border-radius:999px; background:#e2e8f0; color:#64748b; font-weight:800; font-size:11.5px;">未指派</span>`;
+
+            return `
+              <tr style="${rowStyle}">
+                <td class="tabular" style="padding:5px 8px; font-weight:900; font-size:13.5px; white-space:nowrap;">${esc(pt.bed)}號床</td>
+                <td style="padding:5px 8px; font-weight:900; font-size:13.5px; white-space:nowrap;">${esc(pt.name)}</td>
+                <td style="padding:5px 8px; white-space:nowrap;">${pt.transportMode ? `<span style="padding:1px 7px; border-radius:5px; background:#fef3c7; border:1px solid #fcd34d; color:#92400e; font-weight:800; font-size:12px;">${esc(pt.transportMode)}</span>` : '<span style="color:#94a3b8;">-</span>'}</td>
+                <td style="padding:5px 8px;">${extrasHtml}</td>
+                <td style="padding:5px 8px; text-align:right; white-space:nowrap;">${staffHtml}</td>
+              </tr>
+            `;
+          }).join('');
+
+      const html = `
+        <div style="border:1.5px solid #cbd5e1; border-radius:8px; overflow:hidden; flex-shrink:0;">
+          <table class="rep-ex-table" style="margin:0;">
+            <thead>
+              <tr>
+                <th style="padding:6px 8px;">床號</th>
+                <th style="padding:6px 8px;">姓名</th>
+                <th style="padding:6px 8px;">接送方式</th>
+                <th style="padding:6px 8px;">特別設備／提醒</th>
+                <th style="padding:6px 8px; text-align:right;">接送助理</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </div>
+      `;
+
+      document.getElementById('transportSummaryMeta').textContent =
+        `日期：${todayISO()}｜已指派 ${assignedCnt}/${presentPts.length} 位｜吊機／雙人 ${specialCnt} 位`;
       document.getElementById('transportSummaryBody').innerHTML = html;
       openModal('transportSummaryModal');
     }
 
     function copyTransportSummary() {
       const presentPts = state.patients.filter(p => p.attendance === 'present');
-      const assignedMap = new Map();
+      const lines = [`【今日接送總表 ${todayISO()}】`];
       presentPts.forEach(pt => {
+        const mode = pt.transportMode ? `[${pt.transportMode}]` : '';
+        const extras = (pt.transportExtras || []).map(x => (x.includes('吊機') || x.includes('雙人')) ? `⚠️${x}` : x).join(' ');
         const staff = (pt.transportStaff || '').trim() || '未指派';
-        if (!assignedMap.has(staff)) assignedMap.set(staff, []);
-        assignedMap.get(staff).push(pt);
+        lines.push(`- ${pt.bed}號床 ${pt.name} ${mode} ${extras} → ${staff}`.replace(/\s+/g, ' ').trim());
       });
+      const text = lines.join('\n');
+      navigator.clipboard?.writeText(text).then(() => showToast('📋 已複製接送總表文字版！')).catch(() => showToast('複製失敗，請手動選取'));
+    });
 
       const lines = [`【今日接送總表 ${todayISO()}】`];
       assignedMap.forEach((pts, staff) => {
