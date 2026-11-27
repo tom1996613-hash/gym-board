@@ -1524,7 +1524,6 @@
         const localMap = new Map(state.patients.map(p => [p.id, p]));
         state.patients = remote.patients.map(rp => {
           const lp = localMap.get(rp.id);
-          // 若本機已有全名且對應同一位病人，保留本機全名；否則直接使用雲端同步的「姓X名」
           const hasLocalFullName = lp && lp.name && !lp.name.endsWith('號床') && !lp.name.includes('X');
           const resolvedName = hasLocalFullName
             ? lp.name
@@ -1857,7 +1856,7 @@
     function exportUpdatedSelfHtml() {
       const snapshot = JSON.parse(JSON.stringify(state));
       snapshot._embeddedVersion = Date.now();
-      const jsonPayload = JSON.stringify(snapshot).replace(/<\/script>/gi, '<\/script>');
+      const jsonPayload = JSON.stringify(snapshot).replace(/<\/script>/gi, '<\\/script>');
 
       const docClone = document.documentElement.cloneNode(true);
       const emb = docClone.querySelector('#embeddedStateScript');
@@ -1866,8 +1865,7 @@
       const ws = docClone.querySelector('#workspace');
       if (ws) ws.innerHTML = '';
 
-      const htmlStr = '<!DOCTYPE html>
-' + docClone.outerHTML;
+      const htmlStr = '<!DOCTYPE html>\n' + docClone.outerHTML;
       const blob = new Blob([htmlStr], { type: 'text/html;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -3098,8 +3096,7 @@
         const staff = (pt.transportStaff || '').trim() || '未指派';
         lines.push(`- ${pt.bed}號床 ${mode} ${extras} → ${staff}`.replace(/\s+/g, ' ').trim());
       });
-      const text = lines.join('
-');
+      const text = lines.join('\n');
       navigator.clipboard?.writeText(text).then(() => showToast('📋 已複製接送總表文字版！')).catch(() => showToast('複製失敗，請手動選取'));
     }
 
@@ -3416,8 +3413,7 @@
         lines.push(`- Walking exercise with ${pt.aid} (${pt.assist}) [Not performed]`);
       }
 
-      return lines.join('
-');
+      return lines.join('\n');
     }
 
     function openReportModal() {
@@ -3435,8 +3431,7 @@
         const ptCardsHtml = thPts.map(pt => {
           const r = getRiskInfo(pt);
           const docLine = generateEnglishDocumentation(pt);
-          allDocs.push(`[Bed ${pt.bed} ${pt.name}]
-${docLine}`);
+          allDocs.push(`[Bed ${pt.bed} ${pt.name}]\n${docLine}`);
           const aidFull = [pt.aid, ...(pt.aidExtras || [])].join(' + ');
           const trFull = [pt.transportMode, ...(pt.transportExtras || [])].filter(Boolean).join(' + ') || '-';
           const doneEx = pt.exercises.filter(ex => isScheduledToday(ex.schedule));
@@ -3505,9 +3500,7 @@ ${docLine}`);
         ${blocksHtml}
         <div class="field-group">
           <span class="field-label">📝 英文 Clinical Documentation 總匯（可直接複製貼入 CMS / 病歷）：</span>
-          <textarea id="allEnglishDocArea" class="doc-note-box" readonly>${esc(allDocs.join('
-
-'))}</textarea>
+          <textarea id="allEnglishDocArea" class="doc-note-box" readonly>${esc(allDocs.join('\n\n'))}</textarea>
         </div>
       `;
       openModal('reportModal');
@@ -3552,7 +3545,7 @@ ${docLine}`);
         } catch (e) {}
       }
 
-      const blob = new Blob(['﻿' + docText], { type: 'text/plain;charset=utf-8;' });
+      const blob = new Blob(['\uFEFF' + docText], { type: 'text/plain;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
