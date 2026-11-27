@@ -1562,7 +1562,7 @@
     function mergeRemoteState(remote) {
       state._lastUpdatedAt = remote.updatedAt || Date.now();
       if (remote.tvPageSize !== undefined) state.tvPageSize = Number(remote.tvPageSize);
-      if (Array.isArray(remote.onDutyTransport)) state.onDutyTransport = remote.onDutyTransport;
+      state.onDutyTransport = Array.isArray(remote.onDutyTransport) ? remote.onDutyTransport : [];
       if (remote.transportCounter !== undefined) state.transportCounter = Number(remote.transportCounter) || 0;
 
       if (remote.settings && typeof remote.settings === 'object') {
@@ -1829,7 +1829,7 @@
         settings: createDefaultSettings(),
         audioOn: true,
         tvPageSize: 0,
-        onDutyTransport: ['G', 'H', 'J', 'K', 'R', 'Y'],
+        onDutyTransport: [],
         transportCounter: 2,
         _lastUpdatedAt: 0,
         patients: createDemoPatients()
@@ -1851,6 +1851,8 @@
       if (!Array.isArray(s.settings.earlyReasons)) s.settings.earlyReasons = [...def.earlyReasons];
       if (!Array.isArray(s.settings.exerciseLibrary) || !s.settings.exerciseLibrary.length) s.settings.exerciseLibrary = createDefaultExerciseLibrary();
       if (typeof s.settings.trackStaffAssignment !== 'boolean') s.settings.trackStaffAssignment = true;
+      if (!Array.isArray(s.onDutyTransport)) s.onDutyTransport = [];
+      s.onDutyTransport = s.onDutyTransport.filter(x => s.settings.assistants.includes(x));
       if (!Array.isArray(s.patients)) s.patients = [];
       s.patients.forEach(pt => {
         if (!Array.isArray(pt.aidExtras)) pt.aidExtras = [];
