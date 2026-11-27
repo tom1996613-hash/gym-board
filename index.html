@@ -2996,48 +2996,38 @@
       renderWorkspace();
     }
 
+  function getAssistantColor(name) {
+      if (!name) return '#64748b';
+      const list = (state && state.settings && state.settings.assistants) || [];
+      const idx = list.indexOf(name);
+      if (idx >= 0) return THERAPIST_PALETTE[idx % THERAPIST_PALETTE.length];
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      return THERAPIST_PALETTE[Math.abs(hash) % THERAPIST_PALETTE.length];
+    }
+
     function openTransportSummaryModal() {
-      const presentPts = state.patients.filter(p => p.attendance === 'present');
+      const presentPts = state.patients
+        .filter(p => p.attendance === 'present')
+        .slice()
+        .sort((a, b) => bedNumeric(a.bed) - bedNumeric(b.bed));
+
       const isSpecial = (pt) => (pt.transportExtras || []).some(x => x.includes('吊機') || x.includes('雙人'));
 
-      const staffOrder = [];
-      const groups = new Map();
-
-      presentPts.forEach(pt => {
-        const key = (pt.transportStaff || '').trim() || '__UNASSIGNED__';
-        if (!groups.has(key)) {
-          groups.set(key, []);
-          staffOrder.push(key);
-        }
-        groups.get(key).push(pt);
-      });
-
-      staffOrder.sort((a, b) => {
-        if (a === '__UNASSIGNED__') return 1;
-        if (b === '__UNASSIGNED__') return -1;
-        return a.localeCompare(b, 'zh-Hant');
-      });
-
-      const orderedPts = [];
       let assignedCnt = 0;
       let specialCnt = 0;
-
-      staffOrder.forEach(key => {
-        const list = groups.get(key);
-        list.sort((a, b) => (a.transportOrder || 999) - (b.transportOrder || 999) || bedNumeric(a.bed) - bedNumeric(b.bed));
-        list.forEach(pt => {
-          orderedPts.push(pt);
-          if ((pt.transportStaff || '').trim()) assignedCnt++;
-          if (isSpecial(pt)) specialCnt++;
-        });
+      presentPts.forEach(pt => {
+        if ((pt.transportStaff || '').trim()) assignedCnt++;
+        if (isSpecial(pt)) specialCnt++;
       });
 
-      const rowsHtml = !orderedPts.length
+      const rowsHtml = !presentPts.length
         ? `<tr><td colspan="4" style="text-align:center; padding:14px; color:#64748b;">目前沒有今日出席病人</td></tr>`
-        : orderedPts.map(pt => {
+        : presentPts.map(pt => {
             const extras = pt.transportExtras || [];
             const special = isSpecial(pt);
             const staff = (pt.transportStaff || '').trim();
+            const staffCol = getAssistantColor(staff);
             const rowStyle = special
               ? 'background:#fef2f2; border-left:4px solid #dc2626;'
               : (staff ? 'background:#ffffff;' : 'background:#f8fafc;');
@@ -3052,7 +3042,7 @@
               : '<span style="color:#94a3b8;">-</span>';
 
             const staffHtml = staff
-              ? `<span style="display:inline-block; padding:2px 8px; border-radius:999px; background:#0f766e; color:#fff; font-weight:900; font-size:12px;">${esc(staff)}</span>`
+              ? `<span style="display:inline-block; padding:2px 9px; border-radius:999px; background:${staffCol}; color:#fff; font-weight:900; font-size:12px;">${esc(staff)}</span>`
               : `<span style="display:inline-block; padding:2px 7px; border-radius:999px; background:#e2e8f0; color:#64748b; font-weight:800; font-size:11.5px;">未指派</span>`;
 
             return `
