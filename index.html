@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>復康運動室電子看板</title>
+  <link rel="icon" href="data:," />
   <style>
     /* ==========================================================================
        1. 全域設計系統與色彩變數
@@ -1412,6 +1413,7 @@
     let fbRef = null;
     let fbConnected = false;
     let isApplyingRemoteUpdate = false;
+    let hasInitialRemoteSync = false;
 
     function updateSyncPill(status, text) {
       const el = document.getElementById('syncStatusPill');
@@ -1479,14 +1481,17 @@
         fbRef = fbDb.ref(`rehab_boards/${FIXED_ROOM}`);
 
         fbRef.on('value', (snap) => {
+          const isFirstSync = !hasInitialRemoteSync;
           fbConnected = true;
+          hasInitialRemoteSync = true;
           updateSyncPill('online', '☁️ 已同步雲端');
           const remote = snap.val();
 
           // 雲端為空時不自動把本地原始資料推上去覆蓋，避免新裝置洗掉資料
           if (!remote) return;
 
-          if (remote.updatedAt && remote.updatedAt <= (state._lastUpdatedAt || 0)) return;
+          // 首次連線無條件信任雲端資料，之後才比較 updatedAt
+          if (!isFirstSync && remote.updatedAt && remote.updatedAt <= (state._lastUpdatedAt || 0)) return;
           isApplyingRemoteUpdate = true;
           mergeRemoteState(remote);
           persistLocalOnly();
@@ -1507,7 +1512,7 @@
 
     /** 把全部系統設定＋去識別化排程上傳至 Firebase（絕不上傳全名，僅上傳「姓X名」） */
     function pushStateToFirebase() {
-      if (!fbRef || isApplyingRemoteUpdate) return;
+      if (!fbRef || isApplyingRemoteUpdate || !hasInitialRemoteSync) return;
       const now = Date.now();
       state._lastUpdatedAt = now;
 
@@ -1826,7 +1831,7 @@
         tvPageSize: 0,
         onDutyTransport: ['G', 'H', 'J', 'K', 'R', 'Y'],
         transportCounter: 2,
-        _lastUpdatedAt: Date.now(),
+        _lastUpdatedAt: 0,
         patients: createDemoPatients()
       };
     }
@@ -1881,6 +1886,7 @@
             return;
           }
           state = ensureStateIntegrity(parsed);
+          state._lastUpdatedAt = 0;
           return;
         }
       } catch (e) {}
