@@ -276,7 +276,7 @@
       display: inline-flex; align-items: center; gap: 2px; font-size: 17px; font-weight: 900;
       padding: 2px 8px; border-radius: 7px; background: rgba(15, 23, 42, 0.08); color: #0f172a;
     }
-    .sym { font-size: 13px; font-weight: 900; }
+    .sym { font-size: 26px; font-weight: 900; line-height: 1; }
     .sym.fall { color: var(--risk-fall-accent); }
     .sym.bp { color: var(--risk-bp-accent); }
     .sym.both { color: var(--risk-both-accent); }
@@ -296,9 +296,9 @@
     .pc-tag.walk-btn.done { background: #16a34a; border-color: #15803d; color: #fff; }
 
     .assist-warn-badge {
-      display: inline-flex; align-items: center; gap: 3px;
-      background: var(--orange-warn); color: #ffffff; border: 2px solid var(--orange-border);
-      font-weight: 900; padding: 1px 8px; border-radius: 999px; font-size: 12px;
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--orange-warn); color: #ffffff; border: 2.5px solid var(--orange-border);
+      font-weight: 900; padding: 3px 12px; border-radius: 999px; font-size: 18px;
     }
 
     .tr-assign-btn {
@@ -482,7 +482,7 @@
       line-height: 0.92;
       letter-spacing: -0.03em;
     }
-    .tv-sym { font-size: var(--tv-sym); font-weight: 900; line-height: 0.95; }
+    .tv-sym { font-size: calc(var(--tv-sym) * 2.4); font-weight: 900; line-height: 0.9; display: inline-flex; align-items: center; }
     .tv-sym.fall { color: var(--risk-fall-accent); }
     .tv-sym.bp { color: var(--risk-bp-accent); }
     .tv-sym.both { color: var(--risk-both-accent); }
@@ -499,6 +499,7 @@
     }
 
     .tv-col-mob {
+      grid-row: 1 / -1;
       flex-direction: column;
       justify-content: center;
       align-items: center;
@@ -541,15 +542,16 @@
       color: #0f172a;
     }
     .tv-mob-warn {
-      font-size: calc(var(--tv-mob) * 0.92);
+      font-size: calc(var(--tv-mob) * 1.65);
       font-weight: 900;
       line-height: 1;
       white-space: nowrap;
-      padding: 2px 7px;
+      padding: 4px 12px;
       border-radius: 999px;
       background: var(--orange-warn);
       color: #ffffff;
-      border: 1.5px solid var(--orange-border);
+      border: 2.5px solid var(--orange-border);
+      box-shadow: 0 2px 6px rgba(124, 45, 18, 0.35);
     }
     .tv-walk-badge {
       font-size: calc(var(--tv-mob) * 0.85);
@@ -569,6 +571,7 @@
     }
 
     .tv-col-ex {
+      grid-row: 1 / -1;
       border-right: none;
       flex-wrap: wrap;
       align-content: center;
@@ -641,18 +644,18 @@
     .tv-prog-fill { height: 100%; border-radius: 999px; transition: width 0.35s linear; }
 
     .tv-row-footer-note {
-      grid-column: 1 / -1;
+      grid-column: 1 / 3;
       text-align: center;
-      background: rgba(154, 52, 18, 0.12);
-      border-top: 1.5px solid rgba(154, 52, 18, 0.28);
-      color: #9a3412;
-      font-size: var(--tv-note);
+      background: rgba(154, 52, 18, 0.04);
+      border-top: 1px dashed rgba(154, 52, 18, 0.18);
+      border-right: 2px solid rgba(15, 23, 42, 0.1);
+      color: rgba(154, 52, 18, 0.92);
+      font-size: calc(var(--tv-note) * 1.45);
       font-weight: 900;
-      line-height: 1.1;
-      padding: 2px 10px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      line-height: 1.15;
+      padding: 3px 6px;
+      white-space: normal;
+      word-break: break-word;
     }
 
     .tv-float-bar {
@@ -960,9 +963,12 @@
         <button class="modal-close" onclick="closeModal('qrModal')">✕</button>
       </div>
       <div class="modal-body" id="qrModalBody"></div>
-      <div class="modal-footer">
-        <button class="btn-secondary" onclick="closeModal('qrModal')">關閉</button>
-        <button class="btn-primary" onclick="window.print()">🖨️ 列印全部床號 QR Code 卡</button>
+      <div class="modal-footer" style="justify-content:space-between;">
+        <button class="btn-primary" style="background:#059669;" onclick="downloadAll30BedsQrWord()">📄 下載 1–30 號床固定 QR Code (Word)</button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-secondary" onclick="closeModal('qrModal')">關閉</button>
+          <button class="btn-primary" onclick="window.print()">🖨️ 列印目前排程床號</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2408,7 +2414,7 @@
       const timerFont = Math.min(54, Math.max(20, Math.floor(rowH * 0.46)));
       const staffFont = Math.min(24, Math.max(12, Math.floor(rowH * 0.24)));
 
-      const colBedW = Math.round(bedFont * 1.9 + thFont * 1.2 + 24);
+      const colBedW = Math.round(bedFont * 2.3 + thFont * 1.2 + 34);
       const colNameW = Math.round(nameFont * 3.3 + 12);
       const colMobW = Math.round(mobFont * 7.8 + 16);
 
@@ -2489,7 +2495,7 @@
       const showNote = Boolean(pt.showNoteOnTv && pt.specialNote && pt.specialNote.trim());
       const trackStaff = state.settings.trackStaffAssignment;
 
-      const effectiveRowH = showNote ? Math.floor(rowH * 0.74) : rowH;
+      const effectiveRowH = rowH;
       const totalChars = exList.reduce((acc, ex) => acc + Array.from(ex.name).length + (ex.status === 'running' ? 6 : 1), 0) || 4;
       const byWidth = Math.floor((availExW - exList.length * 18) / (totalChars * 1.08));
       const byHeight = Math.floor(effectiveRowH * 0.56);
@@ -3476,6 +3482,84 @@
         </div>
       `;
       openModal('qrModal');
+    }
+
+    async function downloadAll30BedsQrWord() {
+      const baseUrl = window.location.href.split('#')[0];
+      showToast('⏳ 正在產生 1 至 30 號床永久 QR Code Word 檔...');
+
+      const fetchQrBase64 = async (bedNum) => {
+        const targetUrl = `${baseUrl}#bed=${bedNum}`;
+        const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=6&data=${encodeURIComponent(targetUrl)}`;
+        try {
+          const resp = await fetch(apiUrl);
+          const blob = await resp.blob();
+          return await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+          });
+        } catch (e) {
+          return apiUrl;
+        }
+      };
+
+      const beds = Array.from({ length: 30 }, (_, i) => i + 1);
+      const imgDataList = await Promise.all(beds.map(b => fetchQrBase64(b)));
+
+      let tableRowsHtml = '';
+      for (let i = 0; i < beds.length; i += 3) {
+        tableRowsHtml += '<tr>';
+        for (let c = 0; c < 3; c++) {
+          const idx = i + c;
+          if (idx < beds.length) {
+            const b = beds[idx];
+            const src = imgDataList[idx];
+            tableRowsHtml += `
+              <td style="width:33.3%; border:2px solid #334155; padding:14px 10px; text-align:center; vertical-align:middle;">
+                <div style="font-size:24pt; font-weight:bold; color:#0f172a; margin-bottom:6px; font-family:'Microsoft JhengHei',sans-serif;">${b} 號床</div>
+                <img src="${src}" width="155" height="155" style="width:155px; height:155px;" />
+                <div style="font-size:10pt; color:#475569; margin-top:6px; font-family:'Microsoft JhengHei',sans-serif;">掃描記錄運動・永久固定床號卡</div>
+              </td>
+            `;
+          } else {
+            tableRowsHtml += '<td style="width:33.3%; border:none;"></td>';
+          }
+        }
+        tableRowsHtml += '</tr>';
+      }
+
+      const wordHtml = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office"
+              xmlns:w="urn:schemas-microsoft-com:office:word"
+              xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+          <meta charset="utf-8" />
+          <title>1至30號床固定QR Code卡</title>
+          <style>
+            @page { size: A4 portrait; margin: 1.2cm; }
+            body { font-family: "PingFang HK", "Microsoft JhengHei", sans-serif; }
+            table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+            tr { page-break-inside: avoid; }
+          </style>
+        </head>
+        <body>
+          <h2 style="text-align:center; margin:0 0 10px 0; color:#0f172a;">復康運動室 — 1 至 30 號床固定 QR Code 卡</h2>
+          <table>${tableRowsHtml}</table>
+        </body>
+        </html>
+      `;
+
+      const blob = new Blob(['\uFEFF' + wordHtml], { type: 'application/msword;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `復康運動室_1至30號床固定QR_Code卡.doc`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+      showToast('📥 已下載 1 至 30 號床 QR Code Word 檔');
     }
 
     /* ========================================================================
