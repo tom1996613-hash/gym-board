@@ -1369,6 +1369,7 @@
         transportExtras: ['吊機', '雙人'],
         earlyReasons: ['疲倦', '頭暈／血壓不適', '痛楚', '檢查／覆診', '其他'],
         emailRecipients: '',
+        emailWebhookUrl: '',
         firebaseConfigText: BUILTIN_FIREBASE_CONFIG,
         firebaseRoomId: 'gym_room_1',
         exerciseLibrary: createDefaultExerciseLibrary()
@@ -3761,18 +3762,40 @@
       showToast('📋 已複製全部英文病歷紀錄！');
     }
 
-    function sendReportEmail() {
+    async function sendReportEmail() {
       if (!navigator.onLine) {
         showToast('⚠️ 目前主電腦處於離線狀態，請先連接網絡再發送');
         return;
       }
       const to = (state.settings.emailRecipients || '').trim();
+      const webhookUrl = (state.settings.emailWebhookUrl || '').trim();
       const area = document.getElementById('allEnglishDocArea');
       const bodyText = area ? area.value : '';
-      const subject = encodeURIComponent(`復康運動室每日紀錄 (${todayISO()})`);
-      const body = encodeURIComponent(bodyText);
-      window.location.href = `mailto:${encodeURIComponent(to)}?subject=${subject}&body=${body}`;
-      showToast(to ? `✉️ 正在開啟郵件程式寄送至 ${to}` : '✉️ 正在開啟郵件程式（可在系統設定預設收件同事 Email）');
+      const subject = `復康運動室每日紀錄 (${todayISO()})`;
+
+      if (!to) {
+        showToast('⚠️ 請先在「系統設定 → 運動記錄與備份」輸入收件同事 Email');
+        return;
+      }
+
+      if (webhookUrl) {
+        try {
+          showToast('⏳ 正在透過雲端自動發送 Email...');
+          await fetch(webhookUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ to, subject, body: bodyText })
+          });
+          showToast(`✅ 已透過雲端寄出 Email 至 ${to}`);
+          return;
+        } catch (err) {
+          showToast('❌ 雲端發信失敗，改為開啟本機郵件程式');
+        }
+      }
+
+      window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
+      showToast('✉️ 未設定雲端發信網址，已開啟本機郵件程式（可在系統設定貼上 Google Apps Script 網址）');
     }
 
     async function saveDailyReportToFolderOrDownload() {
@@ -3981,11 +4004,28 @@
             </div>
           </div>
           <div class="settings-section">
-            <div class="settings-section-title">✉️ 每日電郵收件人設定</div>
+            <div class="settings-section-title">✉️ 雲端自動發 Email 設定（使用你的 Gmail 寄出，同步至所有電腦）</div>
             <div class="field-group">
-              <label class="field-label">指定同事電郵地址（多位同事請用逗號分隔）</label>
-              <input type="text" class="text-input" value="${esc(s.emailRecipients)}" placeholder="colleague1@ha.org.hk, colleague2@ha.org.hk"
-                     onchange="state.settings.emailRecipients=this.value.trim(); persistState(true);" />
+              <label class="field-label">收件同事 Email 名單（可隨時新增或點 × 移除，即時同步）：</label>
+              <div class="tag-chip-list">
+                ${(s.emailRecipients || '').split(',').map(x => x.trim()).filter(Boolean).map(em => `
+                  <span class="removable-chip">${esc(em)}<button class="chip-x" onclick="removeEmailRecipient('${esc(em)}')">×</button></span>
+                `).join('') || '<span style="font-size:12px; color:#64748b;">尚未新增收件同事</span>'}
+              </div>
+              <div class="add-inline-row" style="margin-top:4px;">
+                <input id="inpAddEmail" type="email" class="text-input" style="max-width:280px;" placeholder="輸入同事 Email（如：chan@ha.org.hk）"
+                       onkeydown="if(event.key==='Enter') addEmailRecipient()" />
+                <button class="btn-primary" onclick="addEmailRecipient()">＋新增收件人</button>
+              </div>
+            </div>
+            <div class="field-group" style="margin-top:4px;">
+              <label class="field-label">Google Apps Script 雲端發信網址（貼上一次即可永久使用）：</label>
+              <div class="add-inline-row">
+                <input id="inpEmailWebhook" type="text" class="text-input" style="flex:1;" value="${esc(s.emailWebhookUrl || '')}"
+                       placeholder="https://script.google.com/macros/s/....../exec"
+                       onchange="state.settings.emailWebhookUrl=this.value.trim(); persistState(true); showToast('☁️ 已儲存雲端發信網址');" />
+                <button class="btn-secondary" onclick="testCloudEmailWebhook()">🧪 測試發信</button>
+              </div>
             </div>
           </div>
         `;
@@ -4013,6 +4053,49 @@
             </div>
           </div>
         `;
+      }
+    }
+
+    function addEmailRecipient() {
+      const inp = document.getElementById('inpAddEmail');
+      const v = (inp ? inp.value : '').trim();
+      if (!v || !v.includes('@')) { showToast('請輸入有效的 Email 地址'); return; }
+      const list = (state.settings.emailRecipients || '').split(',').map(x => x.trim()).filter(Boolean);
+      if (!list.includes(v)) list.push(v);
+      state.settings.emailRecipients = list.join(', ');
+      persistState(true);
+      renderSettingsTabContent();
+      showToast('☁️ 已新增收件人並同步雲端');
+    }
+
+    function removeEmailRecipient(em) {
+      const list = (state.settings.emailRecipients || '').split(',').map(x => x.trim()).filter(x => x && x !== em);
+      state.settings.emailRecipients = list.join(', ');
+      persistState(true);
+      renderSettingsTabContent();
+      showToast('☁️ 已更新收件人並同步雲端');
+    }
+
+    async function testCloudEmailWebhook() {
+      const url = (state.settings.emailWebhookUrl || '').trim();
+      const to = (state.settings.emailRecipients || '').trim();
+      if (!url) { showToast('請先貼上 Google Apps Script 網址'); return; }
+      if (!to) { showToast('請先新增至少一位收件同事 Email'); return; }
+      try {
+        showToast('⏳ 正在發送測試郵件...');
+        await fetch(url, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            to,
+            subject: `復康運動室系統連線測試 (${todayISO()})`,
+            body: '此為復康運動室電子看板自動發信測試郵件，代表雲端 Gmail 代寄已設定成功。'
+          })
+        });
+        showToast(`✅ 測試請求已送出至 ${to}，請檢查收件匣`);
+      } catch (e) {
+        showToast('❌ 測試發信失敗，請檢查網址是否正確');
       }
     }
 
