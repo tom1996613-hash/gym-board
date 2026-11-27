@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>復康運動室電子看板與排程系統 (全設定雲端同步版)</title>
+  <title>復康運動室電子看板</title>
   <style>
     /* ==========================================================================
        1. 全域設計系統與色彩變數
@@ -569,15 +569,16 @@
 
     .tv-col-ex {
       border-right: none;
-      flex-wrap: nowrap;
+      flex-wrap: wrap;
+      align-content: center;
       align-items: center;
-      gap: 5px;
+      gap: 4px;
       padding: 2px 6px;
       overflow: hidden;
     }
     .tv-ex {
       border-radius: 8px;
-      padding: 2px 8px;
+      padding: 2px 7px;
       background: rgba(255, 255, 255, 0.92);
       border: 2px solid #94a3b8;
       display: inline-flex;
@@ -585,6 +586,7 @@
       justify-content: center;
       flex-shrink: 1;
       min-width: 0;
+      max-width: 100%;
     }
     .tv-ex.must-do.status-pending { border-color: #d97706; background: #fffbeb; }
     .tv-ex.status-running { border-width: 3px; border-color: #0284c7; background: #f0f9ff; padding: 2px 10px; flex-shrink: 0; }
@@ -596,17 +598,23 @@
 
     .tv-ex-active-row { display: flex; align-items: center; gap: 7px; flex-wrap: nowrap; }
     .tv-ex-name-pending {
-      font-size: var(--row-ex-font, var(--tv-ex-pending));
+      font-size: calc(var(--row-ex-font, var(--tv-ex-pending)) * var(--tv-font-scale, 1));
       font-weight: 900;
-      line-height: 1.05;
+      line-height: 1.08;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
       color: #0f172a;
     }
     .tv-ex-name-active {
-      font-size: var(--row-ex-active-font, var(--tv-ex-active));
+      font-size: calc(var(--row-ex-active-font, var(--tv-ex-active)) * var(--tv-font-scale, 1));
       font-weight: 900;
-      line-height: 1.02;
+      line-height: 1.05;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
       color: #0f172a;
     }
     .stage-critical .tv-ex-name-active { color: #ffffff; }
@@ -657,6 +665,44 @@
     @keyframes pulseRed {
       0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.65); }
       50% { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0.1); }
+    }
+
+
+    :root {
+      --tv-font-scale: 1;
+    }
+    .tv-ctrl-bar {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      padding: 3px 8px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 800;
+      color: #e2e8f0;
+      flex-wrap: wrap;
+    }
+    .tv-ctrl-btn {
+      padding: 2px 7px;
+      border-radius: 5px;
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #f8fafc;
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .tv-ctrl-btn:hover { background: #334155; }
+    .tv-ctrl-btn.active { background: #0284c7; border-color: #38bdf8; color: #fff; }
+    .tv-ctrl-select {
+      padding: 2px 5px;
+      border-radius: 5px;
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #f8fafc;
+      font-size: 12px;
+      font-weight: 800;
     }
 
     /* ==========================================================================
@@ -853,12 +899,12 @@
         <button class="seg-top-btn" data-page="4" onclick="setTvPageSize(4)">每頁 4 人</button>
       </div>
 
-      <button class="tool-btn btn-save-html" onclick="exportUpdatedSelfHtml()" title="匯出本地備份快照 HTML 檔">
-        💾 匯出本地備份檔
+      <button class="tool-btn btn-save-html" onclick="exportUpdatedSelfHtml()" title="匯出本地備份檔">
+        💾 匯出備份
       </button>
       <button id="btnAudio" class="tool-btn is-on" onclick="toggleAudio()">🔊 提示音開</button>
       <button class="tool-btn btn-settings" onclick="openSettingsModal('people')">⚙️ 系統設定</button>
-      <button class="tool-btn" onclick="confirmCarryOver()">🔄 重置今日運動與PCA</button>
+      <button class="tool-btn" onclick="confirmCarryOver()">🔄 重置運動與PCA</button>
       <button class="tool-btn btn-add" onclick="openPatientEditor(null)">＋ 新增病人</button>
       <button class="tool-btn btn-export" onclick="openReportModal()">📊 完結報表與英文紀錄</button>
     </div>
@@ -880,8 +926,7 @@
     <div class="modal-box lg">
       <div class="modal-header">
         <div>
-          <div class="modal-title">⚙️ 系統設定（全部設定與去識別化名單自動同步至 Firebase 雲端）</div>
-          <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">雲端同步時自動將姓名去識別化為「姓X名」（絕不上傳全名），在家輸入回醫院自動同步</div>
+          <div class="modal-title">⚙️ 系統設定</div>
         </div>
         <button class="modal-close" onclick="closeModal('settingsModal')">✕</button>
       </div>
@@ -891,7 +936,7 @@
         <button class="s-tab" data-stab="exercises" onclick="switchSettingsTab('exercises')">🏋️ 運動項目庫</button>
         <button class="s-tab" data-stab="clinical" onclick="switchSettingsTab('clinical')">🩺 臨床與接送選項</button>
         <button class="s-tab" data-stab="basic" onclick="switchSettingsTab('basic')">🖥️ 基本與助理記錄</button>
-        <button class="s-tab" data-stab="backup" onclick="switchSettingsTab('backup')">💾 JSON 回復／資料夾</button>
+        <button class="s-tab" data-stab="backup" onclick="switchSettingsTab('backup')">💾 運動記錄與備份</button>
         <button class="s-tab" data-stab="firebase" onclick="switchSettingsTab('firebase')">☁️ Firebase 連線</button>
       </div>
 
@@ -909,8 +954,7 @@
     <div class="modal-box lg">
       <div class="modal-header">
         <div>
-          <div class="modal-title">📱 可重用床號 QR Code 卡（支援同事手機 4G/5G 掃描同步）</div>
-          <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">手機端採用零姓名去識別化設計（僅顯示床號、患側、步行協助與運動按鈕）</div>
+          <div class="modal-title">📱 床號 QR Code</div>
         </div>
         <button class="modal-close" onclick="closeModal('qrModal')">✕</button>
       </div>
@@ -1012,7 +1056,7 @@
       </div>
       <div class="modal-body">
         <div style="background:#f0fdf4; border:1.5px solid #86efac; border-radius:10px; padding:11px; display:flex; flex-direction:column; gap:9px;">
-          <div style="font-size:13px; font-weight:900; color:#166534;">＋ 新增今節步行紀錄（大電視扶行欄自動顯示 ✓ 步行）</div>
+          <div style="font-size:13px; font-weight:900; color:#166534;">＋ 新增步行紀錄</div>
           <div class="form-grid">
             <div class="field-group">
               <label class="field-label">步行距離 (米 m)</label>
@@ -1130,11 +1174,11 @@
 
         <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
           <div class="field-group">
-            <span class="field-label">🚐 接送方式（單選，再按取消）：</span>
+            <span class="field-label">接送方式（單選）：</span>
             <div id="edTrModeChips" class="chip-row"></div>
           </div>
           <div class="field-group">
-            <span class="field-label">🦽 接送附加設備（可多選＋手動輸入）：</span>
+            <span class="field-label">接送附加設備（可多選）：</span>
             <div id="edTrExtraChips" class="chip-row"></div>
             <div class="add-inline-row" style="margin-top:4px;">
               <input id="edCustomTrExtra" type="text" class="text-input" placeholder="手動輸入設備（如：氧氣樽）" style="flex:1; padding:5px 8px; font-size:12.5px;"
@@ -1161,7 +1205,7 @@
         </div>
 
         <div class="field-group">
-          <span class="field-label">1-Click 運動處方矩陣（步行已設為預設項目，於大電視扶行欄顯示 Tick）：</span>
+          <span class="field-label">運動處方選擇（步行已設為預設項目）：</span>
           <div class="matrix-box" id="editorMatrixContainer"></div>
         </div>
 
@@ -1224,7 +1268,7 @@
     <div class="modal-box lg">
       <div class="modal-header">
         <div>
-          <div class="modal-title">🚐 今日接送總表（按助理分組・僅顯示床號）</div>
+          <div class="modal-title">🚐 今日接送總表</div>
           <div id="transportSummaryMeta" style="font-size:12px; color:var(--text-muted); margin-top:2px;"></div>
         </div>
         <button class="modal-close" onclick="closeModal('transportSummaryModal')">✕</button>
@@ -1299,10 +1343,12 @@
 
     function createDefaultSettings() {
       return {
-        systemTitle: '復康運動室電子看板與排程系統',
+        systemTitle: '復康運動室電子看板',
         tvTitle: '運動室實時看板',
         defaultExMin: 15,
-        pageIntervalSec: 10,
+        pageIntervalSec: 3.0,
+        tvFontScale: 1.0,
+        tvPriorityMode: 'standard',
         overtimeAlertMin: 3,
         voiceEnabled: true,
         trackStaffAssignment: true,
@@ -1434,7 +1480,7 @@
 
         fbRef.on('value', (snap) => {
           fbConnected = true;
-          updateSyncPill('online', '☁️ 全設定＋去識別化名單已雲端同步');
+          updateSyncPill('online', '☁️ 已同步雲端');
           const remote = snap.val();
 
           // 雲端為空時不自動把本地原始資料推上去覆蓋，避免新裝置洗掉資料
@@ -1973,17 +2019,88 @@
       return { waiting, active: active.map(x => x.pt), done, inactive };
     }
 
+    function isPatientDueOrOvertime(pt) {
+      return pt.exercises.some((ex) => {
+        if (ex.status !== 'running' && ex.status !== 'paused') return false;
+        const m = computeExMetrics(ex, pt);
+        return m.stage === 'due' || m.stage === 'critical';
+      });
+    }
+
+    function hasAnyExerciseStarted(pt) {
+      const todayEx = pt.exercises.filter(ex => isScheduledToday(ex.schedule));
+      return todayEx.some(ex => ex.status !== 'pending') || (pt.walkLogs && pt.walkLogs.length > 0);
+    }
+
     function computeTVPageModel() {
       const groups = categorizePatients('ALL');
-      const allOrdered = [...groups.waiting, ...groups.active, ...groups.done];
+      const priorityMode = state.settings.tvPriorityMode || 'standard';
       const pageSize = Number(state.tvPageSize) || 0;
 
+      if (priorityMode === 'unstarted_first') {
+        const presentPts = state.patients.filter(p => p.attendance === 'present');
+        const unstarted = [];
+        const dueActive = [];
+        const runningNormal = [];
+        const doneList = [];
+
+        presentPts.forEach(pt => {
+          if (groups.done.some(d => d.id === pt.id)) {
+            doneList.push(pt);
+          } else if (isPatientDueOrOvertime(pt)) {
+            dueActive.push(pt);
+          } else if (!hasAnyExerciseStarted(pt)) {
+            unstarted.push(pt);
+          } else {
+            runningNormal.push(pt);
+          }
+        });
+
+        unstarted.sort((a, b) => bedNumeric(a.bed) - bedNumeric(b.bed));
+        dueActive.sort((a, b) => bedNumeric(a.bed) - bedNumeric(b.bed));
+        runningNormal.sort((a, b) => bedNumeric(a.bed) - bedNumeric(b.bed));
+        doneList.sort((a, b) => bedNumeric(a.bed) - bedNumeric(b.bed));
+
+        const allOrdered = [...unstarted, ...dueActive, ...runningNormal, ...doneList];
+        const hasUnhandled = unstarted.length > 0 || dueActive.length > 0;
+
+        if (pageSize <= 0 || allOrdered.length <= pageSize) {
+          return {
+            groups,
+            visibleRows: allOrdered,
+            pinnedIds: new Set([...unstarted, ...dueActive].map(p => p.id)),
+            doneIds: new Set(doneList.map(p => p.id)),
+            isPaginated: false,
+            holdPagination: hasUnhandled,
+            currentPage: 1,
+            totalPages: 1
+          };
+        }
+
+        const totalPages = Math.max(1, Math.ceil(allOrdered.length / pageSize));
+        // 若仍有未有運動或夠鐘個案，停留在第一頁（未處理名單）；全部進行中才按設定跳頁時間去下頁
+        const safeIdx = hasUnhandled ? 0 : (tvPageIndex % totalPages);
+        if (hasUnhandled) tvPageIndex = 0;
+
+        return {
+          groups,
+          visibleRows: allOrdered.slice(safeIdx * pageSize, (safeIdx + 1) * pageSize),
+          pinnedIds: new Set([...unstarted, ...dueActive].map(p => p.id)),
+          doneIds: new Set(doneList.map(p => p.id)),
+          isPaginated: totalPages > 1,
+          holdPagination: hasUnhandled,
+          currentPage: safeIdx + 1,
+          totalPages
+        };
+      }
+
+      const allOrdered = [...groups.waiting, ...groups.active, ...groups.done];
       if (pageSize <= 0 || allOrdered.length <= pageSize) {
         return {
           groups, visibleRows: allOrdered,
           pinnedIds: new Set(allOrdered.filter(isPatientUrgent).map(p => p.id)),
           doneIds: new Set(groups.done.map(p => p.id)),
-          isPaginated: false, currentPage: 1, totalPages: 1
+          isPaginated: false, holdPagination: false, currentPage: 1, totalPages: 1
         };
       }
 
@@ -1999,6 +2116,7 @@
         pinnedIds: urgentIds,
         doneIds: new Set(groups.done.map(p => p.id)),
         isPaginated: totalPages > 1,
+        holdPagination: false,
         currentPage: safeIdx + 1,
         totalPages
       };
@@ -2046,6 +2164,30 @@
       setTvPageSize(order[(order.indexOf(Number(state.tvPageSize)) + 1) % order.length]);
     }
 
+    function adjustTvFontScale(delta) {
+      const cur = Number(state.settings.tvFontScale || 1.0);
+      state.settings.tvFontScale = Math.min(1.4, Math.max(0.7, +(cur + delta).toFixed(2)));
+      persistState(true);
+      renderWorkspace();
+    }
+
+    function setTvPageSpeed(val) {
+      const sec = Math.min(5.0, Math.max(0.5, Number(val) || 3.0));
+      state.settings.pageIntervalSec = sec;
+      tvPageElapsedMs = 0;
+      persistState(true);
+      renderWorkspace();
+    }
+
+    function toggleTvPriorityMode() {
+      const cur = state.settings.tvPriorityMode || 'standard';
+      state.settings.tvPriorityMode = cur === 'unstarted_first' ? 'standard' : 'unstarted_first';
+      tvPageIndex = 0;
+      tvPageElapsedMs = 0;
+      persistState(true);
+      renderWorkspace();
+    }
+
     function stepTvPage(delta) {
       const model = computeTVPageModel();
       if (!model.isPaginated) return;
@@ -2091,15 +2233,15 @@
         ws.innerHTML = `
           <section class="split-pane split-pane-pc">
             <div class="pane-banner" style="margin:-10px -12px 9px -12px;">
-              <span>💻 電腦操作台 (46%)</span>
-              <span>全設定雲端同步・步行預設</span>
+              <span>💻 電腦操作台</span>
+              <span>今日排程</span>
             </div>
             ${renderPCConsole()}
           </section>
           <section class="split-pane split-pane-tv">
             <div class="pane-banner">
-              <span>📺 46吋大電視預覽 (54%・${Number(state.tvPageSize) > 0 ? '每頁 ' + state.tvPageSize + ' 人' : '全部顯示'})</span>
-              <span style="color:#38bdf8;">統一字號・貼邊放大・步行Tick</span>
+              <span>📺 大電視預覽 (${Number(state.tvPageSize) > 0 ? '每頁 ' + state.tvPageSize + ' 人' : '全部顯示'})</span>
+              <span style="color:#38bdf8;">實時看板</span>
             </div>
             ${renderTVBoard()}
           </section>
@@ -2197,7 +2339,7 @@
             <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; align-items:center;">
               <span style="font-size:20px; font-weight:900; background:rgba(15,23,42,0.08); padding:4px 12px; border-radius:8px;">${esc(pt.aid)}</span>
               <span style="font-size:20px; font-weight:900; background:${isAssistHighlighted(pt.assist) ? '#c2410c' : 'rgba(15,23,42,0.08)'}; color:${isAssistHighlighted(pt.assist) ? '#fff' : '#0f172a'}; padding:4px 12px; border-radius:8px;">${esc(pt.assist)}</span>
-              ${pt.transportMode ? `<span style="font-size:16px; font-weight:900; background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:8px;">🚐 ${esc(pt.transportMode)}</span>` : ''}
+              ${pt.transportMode ? `<span style="font-size:16px; font-weight:900; background:#fef3c7; color:#92400e; padding:4px 10px; border-radius:8px;">${esc(pt.transportMode)}</span>` : ''}
             </div>
           </div>
 
@@ -2262,7 +2404,12 @@
       const colNameW = Math.round(nameFont * 3.3 + 12);
       const colMobW = Math.round(mobFont * 7.8 + 16);
 
+      const tvFontScale = Number(state.settings.tvFontScale || 1.0);
+      const tvSpeedSec = Number(state.settings.pageIntervalSec || 3.0);
+      const isUnstartedMode = (state.settings.tvPriorityMode || 'standard') === 'unstarted_first';
+
       const boardVars = `
+        --tv-font-scale:${tvFontScale};
         --tv-bed:${bedFont}px;
         --tv-sym:${symFont}px;
         --tv-name:${nameFont}px;
@@ -2303,7 +2450,22 @@
                 <span class="tv-kpi-chip">完成 ${model.groups.done.length}</span>
               </div>
             </div>
-            <div class="tv-clock tabular">${nowHHMMSS()}</div>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+              <div class="tv-ctrl-bar">
+                <button type="button" class="tv-ctrl-btn ${isUnstartedMode ? 'active' : ''}" onclick="toggleTvPriorityMode()">
+                  ${isUnstartedMode ? '📌 未做優先' : '標準排序'}
+                </button>
+                <span>字體</span>
+                <button type="button" class="tv-ctrl-btn" onclick="adjustTvFontScale(-0.05)">A-</button>
+                <span class="tabular" style="min-width:36px; text-align:center;">${Math.round(tvFontScale * 100)}%</span>
+                <button type="button" class="tv-ctrl-btn" onclick="adjustTvFontScale(0.05)">A+</button>
+                <span>過頁</span>
+                <select class="tv-ctrl-select tabular" onchange="setTvPageSpeed(this.value)">
+                  <option value="0.5" ${Math.abs(tvSpeedSec - 0.5) < 0.05 ? "selected" : ""}>0.5s</option><option value="1.0" ${Math.abs(tvSpeedSec - 1.0) < 0.05 ? "selected" : ""}>1.0s</option><option value="1.5" ${Math.abs(tvSpeedSec - 1.5) < 0.05 ? "selected" : ""}>1.5s</option><option value="2.0" ${Math.abs(tvSpeedSec - 2.0) < 0.05 ? "selected" : ""}>2.0s</option><option value="2.5" ${Math.abs(tvSpeedSec - 2.5) < 0.05 ? "selected" : ""}>2.5s</option><option value="3.0" ${Math.abs(tvSpeedSec - 3.0) < 0.05 ? "selected" : ""}>3.0s</option><option value="3.5" ${Math.abs(tvSpeedSec - 3.5) < 0.05 ? "selected" : ""}>3.5s</option><option value="4.0" ${Math.abs(tvSpeedSec - 4.0) < 0.05 ? "selected" : ""}>4.0s</option><option value="4.5" ${Math.abs(tvSpeedSec - 4.5) < 0.05 ? "selected" : ""}>4.5s</option><option value="5.0" ${Math.abs(tvSpeedSec - 5.0) < 0.05 ? "selected" : ""}>5.0s</option>
+                </select>
+              </div>
+              <div class="tv-clock tabular">${nowHHMMSS()}</div>
+            </div>
           </div>
           <div class="tv-rows">${rowsHtml}</div>
         </div>
@@ -2408,7 +2570,7 @@
       return `
         <div class="transport-bar">
           <div class="transport-bar-top">
-            <span class="transport-title">🚐 今日接送輪流計數（綠框＝接送最少）</span>
+            <span class="transport-title">🚐 今日接送計數</span>
             <div style="display:flex; gap:5px;">
               <button class="btn-primary" style="padding:4px 9px; font-size:11.5px; background:#0f766e;" onclick="openTransportSummaryModal()">📋 接送總表</button>
               <button class="mini-action-btn" onclick="showDutyDrawer=!showDutyDrawer; renderWorkspace();">${showDutyDrawer ? '▲ 收合' : '👤 當值助理'}</button>
@@ -2484,10 +2646,10 @@
               <span class="pc-name">${esc(pt.name)}</span>
               ${pt.therapist ? `<span class="pc-tag therapist" style="background:${tCol};">${esc(pt.therapist)}</span>` : ''}
               ${pt.transportStaff
-                ? `<button class="tr-assigned-pill" onclick="openTransportPickerPtId='${pt.id}'; renderWorkspace();">#${pt.transportOrder} ${esc(pt.transportStaff)}</button>`
+                ? `<button class="tr-assigned-pill" onclick="openTransportPickerPtId='${pt.id}'; renderWorkspace();">接送:${esc(pt.transportStaff)}</button>`
                 : `<button class="tr-assign-btn" onclick="openTransportPickerPtId='${pt.id}'; renderWorkspace();">＋接送</button>`}
-              ${pt.transportMode ? `<span class="pc-tag tr-mode">🚐 ${esc(pt.transportMode)}</span>` : ''}
-              ${(pt.transportExtras || []).map(x => `<span class="pc-tag tr-extra">🦽 ${esc(x)}</span>`).join('')}
+              ${pt.transportMode ? `<span class="pc-tag tr-mode">${esc(pt.transportMode)}</span>` : ''}
+              ${(pt.transportExtras || []).map(x => `<span class="pc-tag tr-extra">${esc(x)}</span>`).join('')}
               ${renderSideVisual(pt.side)}
               <span class="pc-tag">${esc(pt.aid)}</span>
               ${(pt.aidExtras || []).map(x => `<span class="pc-tag aid-extra">+${esc(x)}</span>`).join('')}
@@ -3120,7 +3282,7 @@
           transportOrder: null, transportStaff: '', transportTime: '',
           walkLogs: [], bpLogs: [], exercises: []
         };
-        document.getElementById('patientModalTitle').textContent = '＋ 新增病人（已預設包含步行訓練）';
+        document.getElementById('patientModalTitle').textContent = '＋ 新增病人';
         document.getElementById('btnRemovePatient').style.display = 'none';
       }
       document.getElementById('edBed').value = uiCtx.draft.bed;
@@ -3569,7 +3731,7 @@
       if (currentSettingsTab === 'people') {
         body.innerHTML = `
           <div class="settings-section">
-            <div class="settings-section-title">🧑‍⚕️ 治療師名單（自動配對專屬色・雲端同步）</div>
+            <div class="settings-section-title">🧑‍⚕️ 治療師名單</div>
             <div class="tag-chip-list">${s.therapists.map(t => `<span class="removable-chip" style="border-color:${getTherapistColor(t)};">${esc(t)}<button class="chip-x" onclick="removeList('therapists','${esc(t)}')">×</button></span>`).join('')}</div>
             <div class="add-inline-row">
               <input id="inpTh" type="text" class="text-input" style="max-width:200px;" placeholder="新增治療師..." />
@@ -3577,7 +3739,7 @@
             </div>
           </div>
           <div class="settings-section">
-            <div class="settings-section-title">🪪 助理代號／名稱（支援多選協作・雲端同步）</div>
+            <div class="settings-section-title">🪪 助理代號／名稱</div>
             <div class="tag-chip-list">${s.assistants.map(a => `<span class="removable-chip">${esc(a)}<button class="chip-x" onclick="removeList('assistants','${esc(a)}')">×</button></span>`).join('')}</div>
             <div class="add-inline-row">
               <input id="inpAs" type="text" class="text-input" style="max-width:200px;" placeholder="新增助理代號..." />
@@ -3591,7 +3753,7 @@
       if (currentSettingsTab === 'exercises') {
         body.innerHTML = `
           <div class="settings-section">
-            <div class="settings-section-title">＋ 新增預設運動項目（自動同步至所有電腦與平板）</div>
+            <div class="settings-section-title">＋ 新增預設運動項目</div>
             <div class="add-inline-row">
               <input id="libAddName" type="text" class="text-input" style="flex:2;" placeholder="運動名稱..." />
               <select id="libAddCat" class="text-input" style="flex:1;">${EX_CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}</select>
@@ -3614,7 +3776,7 @@
       if (currentSettingsTab === 'clinical') {
         body.innerHTML = `
           <div class="settings-section">
-            <div class="settings-section-title">🦯 Walking aid 助行器選項（單選・雲端同步）</div>
+            <div class="settings-section-title">🦯 Walking aid 助行器選項</div>
             <div class="tag-chip-list">${s.aids.map(x => `<span class="removable-chip">${esc(x)}<button class="chip-x" onclick="removeList('aids','${esc(x)}')">×</button></span>`).join('')}</div>
             <div class="add-inline-row">
               <input id="inpAid" type="text" class="text-input" style="max-width:200px;" placeholder="新增助行器（如：Elbow crutch）..." />
@@ -3622,7 +3784,7 @@
             </div>
           </div>
           <div class="settings-section">
-            <div class="settings-section-title">🤝 協助者／步行協助選項（雲端同步）</div>
+            <div class="settings-section-title">🤝 協助者／步行協助選項</div>
             <div class="tag-chip-list">${s.assists.map(x => `<span class="removable-chip">${esc(x)}<button class="chip-x" onclick="removeList('assists','${esc(x)}')">×</button></span>`).join('')}</div>
             <div class="add-inline-row">
               <input id="inpAssistOpt" type="text" class="text-input" style="max-width:200px;" placeholder="新增協助程度（如：Standby）..." />
@@ -3637,7 +3799,7 @@
             </div>
           </div>
           <div class="settings-section">
-            <div class="settings-section-title">🦿 助行器附加輔助（可多選・雲端同步）</div>
+            <div class="settings-section-title">🦿 助行器附加輔助</div>
             <div class="tag-chip-list">${s.aidExtras.map(x => `<span class="removable-chip">${esc(x)}<button class="chip-x" onclick="removeList('aidExtras','${esc(x)}')">×</button></span>`).join('')}</div>
             <div class="add-inline-row">
               <input id="inpAidEx" type="text" class="text-input" style="max-width:200px;" placeholder="新增附加輔助..." />
@@ -3645,7 +3807,7 @@
             </div>
           </div>
           <div class="settings-section">
-            <div class="settings-section-title">🚐 接送附加設備（雲端同步）</div>
+            <div class="settings-section-title">🚐 接送附加設備</div>
             <div class="tag-chip-list">${s.transportExtras.map(x => `<span class="removable-chip">${esc(x)}<button class="chip-x" onclick="removeList('transportExtras','${esc(x)}')">×</button></span>`).join('')}</div>
             <div class="add-inline-row">
               <input id="inpTrEx" type="text" class="text-input" style="max-width:200px;" placeholder="新增接送設備..." />
@@ -3675,14 +3837,14 @@
                        onchange="state.settings.overtimeAlertMin=Math.max(1,parseInt(this.value,10)||3); persistState(true);" />
               </div>
               <div class="field-group">
-                <label class="field-label">大電視自動翻頁間隔（秒）</label>
-                <input type="number" min="3" max="60" class="text-input tabular" value="${s.pageIntervalSec || 10}"
-                       onchange="state.settings.pageIntervalSec=Math.max(3,parseInt(this.value,10)||10); persistState(true);" />
+                <label class="field-label">大電視自動翻頁間隔（0.5 至 5.0 秒）</label>
+                <input type="number" min="0.5" max="5.0" step="0.5" class="text-input tabular" value="${s.pageIntervalSec || 3.0}"
+                       onchange="setTvPageSpeed(this.value);" />
               </div>
             </div>
           </div>
           <div class="settings-section">
-            <div class="settings-section-title">👷 助理記錄開關與看板設定（雲端同步）</div>
+            <div class="settings-section-title">👷 助理記錄與看板設定</div>
             <label class="toggle-switch">
               <input type="checkbox" ${s.trackStaffAssignment ? 'checked' : ''} onchange="state.settings.trackStaffAssignment=this.checked; persistState(true); renderWorkspace();" />
               <span>記錄及顯示誰 Set up 及結束運動（關閉後：點選運動直接一鍵倒數，並隱藏所有助理代號）</span>
@@ -3705,8 +3867,14 @@
       if (currentSettingsTab === 'backup') {
         body.innerHTML = `
           <div class="settings-section">
-            <div class="settings-section-title">🔄 完整資料備份與一鍵上載 JSON 回復</div>
-            <div class="field-hint">匯出完整 JSON 備份檔，或選取先前匯出的 <code>.json</code>（亦相容 <code>.html</code> 快照檔）一鍵還原全部病人名單、處方與系統設定。</div>
+            <div class="settings-section-title">
+              <span>☁️ 歷史運動記錄與 Documentation 雲端備份</span>
+              <button class="mini-action-btn" onclick="loadCloudResetBackupsUI()">🔄 重新整理</button>
+            </div>
+            <div id="cloudResetBackupList" style="max-height:240px; overflow-y:auto;"></div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-section-title">🔄 本地 JSON 備份與回復</div>
             <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
               <button class="btn-primary" style="background:#059669;" onclick="exportStateJson()">📥 匯出完整 JSON 備份</button>
               <input id="jsonRestoreInput" type="file" accept=".json,application/json,.html,text/html" style="display:none;" onchange="handleJsonRestoreUpload(this)" />
@@ -3714,15 +3882,14 @@
             </div>
           </div>
           <div class="settings-section">
-            <div class="settings-section-title">📂 綁定每日報告自動儲存資料夾</div>
-            <div class="field-hint">點擊下方按鈕選擇電腦內的目標資料夾後，每日按「完結報表 → 儲存每日報告」會直接靜默存入該資料夾。</div>
+            <div class="settings-section-title">📂 每日報告自動儲存資料夾</div>
             <div>
-              <button class="btn-primary" onclick="bindReportDirectory()">📂 選擇並綁定每日報告資料夾</button>
-              <span id="dirBindStatus" style="margin-left:8px; font-size:12.5px; font-weight:800; color:var(--green);">${savedDirectoryHandle ? '✓ 已綁定資料夾：' + savedDirectoryHandle.name : ''}</span>
+              <button class="btn-primary" onclick="bindReportDirectory()">📂 選擇並綁定資料夾</button>
+              <span id="dirBindStatus" style="margin-left:8px; font-size:12.5px; font-weight:800; color:var(--green);">${savedDirectoryHandle ? '✓ 已綁定：' + savedDirectoryHandle.name : ''}</span>
             </div>
           </div>
           <div class="settings-section">
-            <div class="settings-section-title">✉️ 每日自動電郵收件人設定（雲端同步）</div>
+            <div class="settings-section-title">✉️ 每日電郵收件人設定</div>
             <div class="field-group">
               <label class="field-label">指定同事電郵地址（多位同事請用逗號分隔）</label>
               <input type="text" class="text-input" value="${esc(s.emailRecipients)}" placeholder="colleague1@ha.org.hk, colleague2@ha.org.hk"
@@ -3730,6 +3897,7 @@
             </div>
           </div>
         `;
+        loadCloudResetBackupsUI();
         return;
       }
 
@@ -3881,12 +4049,148 @@
     function toggleFullscreen() { if (!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.(); }
     function toggleAudio() { state.audioOn = !state.audioOn; persistState(true); renderWorkspace(); }
 
+    const FIXED_CLOUD_ROOM = 'gym_room_1';
+
+    async function backupDailyRecordBeforeReset() {
+      if (!fbDb) return;
+      const dateStr = (state.date || todayISO()).replace(/[^0-9-]/g, '');
+      const now = new Date();
+      const timeTag = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+      const backupId = `${dateStr}_${timeTag}`;
+
+      const presentPts = (state.patients || []).filter(p => p.attendance === 'present');
+      const compactRecords = presentPts.map(pt => ({
+        bed: pt.bed,
+        maskedName: maskName(pt.name) || `${pt.bed}號床`,
+        therapist: pt.therapist || '',
+        pca: pt.transportStaff || '',
+        side: pt.side || '',
+        aid: pt.aid || '',
+        assist: pt.assist || '',
+        specialNote: pt.specialNote || '',
+        walkLogs: pt.walkLogs || [],
+        bpLogs: pt.bpLogs || [],
+        exercises: (pt.exercises || []).map(ex => ({
+          name: ex.name,
+          status: ex.status,
+          plannedMin: ex.plannedMin,
+          accumulatedSec: Math.round(computeExMetrics(ex, pt).elapsedSec),
+          startStaff: formatStaffList(ex.startStaffList),
+          endStaff: formatStaffList(ex.endStaffList),
+          earlyReason: ex.earlyReason || '',
+          earlyNote: ex.earlyNote || '',
+          bpRecords: ex.bpRecords || []
+        })),
+        englishDoc: generateEnglishDocumentation(pt)
+      }));
+
+      const fullDocText = compactRecords
+        .map(r => `[Bed ${r.bed} ${r.maskedName}${r.therapist ? ' - ' + r.therapist : ''}]
+${r.englishDoc}`)
+        .join('
+
+');
+
+      const backupsRef = fbDb.ref(`rehab_boards/${FIXED_CLOUD_ROOM}/reset_backups`);
+      await backupsRef.child(backupId).set({
+        backupId,
+        date: dateStr,
+        savedAt: Date.now(),
+        patientCount: compactRecords.length,
+        records: compactRecords,
+        fullDocText
+      });
+
+      const snap = await backupsRef.orderByChild('savedAt').once('value');
+      const keys = [];
+      snap.forEach(c => { keys.push(c.key); });
+      if (keys.length > 60) {
+        await Promise.all(keys.slice(0, keys.length - 60).map(k => backupsRef.child(k).remove()));
+      }
+    }
+
+    async function loadCloudResetBackupsUI() {
+      const box = document.getElementById('cloudResetBackupList');
+      if (!box) return;
+      if (!fbDb) {
+        box.innerHTML = '<div style="color:#dc2626; font-size:12.5px;">⚠️ 尚未連線至雲端資料庫</div>';
+        return;
+      }
+      box.innerHTML = '<div style="color:#64748b; font-size:12.5px;">⏳ 正在載入雲端備份記錄...</div>';
+      try {
+        const snap = await fbDb.ref(`rehab_boards/${FIXED_CLOUD_ROOM}/reset_backups`).orderByChild('savedAt').once('value');
+        const items = [];
+        snap.forEach(c => { items.push(c.val()); });
+        items.reverse();
+        if (!items.length) {
+          box.innerHTML = '<div style="color:#64748b; font-size:12.5px;">尚無手動重置的雲端備份記錄。</div>';
+          return;
+        }
+        box.innerHTML = items.map(item => {
+          const dt = new Date(item.savedAt).toLocaleString('zh-HK', { hour12: false });
+          return `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; margin-bottom:6px; background:#fff;">
+              <div>
+                <div style="font-weight:900; font-size:13.5px;">📅 ${esc(item.date)}</div>
+                <div style="font-size:11.5px; color:#64748b;">時間：${esc(dt)} ｜ ${item.patientCount || 0} 位病人</div>
+              </div>
+              <div style="display:flex; gap:6px;">
+                <button type="button" class="mini-action-btn" style="border-color:#059669; color:#047857;" onclick="downloadCloudResetBackup('${esc(item.backupId)}', 'txt')">📥 下載紀錄 (.txt)</button>
+                <button type="button" class="mini-action-btn" style="border-color:#0284c7; color:#0369a1;" onclick="downloadCloudResetBackup('${esc(item.backupId)}', 'json')">JSON</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        box.innerHTML = '<div style="color:#dc2626; font-size:12.5px;">❌ 讀取雲端備份失敗</div>';
+      }
+    }
+
+    async function downloadCloudResetBackup(backupId, fmt = 'txt') {
+      if (!fbDb) return;
+      const snap = await fbDb.ref(`rehab_boards/${FIXED_CLOUD_ROOM}/reset_backups/${backupId}`).once('value');
+      const data = snap.val();
+      if (!data) { showToast('找不到該筆雲端備份'); return; }
+
+      const baseName = `${data.date || data.backupId}_運動及Documentation記錄`;
+      let content = '';
+      let mime = 'text/plain;charset=utf-8;';
+      let ext = 'txt';
+
+      if (fmt === 'json') {
+        ext = 'json';
+        mime = 'application/json;charset=utf-8;';
+        content = JSON.stringify(data, null, 2);
+      } else {
+        const header = `日期：${data.date}（備份編號：${data.backupId}）
+========================================
+
+`;
+        const docPart = data.fullDocText || (data.records || []).map(r => `[Bed ${r.bed} ${r.maskedName}]
+${r.englishDoc || ''}`).join('
+
+');
+        content = '﻿' + header + docPart;
+      }
+
+      const blob = new Blob([content], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${baseName}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast(`📥 已下載 ${baseName}.${ext}`);
+    }
+
     function confirmCarryOver() {
       openConfirm(
         '⚠️ 確認重置今日運動與 PCA 紀錄',
         `<div style="display:flex; flex-direction:column; gap:8px;">
           <div style="background:#fef2f2; border:1.5px solid #fca5a5; color:#991b1b; padding:9px 11px; border-radius:8px; font-weight:800;">
-            此操作將會清除以下今日紀錄（無法復原）：
+            系統會先自動將今日運動狀態與 Documentation 備份至雲端，然後清除以下今日紀錄：
             <ul style="margin:5px 0 0 18px; font-weight:700;">
               <li>所有運動項目完成度、計時與提早結束／運動反應紀錄</li>
               <li>所有血壓與脈搏紀錄（BP / HR）</li>
@@ -3898,22 +4202,22 @@
             ✓ 所有病人名單、床號、助行器、特別備註、運動處方及系統設定皆會完整保留。
           </div>
         </div>`,
-        '確認全部清除並重置',
+        '備份並全部重置',
         '#dc2626',
-        () => {
+        async () => {
+          try {
+            await backupDailyRecordBeforeReset();
+          } catch (e) {}
           state.date = todayISO();
           state.transportCounter = 0;
-          state.onDutyTransport = []; // 重置當值 PCA
+          state.onDutyTransport = [];
           hasUnsavedDailyWork = false;
           state.patients.forEach(pt => {
-            // 重置接送 PCA
             pt.transportOrder = null;
             pt.transportStaff = '';
             pt.transportTime = '';
-            // 重置步行記錄與血壓記錄
             pt.walkLogs = [];
             pt.bpLogs = [];
-            // 重置運動完成度與運動反應記錄
             pt.exercises.forEach(ex => {
               ex.status = 'pending';
               ex.startStaffList = [];
@@ -3930,7 +4234,7 @@
           });
           persistState(true);
           renderWorkspace();
-          showToast('🔄 已清除今日運動、血壓、步行及當值／接送 PCA 紀錄');
+          showToast('🔄 已備份至雲端並重置今日運動與 PCA 紀錄');
         }
       );
     }
@@ -3993,13 +4297,16 @@
       });
 
       const model = computeTVPageModel();
-      if (model.isPaginated) {
-        tvPageElapsedMs += 1000;
-        if (tvPageElapsedMs >= (Number(state.settings.pageIntervalSec) || 10) * 1000) {
+      if (model.isPaginated && !model.holdPagination) {
+        tvPageElapsedMs += 250;
+        const intervalMs = Math.max(500, (Number(state.settings.pageIntervalSec) || 3.0) * 1000);
+        if (tvPageElapsedMs >= intervalMs) {
           tvPageElapsedMs = 0;
           tvPageIndex = (tvPageIndex + 1) % model.totalPages;
           renderWorkspace();
         }
+      } else {
+        tvPageElapsedMs = 0;
       }
     }
 
@@ -4008,7 +4315,7 @@
       parseHashRoute();
       renderWorkspace();
       initFirebaseSync();
-      setInterval(onTick, 1000);
+      setInterval(onTick, 250);
     }
 
     window.addEventListener('hashchange', () => { parseHashRoute(); renderWorkspace(); });
