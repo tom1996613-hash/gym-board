@@ -1427,17 +1427,19 @@
         if (!window.firebase) return;
         const app = window.firebase.apps.length ? window.firebase.app() : window.firebase.initializeApp(cfg);
         fbDb = app.database();
-        const room = (state.settings.firebaseRoomId || 'gym_room_1').replace(/[^a-zA-Z0-9_-]/g, '_');
-        fbRef = fbDb.ref(`rehab_boards/${room}`);
+
+        // 固定單一房間名稱（請確認與 Firebase Console 裡有最新資料的節點名稱一致）
+        const FIXED_ROOM = 'gym_room_1';
+        fbRef = fbDb.ref(`rehab_boards/${FIXED_ROOM}`);
 
         fbRef.on('value', (snap) => {
           fbConnected = true;
           updateSyncPill('online', '☁️ 全設定＋去識別化名單已雲端同步');
           const remote = snap.val();
-          if (!remote) {
-            pushStateToFirebase();
-            return;
-          }
+
+          // 雲端為空時不自動把本地原始資料推上去覆蓋，避免新裝置洗掉資料
+          if (!remote) return;
+
           if (remote.updatedAt && remote.updatedAt <= (state._lastUpdatedAt || 0)) return;
           isApplyingRemoteUpdate = true;
           mergeRemoteState(remote);
@@ -1455,6 +1457,7 @@
         updateSyncPill('error', '⚠️ 無法載入雲端模組（離線運作中）');
       });
     }
+
 
     /** 把全部系統設定＋去識別化排程上傳至 Firebase（絕不上傳全名，僅上傳「姓X名」） */
     function pushStateToFirebase() {
