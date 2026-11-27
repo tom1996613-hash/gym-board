@@ -4091,11 +4091,8 @@
       }));
 
       const fullDocText = compactRecords
-        .map(r => `[Bed ${r.bed} ${r.maskedName}${r.therapist ? ' - ' + r.therapist : ''}]
-${r.englishDoc}`)
-        .join('
-
-');
+        .map(r => `[Bed ${r.bed} ${r.maskedName}${r.therapist ? ' - ' + r.therapist : ''}]\n${r.englishDoc}`)
+        .join('\n\n');
 
       const backupsRef = fbDb.ref(`rehab_boards/${FIXED_CLOUD_ROOM}/reset_backups`);
       await backupsRef.child(backupId).set({
@@ -4168,15 +4165,9 @@ ${r.englishDoc}`)
         mime = 'application/json;charset=utf-8;';
         content = JSON.stringify(data, null, 2);
       } else {
-        const header = `日期：${data.date}（備份編號：${data.backupId}）
-========================================
-
-`;
-        const docPart = data.fullDocText || (data.records || []).map(r => `[Bed ${r.bed} ${r.maskedName}]
-${r.englishDoc || ''}`).join('
-
-');
-        content = '﻿' + header + docPart;
+        const header = `日期：${data.date}（備份編號：${data.backupId}）\n========================================\n\n`;
+        const docPart = data.fullDocText || (data.records || []).map(r => `[Bed ${r.bed} ${r.maskedName}]\n${r.englishDoc || ''}`).join('\n\n');
+        content = '\uFEFF' + header + docPart;
       }
 
       const blob = new Blob([content], { type: mime });
