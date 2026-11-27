@@ -823,8 +823,11 @@
 
     .bp-panel { background: #e0f2fe; border: 1.5px solid #7dd3fc; border-radius: 10px; padding: 11px; display: flex; flex-direction: column; gap: 9px; }
     .bp-multi-row {
-      display: grid; grid-template-columns: 120px 1fr 1fr 1fr auto; gap: 6px; align-items: center;
+      display: grid; grid-template-columns: 135px 78px 1fr 1fr 1fr auto; gap: 5px; align-items: center;
       background: #fff; padding: 6px 8px; border-radius: 8px; border: 1px solid #bae6fd;
+    }
+    @media (max-width: 600px) {
+      .bp-multi-row { grid-template-columns: 1fr 78px; }
     }
     .bp-input { width: 100%; padding: 6px; font-size: 16px; font-weight: 900; text-align: center; border: 1.5px solid #7dd3fc; border-radius: 7px; }
 
@@ -888,6 +891,12 @@
     </div>
 
     <div class="topbar-controls">
+      <div class="seg-group" title="按時段篩選床號（同步隱藏非該節病人）">
+        <button class="seg-top-btn" data-session="ALL" onclick="setSessionFilter('ALL')">全部時段</button>
+        <button class="seg-top-btn" data-session="AM" onclick="setSessionFilter('AM')">AM (女 1-15)</button>
+        <button class="seg-top-btn" data-session="PM" onclick="setSessionFilter('PM')">PM (男 16-30)</button>
+      </div>
+
       <div class="seg-group">
         <button class="seg-top-btn" data-view="split" onclick="setViewMode('split')">雙畫面</button>
         <button class="seg-top-btn" data-view="pc" onclick="setViewMode('pc')">操作台</button>
@@ -1105,7 +1114,11 @@
           <div class="form-grid">
             <div class="field-group">
               <label class="field-label">量度時機</label>
-              <input id="adhocBpLabel" type="text" class="text-input" value="initial BP" />
+              <input id="adhocBpLabel" type="text" class="text-input" value="Pre standing BP" />
+            </div>
+            <div class="field-group">
+              <label class="field-label">量度時間 (HH:MM)</label>
+              <input id="adhocBpTime" type="text" class="text-input tabular" placeholder="留空則自動填現在時間" />
             </div>
             <div class="field-group">
               <label class="field-label">SBP / DBP / HR</label>
@@ -1356,6 +1369,7 @@
         pageIntervalSec: 3.0,
         tvFontScale: 1.0,
         tvPriorityMode: 'standard',
+        sessionFilter: 'ALL',
         overtimeAlertMin: 3,
         voiceEnabled: true,
         trackStaffAssignment: true,
@@ -1992,6 +2006,23 @@
     /* ========================================================================
        自動排序與大電視分頁
        ======================================================================== */
+    function isPatientInSelectedSession(pt) {
+      const sf = (state && state.settings && state.settings.sessionFilter) || 'ALL';
+      if (sf === 'ALL') return true;
+      const num = bedNumeric(pt.bed);
+      if (sf === 'AM') return num >= 1 && num <= 15;
+      if (sf === 'PM') return num >= 16 && num <= 30;
+      return true;
+    }
+
+    function setSessionFilter(val) {
+      state.settings.sessionFilter = val;
+      tvPageIndex = 0;
+      tvPageElapsedMs = 0;
+      persistState(true);
+      renderWorkspace();
+    }
+
     function bedNumeric(bed) {
       const n = parseInt(String(bed).replace(/[^\d]/g, ''), 10);
       return isNaN(n) ? 9999 : n;
@@ -2007,6 +2038,7 @@
     function categorizePatients(filterTherapist = 'ALL') {
       const waiting = [], active = [], done = [], inactive = [];
       state.patients.forEach(pt => {
+        if (!isPatientInSelectedSession(pt)) return;
         if (filterTherapist !== 'ALL' && pt.therapist !== filterTherapist) return;
         if (pt.attendance !== 'present') { inactive.push(pt); return; }
 
@@ -2027,9 +2059,20 @@
           done.push(pt);
         }
       });
-      waiting.sort((a, b) => bedNumeric(a.bed) - bedNumeric(b.bed));
-      active.sort((a, b) => a.key - b.key);
-      done.sort((a, b) => bedNumeric(a.bed) - bedNumeric(b.bed));
+      if (pcSortMode === 'transport') {
+        const trSort = (a, b) => {
+          const oa = a.transportOrder || 9999;
+          const ob = b.transportOrder || 9999;
+          return oa !== ob ? oa - ob : bedNumeric(a.bed) - bedNumeric(b.bed);
+        };
+        waiting.sort(trSort);
+        active.sort((a, b) => trSort(a.pt, b.pt));
+        done.sort(trSort);
+      } else {
+        waiting.sort((a, b) => bedNumeric(a.bed) - bedNumeric(b.bed));
+        active.sort((a, b) => a.key - b.key);
+        done.sort((a, b) => bedNumeric(a.bed) - bedNumeric(b.bed));
+      }
       inactive.sort((a, b) => bedNumeric(a.bed) - bedNumeric(b.bed));
       return { waiting, active: active.map(x => x.pt), done, inactive };
     }
@@ -2053,7 +2096,7 @@
       const pageSize = Number(state.tvPageSize) || 0;
 
       if (priorityMode === 'unstarted_first') {
-        const presentPts = state.patients.filter(p => p.attendance === 'present');
+        const presentPts = state.patients.filter(p => p.attendance === 'present' && isPatientInSelectedSession(p));
         const unstarted = [];
         const dueActive = [];
         const runningNormal = [];
@@ -2227,6 +2270,7 @@
       document.getElementById('topbarTitle').textContent = state.settings.systemTitle;
       document.getElementById('topbarSub').textContent = `${todayISO()}（${weekdayZh()}）`;
 
+      document.querySelectorAll('[data-session]').forEach(b => b.classList.toggle('active', b.dataset.session === (state.settings.sessionFilter || 'ALL')));
       document.querySelectorAll('[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === viewMode));
       document.querySelectorAll('[data-page]').forEach(b => b.classList.toggle('active', Number(b.dataset.page) === Number(state.tvPageSize)));
 
@@ -2568,10 +2612,13 @@
     function renderPCConsole() {
       const therapists = Array.from(new Set([...state.settings.therapists, ...state.patients.map(p => p.therapist).filter(Boolean)]));
       const groups = categorizePatients(therapistFilter);
-      const dutyList = state.onDutyTransport.filter(s => state.settings.assistants.includes(s));
+      const sf = state.settings.sessionFilter || 'ALL';
+      const sessionPts = state.patients.filter(p => isPatientInSelectedSession(p));
+      // 嚴格依照「系統設定 → 人員名單」排好的先後次序排列當值助理
+      const dutyList = state.settings.assistants.filter(s => state.onDutyTransport.includes(s));
       const trCounts = {};
       dutyList.forEach(s => { trCounts[s] = 0; });
-      state.patients.forEach(p => { if (p.attendance === 'present' && p.transportStaff) trCounts[p.transportStaff] = (trCounts[p.transportStaff] || 0) + 1; });
+      sessionPts.forEach(p => { if (p.attendance === 'present' && p.transportStaff) trCounts[p.transportStaff] = (trCounts[p.transportStaff] || 0) + 1; });
       const minTr = dutyList.length ? Math.min(...dutyList.map(s => trCounts[s] || 0)) : 0;
 
       const renderGroup = (title, badgeCls, list, isDone = false, isInactive = false) => {
@@ -2586,7 +2633,8 @@
         <div class="transport-bar">
           <div class="transport-bar-top">
             <span class="transport-title">🚐 今日接送計數</span>
-            <div style="display:flex; gap:5px;">
+            <div style="display:flex; flex-wrap:wrap; gap:5px;">
+              <button class="btn-primary" style="padding:4px 9px; font-size:11.5px; background:#0284c7;" onclick="autoAssignTransport()" title="按當值助理排位次序，由細床號到大床號自動順排給出席病人">⚡ 自動分配接送</button>
               <button class="btn-primary" style="padding:4px 9px; font-size:11.5px; background:#0f766e;" onclick="openTransportSummaryModal()">📋 接送總表</button>
               <button class="mini-action-btn" onclick="showDutyDrawer=!showDutyDrawer; renderWorkspace();">${showDutyDrawer ? '▲ 收合' : '👤 當值助理'}</button>
               <button class="seg-btn ${pcSortMode === 'clinical' ? 'active' : ''}" onclick="pcSortMode='clinical'; renderWorkspace();">排程順序</button>
@@ -2608,7 +2656,11 @@
 
         <div class="pc-toolbar">
           <div class="filter-chips">
-            <button class="filter-chip ${therapistFilter === 'ALL' ? 'active' : ''}" onclick="therapistFilter='ALL'; renderWorkspace();">全部 (${state.patients.length})</button>
+            <button class="filter-chip ${sf === 'ALL' ? 'active' : ''}" onclick="setSessionFilter('ALL')">全部時段</button>
+            <button class="filter-chip ${sf === 'AM' ? 'active' : ''}" style="${sf === 'AM' ? 'background:#be185d; border-color:#be185d;' : 'border-color:#be185d; color:#be185d;'}" onclick="setSessionFilter('AM')">AM (女 1-15)</button>
+            <button class="filter-chip ${sf === 'PM' ? 'active' : ''}" style="${sf === 'PM' ? 'background:#1d4ed8; border-color:#1d4ed8;' : 'border-color:#1d4ed8; color:#1d4ed8;'}" onclick="setSessionFilter('PM')">PM (男 16-30)</button>
+            <span style="color:#cbd5e1; margin:0 2px;">|</span>
+            <button class="filter-chip ${therapistFilter === 'ALL' ? 'active' : ''}" onclick="therapistFilter='ALL'; renderWorkspace();">全部治療師 (${sessionPts.length})</button>
             ${therapists.map(t => {
               const col = getTherapistColor(t);
               const act = therapistFilter === t;
@@ -2884,15 +2936,15 @@
         `).join('');
       }
 
+      const defTime = nowHHMM();
       if (isStand) {
         uiCtx.finishBpRows = [
-          { timing: 'Post standing 5min', sbp: '', dbp: '', hr: '' },
-          { timing: 'Post standing 10min', sbp: '', dbp: '', hr: '' },
-          { timing: 'Post standing 15min', sbp: '', dbp: '', hr: '' }
+          { timing: 'Pre standing BP', clockTime: defTime, sbp: '', dbp: '', hr: '' },
+          { timing: 'Post standing BP', clockTime: defTime, sbp: '', dbp: '', hr: '' }
         ];
       } else {
         uiCtx.finishBpRows = [
-          { timing: isEarly ? `Early terminated at ${secToWholeMin(m.elapsedSec)} min` : 'Post exercise', sbp: '', dbp: '', hr: '' }
+          { timing: isEarly ? `Early terminated at ${secToWholeMin(m.elapsedSec)} min` : 'Post exercise BP', clockTime: defTime, sbp: '', dbp: '', hr: '' }
         ];
       }
 
@@ -2924,16 +2976,18 @@
 
     function renderFinishBpRows() {
       const timings = [
-        'initial BP', 'Post standing 1min', 'Post standing 2min', 'Post standing 3min',
+        'Pre standing BP', 'Post standing BP', 'initial BP',
+        'Post standing 1min', 'Post standing 2min', 'Post standing 3min',
         'Post standing 5min', 'Post standing 8min', 'Post standing 10min', 'Post standing 12min',
         'Post standing 15min', 'Post standing 20min', 'Post standing 25min', 'Post standing 30min',
-        'Post exercise', 'R/C BP in sitting position'
+        'Post exercise BP', 'R/C BP in sitting position'
       ];
       document.getElementById('finishBpRowsContainer').innerHTML = uiCtx.finishBpRows.map((row, idx) => `
         <div class="bp-multi-row">
           <select class="text-input" style="padding:5px; font-size:12px;" onchange="uiCtx.finishBpRows[${idx}].timing=this.value">
             ${Array.from(new Set([row.timing, ...timings])).map(t => `<option value="${esc(t)}" ${row.timing === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}
           </select>
+          <input type="text" class="text-input tabular" style="padding:5px; font-size:12.5px; text-align:center;" placeholder="時間 HH:MM" value="${esc(row.clockTime || '')}" oninput="uiCtx.finishBpRows[${idx}].clockTime=this.value" />
           <input type="number" class="bp-input tabular" placeholder="SBP" value="${esc(row.sbp)}" oninput="uiCtx.finishBpRows[${idx}].sbp=this.value" />
           <input type="number" class="bp-input tabular" placeholder="DBP" value="${esc(row.dbp)}" oninput="uiCtx.finishBpRows[${idx}].dbp=this.value" />
           <input type="number" class="bp-input tabular" placeholder="HR" value="${esc(row.hr)}" oninput="uiCtx.finishBpRows[${idx}].hr=this.value" />
@@ -2943,7 +2997,7 @@
     }
 
     function addFinishBpRow() {
-      uiCtx.finishBpRows.push({ timing: 'R/C BP in sitting position', sbp: '', dbp: '', hr: '' });
+      uiCtx.finishBpRows.push({ timing: 'Post standing BP', clockTime: nowHHMM(), sbp: '', dbp: '', hr: '' });
       renderFinishBpRows();
     }
 
@@ -2973,7 +3027,7 @@
         sbp: String(r.sbp).trim() || '-',
         dbp: String(r.dbp).trim() || '-',
         hr: String(r.hr).trim() || '-',
-        time: nowHHMM()
+        time: String(r.clockTime || '').trim() || nowHHMM()
       }));
       if (ex.bpRecords.length) {
         pt.bpLogs.push(...ex.bpRecords);
@@ -3103,12 +3157,14 @@
     function saveAdhocBp() {
       const pt = state.patients.find(p => p.id === uiCtx.bpPatientId);
       if (!pt) return;
-      const label = document.getElementById('adhocBpLabel').value.trim() || 'initial BP';
+      const label = document.getElementById('adhocBpLabel').value.trim() || 'Pre standing BP';
+      const customTime = (document.getElementById('adhocBpTime')?.value || '').trim() || nowHHMM();
       const sbp = document.getElementById('aSbp').value.trim();
       const dbp = document.getElementById('aDbp').value.trim();
       const hr = document.getElementById('aHr').value.trim();
       if (!sbp && !dbp && !hr) return;
-      pt.bpLogs.push({ id: uid('bp'), label, sbp: sbp || '-', dbp: dbp || '-', hr: hr || '-', time: nowHHMM() });
+      pt.bpLogs.push({ id: uid('bp'), label, sbp: sbp || '-', dbp: dbp || '-', hr: hr || '-', time: customTime });
+      if (document.getElementById('adhocBpTime')) document.getElementById('adhocBpTime').value = '';
       document.getElementById('aSbp').value = '';
       document.getElementById('aDbp').value = '';
       document.getElementById('aHr').value = '';
@@ -3188,7 +3244,7 @@
 
     function openTransportSummaryModal() {
       const presentPts = state.patients
-        .filter(p => p.attendance === 'present')
+        .filter(p => p.attendance === 'present' && isPatientInSelectedSession(p))
         .slice()
         .sort((a, b) => bedNumeric(a.bed) - bedNumeric(b.bed));
 
@@ -3258,7 +3314,7 @@
     }
 
     function copyTransportSummary() {
-      const presentPts = state.patients.filter(p => p.attendance === 'present');
+      const presentPts = state.patients.filter(p => p.attendance === 'present' && isPatientInSelectedSession(p));
       const lines = [`【今日接送總表 ${todayISO()}】`];
       presentPts.forEach(pt => {
         const mode = pt.transportMode ? `[${pt.transportMode}]` : '';
@@ -3628,7 +3684,8 @@
         }
         if (ex.bpRecords && ex.bpRecords.length) {
           ex.bpRecords.forEach(b => {
-            bpParts.push(`${b.label}, BP ${b.sbp}/${b.dbp}, HR ${b.hr}`);
+            const tPrefix = b.time ? `(${b.time}) ` : '';
+            bpParts.push(`${tPrefix}${b.label}, BP ${b.sbp}/${b.dbp}, HR ${b.hr}`);
           });
         }
         if (ex.status === 'early_stopped') {
@@ -3665,7 +3722,7 @@
     }
 
     function openReportModal() {
-      const presentPts = state.patients.filter(p => p.attendance === 'present');
+      const presentPts = state.patients.filter(p => p.attendance === 'present' && isPatientInSelectedSession(p));
       const therapists = Array.from(new Set(presentPts.map(p => p.therapist || '未指派')));
       if (reportTherapistFilter !== 'ALL' && !therapists.includes(reportTherapistFilter)) reportTherapistFilter = 'ALL';
 
@@ -3854,10 +3911,31 @@
             </div>
           </div>
           <div class="settings-section">
-            <div class="settings-section-title">🪪 助理代號／名稱</div>
-            <div class="tag-chip-list">${s.assistants.map(a => `<span class="removable-chip">${esc(a)}<button class="chip-x" onclick="removeList('assistants','${esc(a)}')">×</button></span>`).join('')}</div>
+            <div class="settings-section-title">
+              <span>🪪 PCA 助理名單與輪值排位次序（自動同步雲端）</span>
+              <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button class="btn-secondary" style="padding:4px 9px; font-size:12px;" onclick="rotateAssistantOrder(-1)" title="第一位調到最後，其餘前移一位">🔼 輪轉前移</button>
+                <button class="btn-primary" style="padding:4px 10px; font-size:12px; background:#0f766e;" onclick="rotateAssistantOrder(1)" title="順住名單每日後移一位（最後一位調到第一位）">🔽 每日順延後移一位</button>
+              </div>
+            </div>
+            <div class="field-hint">可按 ◀ / ▶ 或直接拖拉調整先後次序；按「⚡ 自動分配接送」時會按此排位由細床號到大床號順派。</div>
+            <div class="tag-chip-list">
+              ${s.assistants.map((a, idx) => `
+                <span class="removable-chip" draggable="true"
+                      ondragstart="dragAssistantIdx=${idx}"
+                      ondragover="event.preventDefault()"
+                      ondrop="dropAssistantOrder(${idx})"
+                      style="cursor:grab; gap:4px; padding:5px 8px;">
+                  <span style="display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:999px; background:#0f4c81; color:#fff; font-size:11px; font-weight:900;">${idx + 1}</span>
+                  <button type="button" class="chip-x" style="background:#e2e8f0;" onclick="moveAssistantOrder(${idx}, -1)" title="往前移">◀</button>
+                  <strong>${esc(a)}</strong>
+                  <button type="button" class="chip-x" style="background:#e2e8f0;" onclick="moveAssistantOrder(${idx}, 1)" title="往後移">▶</button>
+                  <button type="button" class="chip-x" onclick="removeList('assistants','${esc(a)}')" title="刪除">×</button>
+                </span>
+              `).join('')}
+            </div>
             <div class="add-inline-row">
-              <input id="inpAs" type="text" class="text-input" style="max-width:200px;" placeholder="新增助理代號..." />
+              <input id="inpAs" type="text" class="text-input" style="max-width:200px;" placeholder="新增 PCA 助理..." onkeydown="if(event.key==='Enter') addList('assistants','inpAs')" />
               <button class="btn-primary" onclick="addList('assistants','inpAs')">＋新增</button>
             </div>
           </div>
@@ -4175,6 +4253,100 @@
       } finally {
         inputEl.value = '';
       }
+    }
+
+    let dragAssistantIdx = null;
+
+    function moveAssistantOrder(idx, delta) {
+      const arr = state.settings.assistants;
+      const target = idx + delta;
+      if (target < 0 || target >= arr.length) return;
+      const [item] = arr.splice(idx, 1);
+      arr.splice(target, 0, item);
+      persistState(true);
+      renderWorkspace();
+      renderSettingsTabContent();
+      showToast('☁️ 已更新 PCA 排位次序並同步雲端');
+    }
+
+    function dropAssistantOrder(targetIdx) {
+      if (dragAssistantIdx === null || dragAssistantIdx === targetIdx) return;
+      const arr = state.settings.assistants;
+      const [item] = arr.splice(dragAssistantIdx, 1);
+      arr.splice(targetIdx, 0, item);
+      dragAssistantIdx = null;
+      persistState(true);
+      renderWorkspace();
+      renderSettingsTabContent();
+      showToast('☁️ 已更新 PCA 排位次序並同步雲端');
+    }
+
+    function rotateAssistantOrder(step = 1) {
+      const arr = state.settings.assistants;
+      if (!Array.isArray(arr) || arr.length <= 1) return;
+      if (step > 0) {
+        // 順住名單每日後移一位（最後一位移去第一位，所有人順位後移一格）
+        const last = arr.pop();
+        arr.unshift(last);
+      } else {
+        const first = arr.shift();
+        arr.push(first);
+      }
+      persistState(true);
+      renderWorkspace();
+      renderSettingsTabContent();
+      showToast('☁️ 已順延輪轉 PCA 排位並同步雲端');
+    }
+
+    function autoAssignTransport() {
+      // 依照設定頁排好的先後次序，篩選出今日有當值的 PCA
+      const orderedDuty = state.settings.assistants.filter(ch => state.onDutyTransport.includes(ch));
+      if (!orderedDuty.length) {
+        showDutyDrawer = true;
+        renderWorkspace();
+        showToast('⚠️ 請先在「👤 當值助理」勾選今日當值的 PCA');
+        return;
+      }
+
+      // 取得目前顯示時段（全部 / AM 1-15 / PM 16-30）內「今日出席」的病人，由細床號到大床號排列
+      const targetPts = state.patients
+        .filter(p => p.attendance === 'present' && isPatientInSelectedSession(p))
+        .slice()
+        .sort((a, b) => bedNumeric(a.bed) - bedNumeric(b.bed));
+
+      if (!targetPts.length) {
+        showToast('目前篩選時段內沒有今日出席的病人');
+        return;
+      }
+
+      const sf = state.settings.sessionFilter || 'ALL';
+      const sfLabel = sf === 'AM' ? 'AM (女 1-15號床)' : (sf === 'PM' ? 'PM (男 16-30號床)' : '全部出席病人');
+
+      openConfirm(
+        '⚡ 確認自動分配接送',
+        `<div style="line-height:1.6;">
+          將為 <strong>${sfLabel}</strong>（共 <strong>${targetPts.length}</strong> 位出席病人，由細床號到大床號）按以下當值 PCA 排位次序輪流分配：<br/>
+          <div style="margin-top:6px; padding:6px 10px; background:#f0f9ff; border:1px solid #7dd3fc; border-radius:7px; font-weight:900; color:#0369a1;">
+            ${orderedDuty.map((n, i) => `${i + 1}. ${esc(n)}`).join(' → ')}
+          </div>
+        </div>`,
+        '確認自動分配',
+        '#0284c7',
+        () => {
+          let counter = 0;
+          const timeNow = nowHHMM();
+          targetPts.forEach((pt, idx) => {
+            counter += 1;
+            pt.transportOrder = counter;
+            pt.transportStaff = orderedDuty[idx % orderedDuty.length];
+            pt.transportTime = timeNow;
+          });
+          state.transportCounter = counter;
+          persistState(true);
+          renderWorkspace();
+          showToast(`⚡ 已按排位次序自動分配 ${targetPts.length} 位病人接送！`);
+        }
+      );
     }
 
     function addList(key, inpId) {
