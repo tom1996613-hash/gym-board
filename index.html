@@ -858,7 +858,7 @@
       </button>
       <button id="btnAudio" class="tool-btn is-on" onclick="toggleAudio()">🔊 提示音開</button>
       <button class="tool-btn btn-settings" onclick="openSettingsModal('people')">⚙️ 系統設定</button>
-      <button class="tool-btn" onclick="confirmCarryOver()">🔄 延續昨日</button>
+      <button class="tool-btn" onclick="confirmCarryOver()">🔄 重置今日運動與PCA</button>
       <button class="tool-btn btn-add" onclick="openPatientEditor(null)">＋ 新增病人</button>
       <button class="tool-btn btn-export" onclick="openReportModal()">📊 完結報表與英文紀錄</button>
     </div>
@@ -875,13 +875,13 @@
     <button class="tool-btn" onclick="exitStandaloneTV()">⚙️ 返回操作台</button>
   </div>
 
-  <!-- 彈窗 1：⚙️ 系統設定 (所有設定自動同步上 Firebase 雲端) -->
+  <!-- 彈窗 1：⚙️ 系統設定 (所有設定與去識別化病人姓名「姓X名」自動同步上 Firebase 雲端) -->
   <div id="settingsModal" class="modal-backdrop" onclick="onBackdrop(event, 'settingsModal')">
     <div class="modal-box lg">
       <div class="modal-header">
         <div>
-          <div class="modal-title">⚙️ 系統設定（全部設定自動同步至 Firebase 雲端）</div>
-          <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">修改任何設定皆會即時同步到所有電腦與手機端；病人全名與臨床備註則嚴格留於本機</div>
+          <div class="modal-title">⚙️ 系統設定（全部設定與去識別化名單自動同步至 Firebase 雲端）</div>
+          <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">雲端同步時自動將姓名去識別化為「姓X名」（絕不上傳全名），在家輸入回醫院自動同步</div>
         </div>
         <button class="modal-close" onclick="closeModal('settingsModal')">✕</button>
       </div>
@@ -891,7 +891,7 @@
         <button class="s-tab" data-stab="exercises" onclick="switchSettingsTab('exercises')">🏋️ 運動項目庫</button>
         <button class="s-tab" data-stab="clinical" onclick="switchSettingsTab('clinical')">🩺 臨床與接送選項</button>
         <button class="s-tab" data-stab="basic" onclick="switchSettingsTab('basic')">🖥️ 基本與助理記錄</button>
-        <button class="s-tab" data-stab="backup" onclick="switchSettingsTab('backup')">💾 資料夾與 Email</button>
+        <button class="s-tab" data-stab="backup" onclick="switchSettingsTab('backup')">💾 JSON 回復／資料夾</button>
         <button class="s-tab" data-stab="firebase" onclick="switchSettingsTab('firebase')">☁️ Firebase 連線</button>
       </div>
 
@@ -1090,7 +1090,7 @@
           </div>
           <div class="field-group">
             <label class="field-label">顯示名稱／代號 * <span id="edMaskLive" style="color:var(--primary);"></span></label>
-            <input id="edName" type="text" class="text-input" placeholder="如：林淑儀（僅存於本機，絕不上傳雲端）" oninput="updateLiveMaskPreview()" />
+            <input id="edName" type="text" class="text-input" placeholder="如：林淑儀（雲端自動同步為「林X儀」）" oninput="updateLiveMaskPreview()" />
           </div>
           <div class="field-group">
             <label class="field-label">出席狀態</label>
@@ -1134,7 +1134,7 @@
             <div id="edTrModeChips" class="chip-row"></div>
           </div>
           <div class="field-group">
-            <span class="field-label">🪝 接送附加設備（可多選＋手動輸入）：</span>
+            <span class="field-label">🦽 接送附加設備（可多選＋手動輸入）：</span>
             <div id="edTrExtraChips" class="chip-row"></div>
             <div class="add-inline-row" style="margin-top:4px;">
               <input id="edCustomTrExtra" type="text" class="text-input" placeholder="手動輸入設備（如：氧氣樽）" style="flex:1; padding:5px 8px; font-size:12.5px;"
@@ -1151,7 +1151,7 @@
 
         <div class="field-group">
           <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px;">
-            <label class="field-label">📌 特別注意事項（僅存於本機）：</label>
+            <label class="field-label">📌 特別注意事項（會同步至雲端）：</label>
             <label class="toggle-switch" style="font-size:12px;">
               <input id="edShowNoteTv" type="checkbox" />
               <span>於大電視底部置中顯示（預設不顯示）</span>
@@ -1182,7 +1182,7 @@
 
   <!-- 彈窗 8：確認對話框 -->
   <div id="confirmModal" class="modal-backdrop" onclick="onBackdrop(event, 'confirmModal')">
-    <div class="modal-box" style="max-width:450px;">
+    <div class="modal-box" style="max-width:460px;">
       <div class="modal-header">
         <div class="modal-title" id="confirmTitle">確認操作</div>
         <button class="modal-close" onclick="closeModal('confirmModal')">✕</button>
@@ -1218,12 +1218,13 @@
       </div>
     </div>
   </div>
-<!-- 彈窗 10：🚐 接送總表（按助理分組，吊機／雙人高亮） -->
+
+  <!-- 彈窗 10：🚐 接送總表（按助理分組，吊機／雙人高亮，只顯示床號） -->
   <div id="transportSummaryModal" class="modal-backdrop" onclick="onBackdrop(event, 'transportSummaryModal')">
     <div class="modal-box lg">
       <div class="modal-header">
         <div>
-          <div class="modal-title">🚐 今日接送總表（按助理分組）</div>
+          <div class="modal-title">🚐 今日接送總表（按助理分組・僅顯示床號）</div>
           <div id="transportSummaryMeta" style="font-size:12px; color:var(--text-muted); margin-top:2px;"></div>
         </div>
         <button class="modal-close" onclick="closeModal('transportSummaryModal')">✕</button>
@@ -1235,6 +1236,7 @@
       </div>
     </div>
   </div>
+
   <div id="toastStack" class="toast-stack"></div>
   <script id="embeddedStateScript" type="application/json">null</script>
 
@@ -1250,7 +1252,7 @@
       '#7e22ce', '#047857', '#c2410c', '#0369a1', '#374151'
     ];
 
-    // 內建你的 Firebase 預設連線資訊，上傳 GitHub 後開機即自動連線
+    // 內建 Firebase 預設連線資訊，上傳 GitHub 後開機即自動連線
     const BUILTIN_FIREBASE_CONFIG = JSON.stringify({
       apiKey: "AIzaSyDJ3ej-k33nzzVo9a1vHp5CN4mrhdblIRo",
       authDomain: "rehab-gym-sync.firebaseapp.com",
@@ -1358,7 +1360,7 @@
     };
 
     /* ========================================================================
-       Firebase 全設定＋去識別化排程 雙向即時同步引擎
+       Firebase 全設定＋去識別化排程（支援「姓X名」雲端同步）
        ======================================================================== */
     let fbDb = null;
     let fbRef = null;
@@ -1381,7 +1383,6 @@
         if (firstBrace !== -1 && lastBrace !== -1) {
           str = str.slice(firstBrace, lastBrace + 1);
         }
-        // 僅將左括號或逗號後的屬性鍵名加上引號，避開 https:// 內的冒號
         const jsonLike = str
           .replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')
           .replace(/'/g, '"')
@@ -1431,7 +1432,7 @@
 
         fbRef.on('value', (snap) => {
           fbConnected = true;
-          updateSyncPill('online', '☁️ 全設定＋排程已雲端同步');
+          updateSyncPill('online', '☁️ 全設定＋去識別化名單已雲端同步');
           const remote = snap.val();
           if (!remote) {
             pushStateToFirebase();
@@ -1455,38 +1456,43 @@
       });
     }
 
-    /** 把全部系統設定＋去識別化排程上傳至 Firebase（病人全名與臨床備註絕不上傳） */
+    /** 把全部系統設定＋去識別化排程上傳至 Firebase（絕不上傳全名，僅上傳「姓X名」） */
     function pushStateToFirebase() {
       if (!fbRef || isApplyingRemoteUpdate) return;
       const now = Date.now();
       state._lastUpdatedAt = now;
 
-      // 複製所有非敏感設定同步上雲端（不含本地連線字串本身）
       const syncableSettings = Object.assign({}, state.settings);
       delete syncableSettings.firebaseConfigText;
 
-      const safePatients = state.patients.map(pt => ({
-        id: pt.id,
-        bed: pt.bed,
-        surnameLabel: getSurnameTitle(pt),
-        therapist: pt.therapist || '',
-        side: pt.side,
-        aid: pt.aid,
-        aidExtras: pt.aidExtras || [],
-        assist: pt.assist,
-        transportMode: pt.transportMode || '',
-        transportExtras: pt.transportExtras || [],
-        riskFall: Boolean(pt.riskFall),
-        riskBp: Boolean(pt.riskBp),
-        riskPacemaker: Boolean(pt.riskPacemaker),
-        attendance: pt.attendance,
-        transportOrder: pt.transportOrder || null,
-        transportStaff: pt.transportStaff || '',
-        transportTime: pt.transportTime || '',
-        walkLogs: pt.walkLogs || [],
-        bpLogs: pt.bpLogs || [],
-        exercises: pt.exercises || []
-      }));
+      const safePatients = state.patients.map(pt => {
+        const masked = maskName(pt.name);
+        return {
+          id: pt.id,
+          bed: pt.bed,
+          maskedName: (masked && masked !== '—') ? masked : `${pt.bed}號床`,
+          surnameLabel: getSurnameTitle(pt),
+          therapist: pt.therapist || '',
+          side: pt.side,
+          aid: pt.aid,
+          aidExtras: pt.aidExtras || [],
+          assist: pt.assist,
+          transportMode: pt.transportMode || '',
+          transportExtras: pt.transportExtras || [],
+          riskFall: Boolean(pt.riskFall),
+          riskBp: Boolean(pt.riskBp),
+          riskPacemaker: Boolean(pt.riskPacemaker),
+          specialNote: pt.specialNote || '',
+          showNoteOnTv: Boolean(pt.showNoteOnTv),
+          attendance: pt.attendance,
+          transportOrder: pt.transportOrder || null,
+          transportStaff: pt.transportStaff || '',
+          transportTime: pt.transportTime || '',
+          walkLogs: pt.walkLogs || [],
+          bpLogs: pt.bpLogs || [],
+          exercises: pt.exercises || []
+        };
+      });
 
       fbRef.set({
         updatedAt: now,
@@ -1505,7 +1511,6 @@
       if (Array.isArray(remote.onDutyTransport)) state.onDutyTransport = remote.onDutyTransport;
       if (remote.transportCounter !== undefined) state.transportCounter = Number(remote.transportCounter) || 0;
 
-      // 同步所有雲端系統設定（治療師、助理、運動項目庫、接送設備等）
       if (remote.settings && typeof remote.settings === 'object') {
         const keepFbCfg = state.settings.firebaseConfigText;
         const keepRoomId = state.settings.firebaseRoomId;
@@ -1519,11 +1524,16 @@
         const localMap = new Map(state.patients.map(p => [p.id, p]));
         state.patients = remote.patients.map(rp => {
           const lp = localMap.get(rp.id);
+          // 若本機已有全名且對應同一位病人，保留本機全名；否則直接使用雲端同步的「姓X名」
+          const hasLocalFullName = lp && lp.name && !lp.name.endsWith('號床') && !lp.name.includes('X');
+          const resolvedName = hasLocalFullName
+            ? lp.name
+            : (rp.maskedName || (lp ? lp.name : `${rp.bed}號床`));
           return {
             ...rp,
-            name: lp ? lp.name : `${rp.bed}號床`,
-            specialNote: lp ? lp.specialNote : '',
-            showNoteOnTv: lp ? lp.showNoteOnTv : false
+            name: resolvedName,
+            specialNote: rp.specialNote !== undefined ? rp.specialNote : (lp ? lp.specialNote : ''),
+            showNoteOnTv: rp.showNoteOnTv !== undefined ? Boolean(rp.showNoteOnTv) : (lp ? lp.showNoteOnTv : false)
           };
         });
       }
@@ -1847,7 +1857,7 @@
     function exportUpdatedSelfHtml() {
       const snapshot = JSON.parse(JSON.stringify(state));
       snapshot._embeddedVersion = Date.now();
-      const jsonPayload = JSON.stringify(snapshot).replace(/<\/script>/gi, '<\\/script>');
+      const jsonPayload = JSON.stringify(snapshot).replace(/<\/script>/gi, '<\/script>');
 
       const docClone = document.documentElement.cloneNode(true);
       const emb = docClone.querySelector('#embeddedStateScript');
@@ -1856,7 +1866,8 @@
       const ws = docClone.querySelector('#workspace');
       if (ws) ws.innerHTML = '';
 
-      const htmlStr = '<!DOCTYPE html>\n' + docClone.outerHTML;
+      const htmlStr = '<!DOCTYPE html>
+' + docClone.outerHTML;
       const blob = new Blob([htmlStr], { type: 'text/html;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -2173,13 +2184,13 @@
       return `
         <div class="mobile-bed-app">
           <div style="display:flex; justify-content:space-between; align-items:center;">
-         <span style="font-size:15px; font-weight:900; color:#38bdf8;">☁️ 運動記錄</span>
-         <span class="tabular" style="font-size:13px; color:#94a3b8;">${nowHHMM()}</span>
-       </div>
+            <span style="font-size:15px; font-weight:900; color:#38bdf8;">☁️ 運動記錄</span>
+            <span class="tabular" style="font-size:13px; color:#94a3b8;">${nowHHMM()}</span>
+          </div>
 
-       <div class="m-bed-card ${r.cls}">
-         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-           <div style="font-size:38px; font-weight:900; line-height:1;">${esc(pt.bed)}號床 ${surnameStr ? `<span style="font-size:28px; margin-left:4px;">${esc(surnameStr)}</span>` : ''} ${r.symHtml}</div>
+          <div class="m-bed-card ${r.cls}">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+              <div style="font-size:38px; font-weight:900; line-height:1;">${esc(pt.bed)}號床 ${surnameStr ? `<span style="font-size:28px; margin-left:4px;">${esc(surnameStr)}</span>` : ''} ${r.symHtml}</div>
               ${renderSideVisual(pt.side)}
             </div>
             <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; align-items:center;">
@@ -2398,14 +2409,16 @@
           <div class="transport-bar-top">
             <span class="transport-title">🚐 今日接送輪流計數（綠框＝接送最少）</span>
             <div style="display:flex; gap:5px;">
-            <button class="btn-primary" style="padding:4px 9px; font-size:11.5px; background:#0f766e;" onclick="openTransportSummaryModal()">📋 接送總表</button>
+              <button class="btn-primary" style="padding:4px 9px; font-size:11.5px; background:#0f766e;" onclick="openTransportSummaryModal()">📋 接送總表</button>
               <button class="mini-action-btn" onclick="showDutyDrawer=!showDutyDrawer; renderWorkspace();">${showDutyDrawer ? '▲ 收合' : '👤 當值助理'}</button>
               <button class="seg-btn ${pcSortMode === 'clinical' ? 'active' : ''}" onclick="pcSortMode='clinical'; renderWorkspace();">排程順序</button>
               <button class="seg-btn ${pcSortMode === 'transport' ? 'active' : ''}" onclick="pcSortMode='transport'; renderWorkspace();">接送次序</button>
             </div>
           </div>
           <div class="transport-pills">
-            ${dutyList.map(ch => `<span class="tr-stat-pill ${(trCounts[ch] || 0) === minTr ? 'next-turn' : ''}">${esc(ch)} <span class="tr-stat-num tabular">${trCounts[ch] || 0}</span></span>`).join('')}
+            ${dutyList.length
+              ? dutyList.map(ch => `<span class="tr-stat-pill ${(trCounts[ch] || 0) === minTr ? 'next-turn' : ''}">${esc(ch)} <span class="tr-stat-num tabular">${trCounts[ch] || 0}</span></span>`).join('')
+              : '<span style="font-size:12px; color:#64748b; font-weight:700;">尚未勾選當值助理，請點右上角「👤 當值助理」設定</span>'}
           </div>
           ${showDutyDrawer ? `
             <div class="duty-drawer">
@@ -2473,7 +2486,7 @@
                 ? `<button class="tr-assigned-pill" onclick="openTransportPickerPtId='${pt.id}'; renderWorkspace();">#${pt.transportOrder} ${esc(pt.transportStaff)}</button>`
                 : `<button class="tr-assign-btn" onclick="openTransportPickerPtId='${pt.id}'; renderWorkspace();">＋接送</button>`}
               ${pt.transportMode ? `<span class="pc-tag tr-mode">🚐 ${esc(pt.transportMode)}</span>` : ''}
-              ${(pt.transportExtras || []).map(x => `<span class="pc-tag tr-extra">🪝 ${esc(x)}</span>`).join('')}
+              ${(pt.transportExtras || []).map(x => `<span class="pc-tag tr-extra">🦽 ${esc(x)}</span>`).join('')}
               ${renderSideVisual(pt.side)}
               <span class="pc-tag">${esc(pt.aid)}</span>
               ${(pt.aidExtras || []).map(x => `<span class="pc-tag aid-extra">+${esc(x)}</span>`).join('')}
@@ -2802,6 +2815,9 @@
       ex.endStaffList = [];
       ex.startedAt = null;
       ex.accumulatedSec = 0;
+      ex.finishedAt = null;
+      ex.earlyReason = '';
+      ex.earlyNote = '';
       ex.bpRecords = [];
       persistState(true);
       renderWorkspace();
@@ -2933,7 +2949,7 @@
     }
 
     /* ========================================================================
-       接送與病人編輯器
+       接送與病人編輯器（PCA 接送總表只顯示床號，不顯示名稱）
        ======================================================================== */
     function toggleAssistantOnDuty(ch) {
       if (state.onDutyTransport.includes(ch)) {
@@ -2981,11 +2997,11 @@
       persistState(true);
       renderWorkspace();
     }
-   function openTransportSummaryModal() {
+
+    function openTransportSummaryModal() {
       const presentPts = state.patients.filter(p => p.attendance === 'present');
       const isSpecial = (pt) => (pt.transportExtras || []).some(x => x.includes('吊機') || x.includes('雙人'));
 
-      // 依助理分組並串接成單一連續表格（同一助理的病人排在一起，未指派排在最後）
       const staffOrder = [];
       const groups = new Map();
 
@@ -3019,7 +3035,7 @@
       });
 
       const rowsHtml = !orderedPts.length
-        ? `<tr><td colspan="5" style="text-align:center; padding:14px; color:#64748b;">目前沒有今日出席病人</td></tr>`
+        ? `<tr><td colspan="4" style="text-align:center; padding:14px; color:#64748b;">目前沒有今日出席病人</td></tr>`
         : orderedPts.map(pt => {
             const extras = pt.transportExtras || [];
             const special = isSpecial(pt);
@@ -3044,7 +3060,6 @@
             return `
               <tr style="${rowStyle}">
                 <td class="tabular" style="padding:5px 8px; font-weight:900; font-size:13.5px; white-space:nowrap;">${esc(pt.bed)}號床</td>
-                <td style="padding:5px 8px; font-weight:900; font-size:13.5px; white-space:nowrap;">${esc(pt.name)}</td>
                 <td style="padding:5px 8px; white-space:nowrap;">${pt.transportMode ? `<span style="padding:1px 7px; border-radius:5px; background:#fef3c7; border:1px solid #fcd34d; color:#92400e; font-weight:800; font-size:12px;">${esc(pt.transportMode)}</span>` : '<span style="color:#94a3b8;">-</span>'}</td>
                 <td style="padding:5px 8px;">${extrasHtml}</td>
                 <td style="padding:5px 8px; text-align:right; white-space:nowrap;">${staffHtml}</td>
@@ -3058,7 +3073,6 @@
             <thead>
               <tr>
                 <th style="padding:6px 8px;">床號</th>
-                <th style="padding:6px 8px;">姓名</th>
                 <th style="padding:6px 8px;">接送方式</th>
                 <th style="padding:6px 8px;">特別設備／提醒</th>
                 <th style="padding:6px 8px; text-align:right;">接送助理</th>
@@ -3082,12 +3096,13 @@
         const mode = pt.transportMode ? `[${pt.transportMode}]` : '';
         const extras = (pt.transportExtras || []).map(x => (x.includes('吊機') || x.includes('雙人')) ? `⚠️${x}` : x).join(' ');
         const staff = (pt.transportStaff || '').trim() || '未指派';
-        lines.push(`- ${pt.bed}號床 ${pt.name} ${mode} ${extras} → ${staff}`.replace(/\s+/g, ' ').trim());
+        lines.push(`- ${pt.bed}號床 ${mode} ${extras} → ${staff}`.replace(/\s+/g, ' ').trim());
       });
-      const text = lines.join('\n');
+      const text = lines.join('
+');
       navigator.clipboard?.writeText(text).then(() => showToast('📋 已複製接送總表文字版！')).catch(() => showToast('複製失敗，請手動選取'));
     }
-    
+
     function changeAttendance(ptId, val) {
       const pt = state.patients.find(p => p.id === ptId);
       if (!pt) return;
@@ -3132,7 +3147,7 @@
 
     function updateLiveMaskPreview() {
       const v = document.getElementById('edName').value.trim();
-      document.getElementById('edMaskLive').textContent = v ? `(大電視：${maskName(v)})` : '';
+      document.getElementById('edMaskLive').textContent = v ? `(大電視及雲端：${maskName(v)})` : '';
     }
 
     function renderEditorChips() {
@@ -3237,6 +3252,7 @@
           </div>
         `).join('');
     }
+
     function savePatientEditor() {
       const bed = document.getElementById('edBed').value.trim();
       const name = document.getElementById('edName').value.trim();
@@ -3256,7 +3272,7 @@
       closeModal('patientModal');
       persistState(true);
       renderWorkspace();
-      showToast(`✓ 已儲存 ${d.bed}號床並同步雲端`);
+      showToast(`✓ 已儲存 ${d.bed}號床（雲端已同步為 ${maskName(d.name)}）`);
     }
 
     function confirmDeletePatient() {
@@ -3341,7 +3357,6 @@
 
     function formatDocNote(rawNote) {
       if (!rawNote || !rawNote.trim()) return '';
-      // 若備註欄以中文寫了左/右/雙側，自動轉為英文簡稱方便貼入 CMS
       const cleaned = rawNote.trim()
         .replace(/雙側|兩側/g, 'Bi')
         .replace(/左側|左/g, 'L')
@@ -3371,7 +3386,7 @@
             bpParts.push(`${b.label}, BP ${b.sbp}/${b.dbp}, HR ${b.hr}`);
           });
         }
-     if (ex.status === 'early_stopped') {
+        if (ex.status === 'early_stopped') {
           const reasonDict = {
             '疲倦': 'fatigue',
             '頭暈／血壓不適': 'dizziness / unstable BP',
@@ -3401,8 +3416,10 @@
         lines.push(`- Walking exercise with ${pt.aid} (${pt.assist}) [Not performed]`);
       }
 
-      return lines.join('\n');
+      return lines.join('
+');
     }
+
     function openReportModal() {
       const presentPts = state.patients.filter(p => p.attendance === 'present');
       const therapists = Array.from(new Set(presentPts.map(p => p.therapist || '未指派')));
@@ -3418,7 +3435,8 @@
         const ptCardsHtml = thPts.map(pt => {
           const r = getRiskInfo(pt);
           const docLine = generateEnglishDocumentation(pt);
-          allDocs.push(`[Bed ${pt.bed} ${pt.name}]\n${docLine}`);
+          allDocs.push(`[Bed ${pt.bed} ${pt.name}]
+${docLine}`);
           const aidFull = [pt.aid, ...(pt.aidExtras || [])].join(' + ');
           const trFull = [pt.transportMode, ...(pt.transportExtras || [])].filter(Boolean).join(' + ') || '-';
           const doneEx = pt.exercises.filter(ex => isScheduledToday(ex.schedule));
@@ -3487,7 +3505,9 @@
         ${blocksHtml}
         <div class="field-group">
           <span class="field-label">📝 英文 Clinical Documentation 總匯（可直接複製貼入 CMS / 病歷）：</span>
-          <textarea id="allEnglishDocArea" class="doc-note-box" readonly>${esc(allDocs.join('\n\n'))}</textarea>
+          <textarea id="allEnglishDocArea" class="doc-note-box" readonly>${esc(allDocs.join('
+
+'))}</textarea>
         </div>
       `;
       openModal('reportModal');
@@ -3532,7 +3552,7 @@
         } catch (e) {}
       }
 
-      const blob = new Blob(['\uFEFF' + docText], { type: 'text/plain;charset=utf-8;' });
+      const blob = new Blob(['﻿' + docText], { type: 'text/plain;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -3546,7 +3566,7 @@
     }
 
     /* ========================================================================
-       ⚙️ 系統設定（全部設定自動雲端同步）
+       ⚙️ 系統設定（全部設定自動雲端同步 ＋ 上載 JSON 回復）
        ======================================================================== */
     function openSettingsModal(tab = 'people') {
       currentSettingsTab = tab;
@@ -3605,7 +3625,7 @@
         return;
       }
 
- if (currentSettingsTab === 'clinical') {
+      if (currentSettingsTab === 'clinical') {
         body.innerHTML = `
           <div class="settings-section">
             <div class="settings-section-title">🦯 Walking aid 助行器選項（單選・雲端同步）</div>
@@ -3631,7 +3651,7 @@
             </div>
           </div>
           <div class="settings-section">
-            <div class="settings-section-title">🦵 助行器附加輔助（可多選・雲端同步）</div>
+            <div class="settings-section-title">🦿 助行器附加輔助（可多選・雲端同步）</div>
             <div class="tag-chip-list">${s.aidExtras.map(x => `<span class="removable-chip">${esc(x)}<button class="chip-x" onclick="removeList('aidExtras','${esc(x)}')">×</button></span>`).join('')}</div>
             <div class="add-inline-row">
               <input id="inpAidEx" type="text" class="text-input" style="max-width:200px;" placeholder="新增附加輔助..." />
@@ -3699,6 +3719,15 @@
       if (currentSettingsTab === 'backup') {
         body.innerHTML = `
           <div class="settings-section">
+            <div class="settings-section-title">🔄 完整資料備份與一鍵上載 JSON 回復</div>
+            <div class="field-hint">匯出完整 JSON 備份檔，或選取先前匯出的 <code>.json</code>（亦相容 <code>.html</code> 快照檔）一鍵還原全部病人名單、處方與系統設定。</div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+              <button class="btn-primary" style="background:#059669;" onclick="exportStateJson()">📥 匯出完整 JSON 備份</button>
+              <input id="jsonRestoreInput" type="file" accept=".json,application/json,.html,text/html" style="display:none;" onchange="handleJsonRestoreUpload(this)" />
+              <button class="btn-primary" style="background:#4f46e5;" onclick="document.getElementById('jsonRestoreInput').click()">📤 上載 JSON 回復</button>
+            </div>
+          </div>
+          <div class="settings-section">
             <div class="settings-section-title">📂 綁定每日報告自動儲存資料夾</div>
             <div class="field-hint">點擊下方按鈕選擇電腦內的目標資料夾後，每日按「完結報表 → 儲存每日報告」會直接靜默存入該資料夾。</div>
             <div>
@@ -3723,7 +3752,7 @@
           <div class="settings-section">
             <div class="settings-section-title">☁️ Google Firebase Realtime Database 連線狀態</div>
             <div class="field-hint">
-              已內建你的 <code>rehab-gym-sync</code> 新加坡資料庫連線設定。所有系統設定、治療師、運動項目庫及去識別化排程皆會自動同步。
+              已內建你的 <code>rehab-gym-sync</code> 新加坡資料庫連線設定。所有系統設定、治療師、運動項目庫及去識別化排程（「姓X名」）皆會自動同步。
             </div>
             <div class="field-group">
               <label class="field-label">運動室房間代碼 (Room ID)</label>
@@ -3761,30 +3790,88 @@
       } catch (e) {}
     }
 
-  function addList(key, inpId) {
-   const inp = document.getElementById(inpId);
-   const v = inp.value.trim();
-   if (!v) return;
-   if (!state.settings[key].includes(v)) state.settings[key].push(v);
-   if (key === 'assistants' && !state.onDutyTransport.includes(v)) {
-     state.onDutyTransport.push(v);
-   }
-   persistState(true);
-   renderWorkspace();
-   renderSettingsTabContent();
-   showToast('☁️ 已新增並同步上雲端');
- }
+    function exportStateJson() {
+      const snapshot = JSON.parse(JSON.stringify(state));
+      snapshot._exportedAt = new Date().toISOString();
+      const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `rehab_gym_backup_${todayISO()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast('📥 已匯出完整 JSON 備份檔');
+    }
 
- function removeList(key, val) {
-   state.settings[key] = state.settings[key].filter(x => x !== val);
-   if (key === 'assistants') {
-     state.onDutyTransport = state.onDutyTransport.filter(x => x !== val);
-   }
-   persistState(true);
-   renderWorkspace();
-   renderSettingsTabContent();
-   showToast('☁️ 已更新並同步上雲端');
- }
+    async function handleJsonRestoreUpload(inputEl) {
+      const file = inputEl && inputEl.files && inputEl.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        let parsed = null;
+
+        if (file.name.toLowerCase().endsWith('.html') || text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+          const doc = new DOMParser().parseFromString(text, 'text/html');
+          const emb = doc.querySelector('#embeddedStateScript');
+          if (emb && emb.textContent && emb.textContent.trim() !== 'null') {
+            parsed = JSON.parse(emb.textContent);
+          }
+        } else {
+          parsed = JSON.parse(text);
+        }
+
+        if (!parsed || typeof parsed !== 'object' || (!Array.isArray(parsed.patients) && !parsed.settings)) {
+          throw new Error('檔案格式不正確，找不到病人或設定資料');
+        }
+
+        const ptCount = Array.isArray(parsed.patients) ? parsed.patients.length : 0;
+        openConfirm(
+          '📤 確認上載 JSON 回復',
+          `即將還原備份檔「<strong>${esc(file.name)}</strong>」（包含 <strong>${ptCount}</strong> 位病人與系統設定），並覆蓋目前畫面資料與同步上雲端。確定執行？`,
+          '確認還原',
+          '#4f46e5',
+          () => {
+            state = ensureStateIntegrity(parsed);
+            state._lastUpdatedAt = Date.now();
+            persistState(true);
+            renderWorkspace();
+            renderSettingsTabContent();
+            showToast(`✅ 已成功從 JSON 還原 ${ptCount} 位病人與全部設定！`);
+          }
+        );
+      } catch (err) {
+        showToast('❌ 還原失敗：' + (err.message || 'JSON 格式錯誤'));
+      } finally {
+        inputEl.value = '';
+      }
+    }
+
+    function addList(key, inpId) {
+      const inp = document.getElementById(inpId);
+      const v = inp.value.trim();
+      if (!v) return;
+      if (!state.settings[key].includes(v)) state.settings[key].push(v);
+      if (key === 'assistants' && !state.onDutyTransport.includes(v)) {
+        state.onDutyTransport.push(v);
+      }
+      persistState(true);
+      renderWorkspace();
+      renderSettingsTabContent();
+      showToast('☁️ 已新增並同步上雲端');
+    }
+
+    function removeList(key, val) {
+      state.settings[key] = state.settings[key].filter(x => x !== val);
+      if (key === 'assistants') {
+        state.onDutyTransport = state.onDutyTransport.filter(x => x !== val);
+      }
+      persistState(true);
+      renderWorkspace();
+      renderSettingsTabContent();
+      showToast('☁️ 已更新並同步上雲端');
+    }
 
     function addLibEx() {
       const n = document.getElementById('libAddName').value.trim();
@@ -3798,7 +3885,7 @@
     }
 
     /* ========================================================================
-       其他工具與計時心跳
+       其他工具與計時心跳（精準重置功能）
        ======================================================================== */
     function openStandaloneTVPopup() {
       const base = window.location.href.split('#')[0];
@@ -3809,23 +3896,57 @@
     function toggleAudio() { state.audioOn = !state.audioOn; persistState(true); renderWorkspace(); }
 
     function confirmCarryOver() {
-      openConfirm('🔄 延續昨日名單', '保留所有病人、設定與處方，清空今日計時、血壓、步行與接送紀錄？', '確認延續', '#0f4c81', () => {
-        state.date = todayISO();
-        state.transportCounter = 0;
-        hasUnsavedDailyWork = false;
-        state.patients.forEach(pt => {
-          pt.transportOrder = null; pt.transportStaff = ''; pt.transportTime = '';
-          pt.walkLogs = []; pt.bpLogs = [];
-          pt.exercises.forEach(ex => {
-            ex.status = 'pending'; ex.startStaffList = []; ex.endStaffList = [];
-            ex.startedAt = null; ex.accumulatedSec = 0; ex.bpRecords = [];
-            ex.alertedDue = false; ex.alertedCritical = false;
+      openConfirm(
+        '⚠️ 確認重置今日運動與 PCA 紀錄',
+        `<div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="background:#fef2f2; border:1.5px solid #fca5a5; color:#991b1b; padding:9px 11px; border-radius:8px; font-weight:800;">
+            此操作將會清除以下今日紀錄（無法復原）：
+            <ul style="margin:5px 0 0 18px; font-weight:700;">
+              <li>所有運動項目完成度、計時與提早結束／運動反應紀錄</li>
+              <li>所有血壓與脈搏紀錄（BP / HR）</li>
+              <li>所有步行訓練紀錄</li>
+              <li>今日當值 PCA 名單及所有病人接送 PCA 指派</li>
+            </ul>
+          </div>
+          <div style="background:#ecfdf5; border:1px solid #6ee7b7; color:#065f46; padding:7px 11px; border-radius:8px; font-size:13px; font-weight:700;">
+            ✓ 所有病人名單、床號、助行器、特別備註、運動處方及系統設定皆會完整保留。
+          </div>
+        </div>`,
+        '確認全部清除並重置',
+        '#dc2626',
+        () => {
+          state.date = todayISO();
+          state.transportCounter = 0;
+          state.onDutyTransport = []; // 重置當值 PCA
+          hasUnsavedDailyWork = false;
+          state.patients.forEach(pt => {
+            // 重置接送 PCA
+            pt.transportOrder = null;
+            pt.transportStaff = '';
+            pt.transportTime = '';
+            // 重置步行記錄與血壓記錄
+            pt.walkLogs = [];
+            pt.bpLogs = [];
+            // 重置運動完成度與運動反應記錄
+            pt.exercises.forEach(ex => {
+              ex.status = 'pending';
+              ex.startStaffList = [];
+              ex.endStaffList = [];
+              ex.startedAt = null;
+              ex.accumulatedSec = 0;
+              ex.finishedAt = null;
+              ex.earlyReason = '';
+              ex.earlyNote = '';
+              ex.bpRecords = [];
+              ex.alertedDue = false;
+              ex.alertedCritical = false;
+            });
           });
-        });
-        persistState(true);
-        renderWorkspace();
-        showToast('🔄 已開啟新一日排程並同步雲端');
-      });
+          persistState(true);
+          renderWorkspace();
+          showToast('🔄 已清除今日運動、血壓、步行及當值／接送 PCA 紀錄');
+        }
+      );
     }
 
     function openModal(id) { document.getElementById(id).classList.add('open'); }
@@ -3905,8 +4026,8 @@
     }
 
     window.addEventListener('hashchange', () => { parseHashRoute(); renderWorkspace(); });
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-    else init();
+    window.addEventListener('resize', () => { if (!mobileBedNum) renderWorkspace(); });
+    init();
   </script>
 </body>
 </html>
