@@ -842,6 +842,15 @@
     @media (max-width: 600px) {
       .bp-multi-row { grid-template-columns: 1fr 78px; }
     }
+    .bp-tick-btn {
+      width: 38px; height: 34px; border-radius: 7px; font-size: 18px; font-weight: 900;
+      background: #16a34a; color: #ffffff; border: 2px solid #15803d;
+      display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+      box-shadow: 0 1px 3px rgba(21, 128, 61, 0.35);
+    }
+    .bp-tick-btn:hover { background: #15803d; }
+    .bp-tick-btn.ticked { background: #047857; border-color: #064e3b; box-shadow: inset 0 0 0 2px #a7f3d0; }
+
     .bp-input { width: 100%; padding: 6px; font-size: 16px; font-weight: 900; text-align: center; border: 1.5px solid #7dd3fc; border-radius: 7px; }
 
     .matrix-box { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
@@ -3181,23 +3190,31 @@
        ======================================================================== */
     let midBpCtx = { ptId: null, exId: null, rows: [] };
 
+    function defaultMidBpLabel(pt, ex) {
+      const m = computeExMetrics(ex, pt);
+      const mins = Math.max(0, Math.round((Number(m.elapsedSec) || 0) / 60));
+      return `standing (${mins}min)`;
+    }
+
     function openMidBpModal(ptId, exId) {
       const { pt, ex } = getPtEx(ptId, exId);
       if (!pt || !ex) return;
       midBpCtx.ptId = ptId;
       midBpCtx.exId = exId;
       midBpCtx.rows = [
-        { id: uid('mbp'), label: 'During standing BP', time: nowHHMM(), sbp: '', dbp: '', hr: '', ticked: false }
+        { id: uid('mbp'), label: defaultMidBpLabel(pt, ex), time: nowHHMM(), sbp: '', dbp: '', hr: '', ticked: false }
       ];
       document.getElementById('midBpModalTitle').textContent = `💓 ${pt.bed}號床 — ${ex.name} 中途 BP`;
-      document.getElementById('midBpSummary').innerHTML = `<strong>${esc(pt.bed)}號床 ${esc(pt.name)}</strong>｜運動：<strong>${esc(ex.name)}</strong>（每次按 <strong>✓ Tick</strong> 即時寫入本機及雲端，關螢幕／關網頁亦保留）`;
+      document.getElementById('midBpSummary').innerHTML = `<strong>${esc(pt.bed)}號床 ${esc(pt.name)}</strong>｜運動：<strong>${esc(ex.name)}</strong>（每次按 <strong>✓</strong> 即時寫入本機及雲端，關螢幕／關網頁亦保留）`;
       renderMidBpRows();
       renderMidBpSavedList(pt, ex);
       openModal('midBpModal');
     }
 
     function addMidBpRow() {
-      midBpCtx.rows.push({ id: uid('mbp'), label: 'During standing BP', time: nowHHMM(), sbp: '', dbp: '', hr: '', ticked: false });
+      const { pt, ex } = getPtEx(midBpCtx.ptId, midBpCtx.exId);
+      const lbl = (pt && ex) ? defaultMidBpLabel(pt, ex) : 'standing (0min)';
+      midBpCtx.rows.push({ id: uid('mbp'), label: lbl, time: nowHHMM(), sbp: '', dbp: '', hr: '', ticked: false });
       renderMidBpRows();
     }
 
@@ -3205,13 +3222,13 @@
       const wrap = document.getElementById('midBpRowsContainer');
       if (!wrap) return;
       wrap.innerHTML = midBpCtx.rows.map((row, idx) => `
-        <div class="bp-multi-row ${row.ticked ? 'is-ticked' : ''}" style="grid-template-columns: 145px 78px 1fr 1fr 1fr auto auto;">
+        <div class="bp-multi-row ${row.ticked ? 'is-ticked' : ''}" style="grid-template-columns: 150px 78px 1fr 1fr 1fr auto auto;">
           <input type="text" class="text-input" style="padding:5px 7px; font-size:12px; font-weight:800;" value="${esc(row.label)}" oninput="midBpCtx.rows[${idx}].label=this.value" />
           <input type="text" class="text-input tabular" style="padding:5px; font-size:12.5px; text-align:center;" placeholder="HH:MM" value="${esc(row.time)}" oninput="midBpCtx.rows[${idx}].time=this.value" />
           <input type="number" class="bp-input tabular" placeholder="SBP" value="${esc(row.sbp)}" oninput="midBpCtx.rows[${idx}].sbp=this.value; midBpCtx.rows[${idx}].ticked=false;" />
           <input type="number" class="bp-input tabular" placeholder="DBP" value="${esc(row.dbp)}" oninput="midBpCtx.rows[${idx}].dbp=this.value; midBpCtx.rows[${idx}].ticked=false;" />
           <input type="number" class="bp-input tabular" placeholder="HR" value="${esc(row.hr)}" oninput="midBpCtx.rows[${idx}].hr=this.value; midBpCtx.rows[${idx}].ticked=false;" />
-          <button type="button" class="bp-tick-btn ${row.ticked ? 'ticked' : ''}" onclick="tickMidBpRow(${idx})">${row.ticked ? '✓ 已記' : '✓ Tick'}</button>
+          <button type="button" class="bp-tick-btn ${row.ticked ? 'ticked' : ''}" title="即時儲存此組 BP" onclick="tickMidBpRow(${idx})">✓</button>
           <button type="button" class="step-btn" style="color:var(--red);" onclick="midBpCtx.rows.splice(${idx},1); renderMidBpRows();">✕</button>
         </div>
       `).join('');
