@@ -2845,7 +2845,7 @@
       if (noBedCol) {
         return `
           <div class="tv-row ${r.cls} ${isAllDone ? 'is-all-done' : ''} ${isPinned ? 'is-pinned' : ''}">
-            <div class="tv-col tv-col-name" style="grid-column:1; grid-row:1; position:relative; flex-direction:column; padding-left:${thFont + 12}px;">
+            <div class="tv-col tv-col-name" style="grid-column:1; grid-row:1; position:relative; flex-direction:column; padding-left:calc(var(--tv-therapist) + 12px);">
               ${pt.therapist ? `<span class="tv-therapist-corner" style="background:${tCol};">${esc(pt.therapist)}</span>` : ''}
               ${slotBadge ? `<span class="tv-slot-corner" title="固定QR牌號">${esc(slotBadge)}</span>` : ''}
               <span style="display:inline-flex; align-items:center; gap:4px;">${esc(maskName(pt.name))}${r.symHtml}</span>
