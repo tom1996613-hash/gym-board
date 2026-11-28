@@ -1383,7 +1383,7 @@
     const STORAGE_KEY = 'rehab_gym_board_v7_cloud_settings';
     const CHANNEL_NAME = 'rehab_gym_sync_v7';
     const SIDES = ['L', 'R', 'Bi', '無'];
-    const EX_CATEGORIES = ['手法治療', '功能性治療', 'Therapeutic Ex', 'walking exercise', 'Pain Control', 'EPT Modality'];
+    const EX_CATEGORIES = ['手法治療', '功能性治療', 'Therapeutic Ex', 'walking exercise', 'Pain Control', 'EPT Modality', '其他'];
     const THERAPIST_PALETTE = [
       '#4f46e5', '#0f766e', '#be185d', '#b45309', '#1d4ed8',
       '#7e22ce', '#047857', '#c2410c', '#0369a1', '#374151'
@@ -1483,6 +1483,7 @@
       const walkingEx = ['吊住行', '跑步機', '踏級(高)', '踏級(低)'];
       const painCtrl = ['熱敷', '冰敷', '震震機'];
       const eptMod = ['電療', '超聲波'];
+      const otherEx = [];
 
       const make = (name, category) => ({ id: uid('lib'), name, category, mode: 'countdown', defaultMin: 15 });
       return [
@@ -1491,7 +1492,8 @@
         ...therEx.map(n => make(n, 'Therapeutic Ex')),
         ...walkingEx.map(n => make(n, 'walking exercise')),
         ...painCtrl.map(n => make(n, 'Pain Control')),
-        ...eptMod.map(n => make(n, 'EPT Modality'))
+        ...eptMod.map(n => make(n, 'EPT Modality')),
+        ...otherEx.map(n => make(n, '其他'))
       ];
     }
 
@@ -1824,20 +1826,26 @@
         };
       });
 
+      ensureSessionTransportMap();
       fbRef.set({
         updatedAt: now,
         date: state.date,
         tvPageSize: state.tvPageSize,
         onDutyTransport: state.onDutyTransport,
         transportCounter: state.transportCounter,
+        sessionTransportState: state.sessionTransportState,
         settings: syncableSettings,
         patients: safePatients
       }).catch(() => {});
     }
 
     function mergeRemoteState(remote) {
+      if (remote && typeof remote === 'object') migrateTouchFloorToStandingTraining(remote);
       state._lastUpdatedAt = remote.updatedAt || Date.now();
       if (remote.tvPageSize !== undefined) state.tvPageSize = Number(remote.tvPageSize);
+      if (remote.sessionTransportState && typeof remote.sessionTransportState === 'object') {
+        state.sessionTransportState = Object.assign({}, state.sessionTransportState || {}, remote.sessionTransportState);
+      }
       state.onDutyTransport = Array.isArray(remote.onDutyTransport) ? remote.onDutyTransport : [];
       if (remote.transportCounter !== undefined) state.transportCounter = Number(remote.transportCounter) || 0;
 
@@ -2035,9 +2043,10 @@
       if (!state.settings.sessionExerciseConfigs || typeof state.settings.sessionExerciseConfigs !== 'object') {
         state.settings.sessionExerciseConfigs = {};
       }
-      const baseLib = Array.isArray(state.settings.exerciseLibrary) && state.settings.exerciseLibrary.length
+      const defaultPresets = createDefaultExerciseLibrary();
+      const baseLib = Array.isArray(state.settings.exerciseLibrary) && state.settings.exerciseLibrary.length >= 10
         ? state.settings.exerciseLibrary
-        : createDefaultExerciseLibrary();
+        : defaultPresets;
       const keys = ['C3_L2_SHARED', 'C3_S1', 'C3_S4', 'L5_PM'];
       keys.forEach(k => {
         if (!state.settings.sessionExerciseConfigs[k] || typeof state.settings.sessionExerciseConfigs[k] !== 'object') {
@@ -2046,8 +2055,18 @@
             docMap: Object.assign({}, EX_EN_DICT)
           };
         } else {
-          if (!Array.isArray(state.settings.sessionExerciseConfigs[k].items)) {
+          if (!Array.isArray(state.settings.sessionExerciseConfigs[k].items) || state.settings.sessionExerciseConfigs[k].items.length === 0) {
             state.settings.sessionExerciseConfigs[k].items = baseLib.map(it => Object.assign({}, it));
+          } else {
+            // Ensure core default preset exercises are present if user hadn't explicitly deleted them
+            const existingNames = new Set(state.settings.sessionExerciseConfigs[k].items.map(x => x.name));
+            if (existingNames.size < 5) {
+              defaultPresets.forEach(dp => {
+                if (!existingNames.has(dp.name)) {
+                  state.settings.sessionExerciseConfigs[k].items.push(Object.assign({}, dp));
+                }
+              });
+            }
           }
           if (!state.settings.sessionExerciseConfigs[k].docMap || typeof state.settings.sessionExerciseConfigs[k].docMap !== 'object') {
             state.settings.sessionExerciseConfigs[k].docMap = Object.assign({}, EX_EN_DICT);
@@ -4077,10 +4096,11 @@
       }).join('');
 
       document.getElementById('editorMatrixContainer').innerHTML = `
-        <div style="font-size:11.5px; font-weight:800; color:#0f766e;">
-          ${isSharedL2 ? '🔗 C3 第 2 節 與 第 3 節 運動清單及 Documentation 互相掛鉤' : `📌 ${esc(meta.location)} ${esc(meta.shortLabel)} 獨立運動清單及 Documentation（只限此節）`}
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; font-size:11.5px; font-weight:800; color:#0f766e;">
+          <span>${isSharedL2 ? '🔗 C3 第 2 節 與 第 3 節 運動清單及 Documentation 互相掛鉤' : `📌 ${esc(meta.location)} ${esc(meta.shortLabel)} 獨立運動清單及 Documentation（只限此節）`}</span>
+          <button type="button" class="mini-action-btn" onclick="state.settings.sessionExerciseConfigs['${getSessionExPoolKey(draftSid)}'].items = createDefaultExerciseLibrary(); persistState(true); renderPrescriptionMatrix(); showToast('✓ 已還原預設運動清單');">↺ 還原預設運動</button>
         </div>
-        ${catsHtml}
+        ${catsHtml || '<div class="empty-box" style="padding:8px;">此組別目前未有預設運動，可於下方手動新增或按「還原預設運動」</div>'}
         <div class="add-inline-row" style="margin-top:4px; padding-top:8px; border-top:1px dashed var(--border-strong); flex-wrap:wrap;">
           <select id="edCustomExCat" class="text-input" style="width:140px;" onchange="toggleCustomPainEptPickerVisibility()">
             ${EX_CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
