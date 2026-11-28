@@ -2644,7 +2644,11 @@
     }
 
     function sortExercisesForPatient(pt) {
-      return pt.exercises.filter(ex => isScheduledToday(ex.schedule)).slice().sort((a, b) => {
+      const filtered = pt.exercises.filter(ex => isScheduledToday(ex.schedule));
+      if (pt && pt._manualExOrder) {
+        return filtered.slice();
+      }
+      return filtered.slice().sort((a, b) => {
         const tier = (ex) => ex.status === 'running' ? 0 : (ex.status === 'paused' ? 1 : (ex.status === 'pending' && ex.mustDo ? 2 : (ex.status === 'pending' ? 3 : 4)));
         return tier(a) - tier(b);
       });
@@ -3487,7 +3491,12 @@
               const stageCls = m.stage !== 'normal' ? `stage-${m.stage}` : '';
               if (ex.status === 'pending') {
                 return `
-                  <div class="pc-ex status-pending ${ex.mustDo ? 'must-do' : ''}" onclick="handlePendingExClick('${pt.id}', '${ex.id}')">
+                  <div class="pc-ex status-pending ${ex.mustDo ? 'must-do' : ''}"
+                       draggable="true"
+                       ondragstart="dragPcExInfo={ptId:'${pt.id}', exId:'${ex.id}'}"
+                       ondragover="event.preventDefault()"
+                       ondrop="event.stopPropagation(); dropPcExOrder('${pt.id}', '${ex.id}')"
+                       onclick="handlePendingExClick('${pt.id}', '${ex.id}')">
                     <div class="ex-head"><span class="ex-name">${ex.mustDo ? '<span class="star-mark">★</span>' : ''}${esc(ex.name)}</span><span style="font-size:11px; font-weight:800; color:#64748b;">${ex.plannedMin}m</span></div>
                     <div class="ex-sub"><span>${esc(ex.note || '點一下開始')}</span></div>
                   </div>
@@ -3498,7 +3507,11 @@
                 const staffStr = trackStaff ? formatStaffList(ex.startStaffList) : '';
                 const fillCol = m.stage === 'critical' ? '#fff' : (m.stage === 'due' ? '#dc2626' : (m.stage === 'warn' ? '#d97706' : '#0d9488'));
                 return `
-                  <div class="pc-ex status-${ex.status} ${stageCls}">
+                  <div class="pc-ex status-${ex.status} ${stageCls}"
+                       draggable="true"
+                       ondragstart="dragPcExInfo={ptId:'${pt.id}', exId:'${ex.id}'}"
+                       ondragover="event.preventDefault()"
+                       ondrop="event.stopPropagation(); dropPcExOrder('${pt.id}', '${ex.id}')">
                     <div class="ex-head"><span class="ex-name">${esc(ex.name)}</span>${staffStr ? `<span class="staff-pill">${esc(staffStr)}</span>` : ''}</div>
                     <div class="ex-head"><span class="pc-timer-text tabular" data-timer-ex="${ex.id}">${timeStr}</span><span style="font-size:11px; font-weight:800;">${ex.status === 'paused' ? '暫停' : '計時中'}</span></div>
                     <div class="prog-track"><div class="prog-fill" data-prog-ex="${ex.id}" style="width:${m.pct}%; background:${fillCol};"></div></div>
@@ -3518,7 +3531,11 @@
               const sEnd = formatStaffList(ex.endStaffList);
               const staffBadge = trackStaff ? (sEnd && sEnd !== sStart ? `${sStart}→${sEnd}` : (sEnd || sStart)) : '';
               return `
-                <div class="pc-ex status-${ex.status}">
+                <div class="pc-ex status-${ex.status}"
+                     draggable="true"
+                     ondragstart="dragPcExInfo={ptId:'${pt.id}', exId:'${ex.id}'}"
+                     ondragover="event.preventDefault()"
+                     ondrop="event.stopPropagation(); dropPcExOrder('${pt.id}', '${ex.id}')">
                   <div class="ex-head"><span class="ex-name" style="text-decoration:${ex.status === 'completed' ? 'line-through' : 'none'};">${ex.status === 'early_stopped' ? '⚠' : '✓'} ${esc(ex.name)}</span>${staffBadge ? `<span class="staff-pill" style="background:#475569;">${esc(staffBadge)}</span>` : ''}</div>
                   <div class="ex-sub"><span class="tabular">${formatMMSS(ex.accumulatedSec)}</span><button style="color:var(--primary); font-weight:800;" onclick="resetExercise('${pt.id}','${ex.id}')">重做</button></div>
                 </div>
@@ -4456,14 +4473,66 @@
       renderDraftExercises();
     }
 
+    let dragDraftExIdx = null;
+    let dragPcExInfo = null; // { ptId, exId }
+
+    function dropDraftExOrder(targetIdx) {
+      const list = uiCtx.draft && uiCtx.draft.exercises;
+      if (!Array.isArray(list) || dragDraftExIdx === null || dragDraftExIdx === targetIdx) return;
+      const [moved] = list.splice(dragDraftExIdx, 1);
+      list.splice(targetIdx, 0, moved);
+      dragDraftExIdx = null;
+      renderDraftExercises();
+    }
+
+    function moveDraftExOrder(idx, delta) {
+      const list = uiCtx.draft && uiCtx.draft.exercises;
+      if (!Array.isArray(list)) return;
+      const target = idx + delta;
+      if (target < 0 || target >= list.length) return;
+      const [moved] = list.splice(idx, 1);
+      list.splice(target, 0, moved);
+      renderDraftExercises();
+    }
+
+    function dropPcExOrder(targetPtId, targetExId) {
+      if (!dragPcExInfo || dragPcExInfo.ptId !== targetPtId || dragPcExInfo.exId === targetExId) {
+        dragPcExInfo = null;
+        return;
+      }
+      const pt = state.patients.find(p => p.id === targetPtId);
+      if (!pt || !Array.isArray(pt.exercises)) {
+        dragPcExInfo = null;
+        return;
+      }
+      const fromIdx = pt.exercises.findIndex(e => e.id === dragPcExInfo.exId);
+      const toIdx = pt.exercises.findIndex(e => e.id === targetExId);
+      dragPcExInfo = null;
+      if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
+      const [moved] = pt.exercises.splice(fromIdx, 1);
+      pt.exercises.splice(toIdx, 0, moved);
+      pt._manualExOrder = true;
+      persistState(true);
+      renderWorkspace();
+      showToast(`↕️ 已調整 ${pt.bed}號床運動排位並同步大電視`);
+    }
+
     function renderDraftExercises() {
       const list = uiCtx.draft.exercises;
       document.getElementById('edDraftExList').innerHTML = !list.length
         ? '<div class="empty-box" style="padding:10px;">步行已設為預設項目；可點上方加入其他器械、功能運動或臨時自訂項目</div>'
         : list.map((ex, idx) => `
-          <div class="draft-ex-row ${ex.mustDo ? 'is-must' : ''}">
+          <div class="draft-ex-row ${ex.mustDo ? 'is-must' : ''}"
+               draggable="true"
+               ondragstart="dragDraftExIdx=${idx}"
+               ondragover="event.preventDefault()"
+               ondrop="uiCtx.draft._manualExOrder=true; dropDraftExOrder(${idx});"
+               style="cursor:grab;">
             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
               <button class="step-btn ${ex.mustDo ? 'must-on' : ''}" onclick="uiCtx.draft.exercises[${idx}].mustDo=!uiCtx.draft.exercises[${idx}].mustDo; renderDraftExercises();">${ex.mustDo ? '★ 必做' : '☆ 一般'}</button>
+              <span style="color:#64748b; font-weight:900; cursor:grab;" title="拖動排位">☰</span>
+              <button type="button" class="step-btn" onclick="uiCtx.draft._manualExOrder=true; moveDraftExOrder(${idx}, -1)" title="上移">↑</button>
+              <button type="button" class="step-btn" onclick="uiCtx.draft._manualExOrder=true; moveDraftExOrder(${idx}, 1)" title="下移">↓</button>
               <strong>${esc(ex.name)}</strong>
               <select onchange="uiCtx.draft.exercises[${idx}].category=this.value; renderDraftExercises();" style="padding:3px 6px; font-size:12px; font-weight:700; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
                 ${EX_CATEGORIES.map(c => `<option value="${c}" ${(ex.category || '功能性治療') === c ? 'selected' : ''}>${c}</option>`).join('')}
