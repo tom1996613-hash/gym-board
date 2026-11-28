@@ -958,9 +958,7 @@
       <button class="tool-btn" onclick="confirmCarryOver()">🔄 重置運動與PCA</button>
       <button class="tool-btn btn-add" onclick="openPatientEditor(null)">＋ 新增病人</button>
       <button class="tool-btn btn-export" onclick="openReportModal()">📊 完結報表與英文紀錄</button>
-      <button id="btnTrialSandbox" class="tool-btn ${IS_TRIAL_SANDBOX ? 'is-on' : ''}" style="${IS_TRIAL_SANDBOX ? 'background:#d97706; border-color:#f59e0b; color:#fff;' : ''}" onclick="toggleTrialSandboxMode()">
-        ${IS_TRIAL_SANDBOX ? '🧪 試用模式中（點此回真實資料）' : '🧪 試用沙盒'}
-      </button>
+      <button id="btnTrialSandbox" class="tool-btn" onclick="toggleTrialSandboxMode()">🔑 試用鍵</button>
     </div>
   </header>
 
@@ -1377,25 +1375,85 @@
     </div>
   </div>
 
+  <!-- 彈窗 12：🔑 試用鍵密碼驗證（0000） -->
+  <div id="sandboxPinModal" class="modal-backdrop" onclick="onBackdrop(event, 'sandboxPinModal')">
+    <div class="modal-box" style="max-width:380px;">
+      <div class="modal-header">
+        <div class="modal-title" id="sandboxPinTitle">🔑 試用鍵驗證</div>
+        <button class="modal-close" onclick="closeModal('sandboxPinModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="sandboxPinDesc" style="font-size:13.5px; line-height:1.55;">請輸入 4 位數字密碼以切換試用模式：</div>
+        <input id="sandboxPinInput" type="password" inputmode="numeric" maxlength="4" class="text-input tabular"
+               style="text-align:center; font-size:22px; letter-spacing:0.35em;" placeholder="••••"
+               onkeydown="if(event.key==='Enter') submitSandboxPin()" />
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('sandboxPinModal')">取消</button>
+        <button class="btn-primary" onclick="submitSandboxPin()">確認</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toastStack" class="toast-stack"></div>
   <script id="embeddedStateScript" type="application/json">null</script>
 
   <script>
     'use strict';
 
-    const IS_TRIAL_SANDBOX = (() => {
+    const SANDBOX_PASSCODE = '0000';
+
+    function checkIsTrialSandbox() {
       const h = (window.location.hash || '').toLowerCase();
       const q = new URLSearchParams(window.location.search || '');
       return h.startsWith('#sandbox') || h.startsWith('#trial') || q.get('sandbox') === '1' || q.get('trial') === '1';
-    })();
+    }
 
-    const STORAGE_KEY = IS_TRIAL_SANDBOX
+    let IS_TRIAL_SANDBOX = checkIsTrialSandbox();
+    let STORAGE_KEY = IS_TRIAL_SANDBOX
       ? 'rehab_gym_board_v7_trial_sandbox'
       : 'rehab_gym_board_v7_cloud_settings';
-    const CHANNEL_NAME = IS_TRIAL_SANDBOX
+    let CHANNEL_NAME = IS_TRIAL_SANDBOX
       ? 'rehab_gym_sync_v7_trial_sandbox'
       : 'rehab_gym_sync_v7';
-    const ACTIVE_CLOUD_ROOM = IS_TRIAL_SANDBOX ? 'gym_room_trial_sandbox' : 'gym_room_1';
+    let ACTIVE_CLOUD_ROOM = IS_TRIAL_SANDBOX ? 'gym_room_trial_sandbox' : 'gym_room_1';
+
+    function refreshSandboxBindings() {
+      IS_TRIAL_SANDBOX = checkIsTrialSandbox();
+      STORAGE_KEY = IS_TRIAL_SANDBOX
+        ? 'rehab_gym_board_v7_trial_sandbox'
+        : 'rehab_gym_board_v7_cloud_settings';
+      CHANNEL_NAME = IS_TRIAL_SANDBOX
+        ? 'rehab_gym_sync_v7_trial_sandbox'
+        : 'rehab_gym_sync_v7';
+      ACTIVE_CLOUD_ROOM = IS_TRIAL_SANDBOX ? 'gym_room_trial_sandbox' : 'gym_room_1';
+      try {
+        if (syncChannel) syncChannel.close();
+      } catch (e) {}
+      syncChannel = null;
+      try {
+        if (typeof BroadcastChannel !== 'undefined') {
+          syncChannel = new BroadcastChannel(CHANNEL_NAME);
+          syncChannel.onmessage = (evt) => {
+            if (evt.data && evt.data.type === 'SYNC_STATE' && evt.data.state) {
+              state = ensureStateIntegrity(evt.data.state);
+              renderWorkspace();
+            }
+          };
+        }
+      } catch (e) {}
+      const btn = document.getElementById('btnTrialSandbox');
+      if (btn) {
+        const hidden = Boolean(state && state.settings && state.settings.hideSandboxKey);
+        btn.style.display = hidden ? 'none' : 'inline-flex';
+        btn.classList.toggle('is-on', IS_TRIAL_SANDBOX);
+        btn.style.background = IS_TRIAL_SANDBOX ? '#d97706' : '';
+        btn.style.borderColor = IS_TRIAL_SANDBOX ? '#f59e0b' : '';
+        btn.style.color = IS_TRIAL_SANDBOX ? '#fff' : '';
+        btn.textContent = IS_TRIAL_SANDBOX ? '🔑 試用模式中（點此退出）' : '🔑 試用鍵';
+      }
+    }
+
     const SIDES = ['L', 'R', 'Bi', '無'];
     const EX_CATEGORIES = ['手法治療', '功能性治療', 'Therapeutic Ex', 'walking exercise', 'Pain Control', 'EPT Modality', '其他'];
     const THERAPIST_PALETTE = [
@@ -1631,6 +1689,7 @@
         overtimeAlertMin: 3,
         voiceEnabled: true,
         trackStaffAssignment: true,
+        hideSandboxKey: false,
         therapists: ['江', '馬', '陳', '李'],
         assistants: ['A', 'B', 'C', 'G', 'H', 'J', 'K', 'R', 'Y'],
         aids: ['W/C', 'Frame', 'Rollator', 'Quad', 'Stick', 'Unaided'],
@@ -2258,6 +2317,7 @@
       const s = raw || createInitialState();
       migrateTouchFloorToStandingTraining(s);
       s.settings = Object.assign({}, def, s.settings || {});
+      if (typeof s.settings.hideSandboxKey !== 'boolean') s.settings.hideSandboxKey = false;
       if (!s.settings.firebaseConfigText) s.settings.firebaseConfigText = BUILTIN_FIREBASE_CONFIG;
       if (!Array.isArray(s.settings.therapists) || !s.settings.therapists.length) s.settings.therapists = [...def.therapists];
       if (!Array.isArray(s.settings.assistants) || !s.settings.assistants.length) s.settings.assistants = [...def.assistants];
@@ -2339,6 +2399,9 @@
       } catch (e) {}
 
       state = ensureStateIntegrity(embedded || createInitialState());
+      if (IS_TRIAL_SANDBOX && (!Array.isArray(state.patients) || state.patients.length === 0)) {
+        state = ensureStateIntegrity(createInitialState());
+      }
       persistLocalOnly();
     }
 
@@ -2684,6 +2747,7 @@
     }
 
     function renderWorkspace() {
+      refreshSandboxBindings();
       const ws = document.getElementById('workspace');
 
       if (mobileBedNum || (mobileSessionId && mobileSlotCode)) {
@@ -5032,6 +5096,10 @@
               <input type="checkbox" ${s.trackStaffAssignment ? 'checked' : ''} onchange="state.settings.trackStaffAssignment=this.checked; persistState(true); renderWorkspace();" />
               <span>記錄及顯示誰 Set up 及結束運動（關閉後：點選運動直接一鍵倒數，並隱藏所有助理代號）</span>
             </label>
+            <label class="toggle-switch">
+              <input type="checkbox" ${s.hideSandboxKey ? 'checked' : ''} onchange="state.settings.hideSandboxKey=this.checked; persistState(true); renderWorkspace();" />
+              <span>隱藏頂部「試用鍵」（需密碼 0000 方可切換試用模式）</span>
+            </label>
             <div class="form-grid">
               <div class="field-group">
                 <label class="field-label">系統標題</label>
@@ -5512,13 +5580,46 @@
     /* ========================================================================
        其他工具與計時心跳（精準重置功能）
        ======================================================================== */
-    function toggleTrialSandboxMode() {
+    function applySandboxSwitch(nextIsSandbox) {
       const base = window.location.href.split('#')[0].split('?')[0];
-      if (IS_TRIAL_SANDBOX) {
-        window.location.href = base;
-      } else {
-        window.location.href = `${base}#sandbox`;
+      const nextHash = nextIsSandbox ? '#sandbox' : '';
+      try {
+        history.replaceState(null, '', base + nextHash);
+      } catch (e) {}
+      window.location.hash = nextHash;
+      refreshSandboxBindings();
+      loadState();
+      parseHashRoute();
+      renderWorkspace();
+      initFirebaseSync();
+      showToast(nextIsSandbox ? '🔑 已開啟試用模式（與真實資料隔離）' : '🏠 已返回真實資料模式');
+    }
+
+    function toggleTrialSandboxMode() {
+      const nextIsSandbox = !checkIsTrialSandbox();
+      document.getElementById('sandboxPinTitle').textContent = nextIsSandbox
+        ? '🔑 開啟試用模式（密碼：0000）'
+        : '🔑 退出試用模式（密碼：0000）';
+      document.getElementById('sandboxPinDesc').textContent = nextIsSandbox
+        ? '請輸入 4 位數字密碼以進入試用沙盒（不影響真實資料）：'
+        : '請輸入 4 位數字密碼以返回真實資料：';
+      const inp = document.getElementById('sandboxPinInput');
+      inp.value = '';
+      openModal('sandboxPinModal');
+      setTimeout(() => inp.focus(), 60);
+    }
+
+    function submitSandboxPin() {
+      const inp = document.getElementById('sandboxPinInput');
+      const code = (inp ? inp.value : '').trim();
+      if (code !== SANDBOX_PASSCODE) {
+        showToast('❌ 密碼錯誤');
+        if (inp) { inp.value = ''; inp.focus(); }
+        return;
       }
+      const nextIsSandbox = !checkIsTrialSandbox();
+      closeModal('sandboxPinModal');
+      applySandboxSwitch(nextIsSandbox);
     }
 
     function openStandaloneTVPopup() {
@@ -5807,6 +5908,7 @@
 
     function init() {
       loadState();
+      refreshSandboxBindings();
       parseHashRoute();
       renderWorkspace();
       initFirebaseSync();
