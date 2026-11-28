@@ -1286,7 +1286,7 @@
     <div class="modal-box xl">
       <div class="modal-header">
         <div>
-          <div class="modal-title" id="reportModalTitle">每日完結運動紀錄與英文病歷格式</div>
+          <div class="modal-title" id="reportModalTitle">每日完結運動紀錄</div>
           <div id="reportMetaLine" style="font-size:12px; color:var(--text-muted); margin-top:2px;"></div>
         </div>
         <button class="modal-close" onclick="closeModal('reportModal')">✕</button>
@@ -3832,9 +3832,40 @@
       return ` (${cleaned})`;
     }
 
+    function sortBpChronologically(list) {
+      if (!Array.isArray(list)) return [];
+      const toMin = (t) => {
+        const m = String(t || '').trim().match(/^(\d{1,2}):(\d{2})$/);
+        if (!m) return 999999;
+        return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+      };
+      return list.map((item, origIdx) => ({ item, origIdx }))
+        .sort((a, b) => {
+          const ma = toMin(a.item && a.item.time);
+          const mb = toMin(b.item && b.item.time);
+          return ma !== mb ? ma - mb : a.origIdx - b.origIdx;
+        })
+        .map(x => x.item);
+    }
+
+    function getAllPatientBpsOrdered(pt) {
+      const combined = [];
+      const seenIds = new Set();
+      const addRec = (b) => {
+        if (!b) return;
+        if (b.id && seenIds.has(b.id)) return;
+        if (b.id) seenIds.add(b.id);
+        combined.push(b);
+      };
+      (pt.bpLogs || []).forEach(addRec);
+      (pt.exercises || []).forEach(ex => (ex.bpRecords || []).forEach(addRec));
+      return sortBpChronologically(combined);
+    }
+
     function generateEnglishDocumentation(pt) {
       const lines = [];
       const doneEx = pt.exercises.filter(ex => isScheduledToday(ex.schedule) && (ex.status === 'completed' || ex.status === 'early_stopped' || ex.status === 'running'));
+      const usedBpIds = new Set();
 
       doneEx.forEach((ex, idx) => {
         const m = computeExMetrics(ex, pt);
@@ -3845,16 +3876,21 @@
 
         const bpParts = [];
         if (idx === 0 && pt.bpLogs) {
-          pt.bpLogs.filter(b => b.label.toLowerCase().includes('initial')).forEach(b => {
+          sortBpChronologically(pt.bpLogs.filter(b => b.label && b.label.toLowerCase().includes('initial'))).forEach(b => {
+            if (b.id) usedBpIds.add(b.id);
             bpParts.push(`${b.label} ${b.sbp}/${b.dbp}, HR ${b.hr}`);
           });
         }
-        if (ex.bpRecords && ex.bpRecords.length) {
-          ex.bpRecords.forEach(b => {
+
+        const exOrderedBps = sortBpChronologically(ex.bpRecords || []);
+        if (exOrderedBps.length) {
+          exOrderedBps.forEach(b => {
+            if (b.id) usedBpIds.add(b.id);
             const tPrefix = b.time ? `(${b.time}) ` : '';
             bpParts.push(`${tPrefix}${b.label}, BP ${b.sbp}/${b.dbp}, HR ${b.hr}`);
           });
         }
+
         if (ex.status === 'early_stopped') {
           const reasonDict = {
             '疲倦': 'fatigue',
@@ -3863,13 +3899,15 @@
             '檢查／覆診': 'investigation / FU',
             '其他': 'other'
           };
-          const enReason = reasonDict[ex.earlyReason] || ex.earlyReason;
+          const enReason = ex.earlyReason ? (reasonDict[ex.earlyReason] || ex.earlyReason) : '';
           const co = [enReason, ex.earlyNote].filter(Boolean).join(' - ');
           const hasEarlyLabel = bpParts.some(p => p.toLowerCase().includes('early terminated'));
           if (hasEarlyLabel) {
             if (co) bpParts.push(`c/o: ${co}`);
+          } else if (co) {
+            bpParts.push(`Early terminated at ${mins} min, c/o: ${co}`);
           } else {
-            bpParts.push(`Early terminated at ${mins} min${co ? `, c/o: ${co}` : ''}`);
+            bpParts.push(`Early terminated at ${mins} min`);
           }
         }
         if (bpParts.length) {
@@ -3877,6 +3915,15 @@
         }
         lines.push(line);
       });
+
+      // 將其餘所有中途／額外量度但尚未掛在個別運動的 BP 按時間順序補錄於 Documentation
+      const remainingBps = getAllPatientBpsOrdered(pt).filter(b => !(b.id && usedBpIds.has(b.id)));
+      if (remainingBps.length) {
+        const extraBpText = remainingBps
+          .map(b => `${b.time ? `(${b.time}) ` : ''}${b.label}: BP ${b.sbp}/${b.dbp}, HR ${b.hr}`)
+          .join('； ');
+        lines.push(`- BP monitoring: ${extraBpText}`);
+      }
 
       if (pt.walkLogs && pt.walkLogs.length > 0) {
         const dists = pt.walkLogs.map(w => `${w.dist}m`).join(' + ');
@@ -3926,7 +3973,7 @@
                     const staffStr = state.settings.trackStaffAssignment
                       ? `${formatStaffList(ex.startStaffList)}${ex.endStaffList && formatStaffList(ex.endStaffList) !== formatStaffList(ex.startStaffList) ? ' → ' + formatStaffList(ex.endStaffList) : ''}`
                       : '-';
-                    const bpStr = (ex.bpRecords || []).map(b => `${b.label}: ${b.sbp}/${b.dbp} HR${b.hr}`).join('； ');
+                    const bpStr = sortBpChronologically(ex.bpRecords || []).map(b => `${b.time ? `[${b.time}] ` : ''}${b.label}: ${b.sbp}/${b.dbp} HR${b.hr}`).join('； ');
                     return `
                       <tr>
                         <td><strong>${esc(ex.name)}</strong> ${ex.note ? `(${esc(ex.note)})` : ''}</td>
@@ -3946,6 +3993,13 @@
                   </tr>
                 </tbody>
               </table>
+              ${(() => {
+                const allBps = getAllPatientBpsOrdered(pt);
+                if (!allBps.length) return '';
+                return `<div style="margin-top:6px; background:#eff6ff; border:1px solid #93c5fd; border-radius:6px; padding:5px 9px; font-size:12px; color:#1e3a8a;">
+                  <strong>💓 血壓量度順序：</strong>${allBps.map((b, i) => `${i + 1}. ${esc(b.time || '')} ${esc(b.label)} (${esc(b.sbp)}/${esc(b.dbp)}, HR ${esc(b.hr)})`).join(' → ')}
+                </div>`;
+              })()}
               <div style="margin-top:6px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:6px 9px; font-family:monospace; font-size:12px; color:#0f172a;">
                 ${esc(docLine)}
               </div>
