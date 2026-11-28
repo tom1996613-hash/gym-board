@@ -1383,7 +1383,7 @@
     const STORAGE_KEY = 'rehab_gym_board_v7_cloud_settings';
     const CHANNEL_NAME = 'rehab_gym_sync_v7';
     const SIDES = ['L', 'R', 'Bi', '無'];
-    const EX_CATEGORIES = ['器械計時', '功能訓練', '自訂快捷'];
+    const EX_CATEGORIES = ['手法治療', '功能性治療', 'Therapeutic Ex', 'walking exercise', 'Pain Control', 'EPT Modality'];
     const THERAPIST_PALETTE = [
       '#4f46e5', '#0f766e', '#be185d', '#b45309', '#1d4ed8',
       '#7e22ce', '#047857', '#c2410c', '#0369a1', '#374151'
@@ -1426,12 +1426,73 @@
       return `<span class="side-box" title="患側：${esc(s)}"><span class="side-half ${leftBad ? 'side-bad' : 'side-ok'}">左</span><span class="side-half ${rightBad ? 'side-bad' : 'side-ok'}">右</span></span>`;
     }
 
+    const PAIN_EPT_REGIONS = [
+      '頸', '上背', '腰', '膊頭', '手肘', '手腕',
+      '手指', '髖', '膝頭', '腳踝', '腳指'
+    ];
+    const FINGER_SUB_REGIONS = ['手指公', '食指', '中指', '無名指', '尾指'];
+    const PAIN_EPT_SIDES = ['左', '右', '兩邊'];
+    const PAIN_EPT_ASPECTS = ['外側', '內側'];
+
+    function isPainOrEptCategory(cat) {
+      return cat === 'Pain Control' || cat === 'EPT Modality';
+    }
+
+    function formatPainEptDocSuffix(ex) {
+      const sideMap = { '左': 'L', '右': 'R', '兩邊': 'Bi' };
+      const regionMap = {
+        '頸': 'neck',
+        '上背': 'upper back',
+        '腰': 'lumbar spine',
+        '膊頭': 'shoulder',
+        '手肘': 'elbow',
+        '手腕': 'wrist',
+        '手指': 'finger',
+        '髖': 'hip',
+        '膝頭': 'knee',
+        '腳踝': 'ankle',
+        '腳指': 'toe'
+      };
+      const fingerMap = {
+        '手指公': 'thumb',
+        '食指': 'index finger',
+        '中指': 'middle finger',
+        '無名指': 'ring finger',
+        '尾指': 'little finger'
+      };
+      const aspectMap = { '外側': 'lateral aspect', '內側': 'medial aspect' };
+
+      const parts = [];
+      if (ex.targetSide && sideMap[ex.targetSide]) parts.push(sideMap[ex.targetSide]);
+      let regStr = ex.targetRegion ? (regionMap[ex.targetRegion] || ex.targetRegion) : '';
+      if (ex.targetRegion === '手指' && ex.targetFinger) {
+        const fEn = fingerMap[ex.targetFinger] || ex.targetFinger;
+        regStr = regStr ? `${regStr} (${fEn})` : fEn;
+      }
+      if (regStr) parts.push(regStr);
+      if (ex.targetAspect && aspectMap[ex.targetAspect]) {
+        parts.push(`(${aspectMap[ex.targetAspect]})`);
+      }
+      return parts.length ? ` to ${parts.join(' ')}` : '';
+    }
+
     function createDefaultExerciseLibrary() {
-      const equip = ['綠平衡', '藍平衡', 'NuStep', '手單車', '腳單車', '震震機', '企車', '企枱', '跑步機', '電療', '冰敷', '熱敷'];
-      const func = ['沙包', '吊住行', 'OB手', 'OB腳', '對鏡練(企)', '對鏡練(坐)', 'Sling手', 'Sling腳', '舉棍', '踏級(高)', '踏級(低)', '治療師拉筋'];
-      const custom = ['Leg press', '拱橋', '側臥抬腿', '觸地企', '拋波'];
+      const manual = ['治療師拉筋', '關節鬆動', '軟組織放鬆'];
+      const func = ['企車', '企枱', '站立訓練', '綠平衡', '藍平衡', '對鏡練(企)', '對鏡練(坐)', '拋波'];
+      const therEx = ['NuStep', '手單車', '腳單車', 'Leg press', '沙包', '拱橋', '側臥抬腿', '舉棍', 'OB手', 'OB腳', 'Sling手', 'Sling腳'];
+      const walkingEx = ['吊住行', '跑步機', '踏級(高)', '踏級(低)'];
+      const painCtrl = ['熱敷', '冰敷', '震震機'];
+      const eptMod = ['電療', '超聲波'];
+
       const make = (name, category) => ({ id: uid('lib'), name, category, mode: 'countdown', defaultMin: 15 });
-      return [...equip.map(n => make(n, '器械計時')), ...func.map(n => make(n, '功能訓練')), ...custom.map(n => make(n, '自訂快捷'))];
+      return [
+        ...manual.map(n => make(n, '手法治療')),
+        ...func.map(n => make(n, '功能性治療')),
+        ...therEx.map(n => make(n, 'Therapeutic Ex')),
+        ...walkingEx.map(n => make(n, 'walking exercise')),
+        ...painCtrl.map(n => make(n, 'Pain Control')),
+        ...eptMod.map(n => make(n, 'EPT Modality'))
+      ];
     }
 
     const GYM_SESSION_CATALOG = [
@@ -2071,7 +2132,7 @@
           transportOrder: 1, transportStaff: 'G', transportTime: '09:02',
           walkLogs: [{ id: uid('wk'), dist: 25, assist: 'Frame (1A)', staffList: ['G'], time: '09:20' }],
           bpLogs: [],
-          exercises: [makeEx('觸地企', { mustDo: true }), makeEx('側臥抬腿', { note: '10下x3組' }), makeEx('Leg press')]
+          exercises: [makeEx('站立訓練', { mustDo: true }), makeEx('側臥抬腿', { note: '10下x3組' }), makeEx('Leg press')]
         },
         {
           id: uid('pt'), bed: '21', name: '林淑儀', therapist: '馬',
@@ -2122,9 +2183,47 @@
       };
     }
 
+    function migrateTouchFloorToStandingTraining(s) {
+      if (!s || s._migratedTouchFloorToStandingV1) return;
+      const renameName = (n) => (String(n || '').trim() === '觸地企' ? '站立訓練' : n);
+      if (Array.isArray(s.patients)) {
+        s.patients.forEach(pt => {
+          if (Array.isArray(pt.exercises)) {
+            pt.exercises.forEach(ex => {
+              if (String(ex.name || '').trim() === '觸地企') {
+                ex.name = '站立訓練';
+              }
+            });
+          }
+        });
+      }
+      if (s.settings && Array.isArray(s.settings.exerciseLibrary)) {
+        s.settings.exerciseLibrary.forEach(it => {
+          if (String(it.name || '').trim() === '觸地企') it.name = '站立訓練';
+        });
+      }
+      if (s.settings && s.settings.sessionExerciseConfigs && typeof s.settings.sessionExerciseConfigs === 'object') {
+        Object.keys(s.settings.sessionExerciseConfigs).forEach(k => {
+          const cfg = s.settings.sessionExerciseConfigs[k];
+          if (!cfg || typeof cfg !== 'object') return;
+          if (Array.isArray(cfg.items)) {
+            cfg.items.forEach(it => {
+              if (String(it.name || '').trim() === '觸地企') it.name = '站立訓練';
+            });
+          }
+          if (cfg.docMap && typeof cfg.docMap === 'object' && cfg.docMap['觸地企'] !== undefined) {
+            if (!cfg.docMap['站立訓練']) cfg.docMap['站立訓練'] = cfg.docMap['觸地企'];
+            delete cfg.docMap['觸地企'];
+          }
+        });
+      }
+      s._migratedTouchFloorToStandingV1 = true;
+    }
+
     function ensureStateIntegrity(raw) {
       const def = createDefaultSettings();
       const s = raw || createInitialState();
+      migrateTouchFloorToStandingTraining(s);
       s.settings = Object.assign({}, def, s.settings || {});
       if (!s.settings.firebaseConfigText) s.settings.firebaseConfigText = BUILTIN_FIREBASE_CONFIG;
       if (!Array.isArray(s.settings.therapists) || !s.settings.therapists.length) s.settings.therapists = [...def.therapists];
@@ -3983,14 +4082,49 @@
         </div>
         ${catsHtml}
         <div class="add-inline-row" style="margin-top:4px; padding-top:8px; border-top:1px dashed var(--border-strong); flex-wrap:wrap;">
-          <input id="edCustomExName" type="text" class="text-input" style="flex:1; min-width:150px;" placeholder="新增運動名稱（限此節）..."
+          <select id="edCustomExCat" class="text-input" style="width:140px;" onchange="toggleCustomPainEptPickerVisibility()">
+            ${EX_CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
+          </select>
+          <input id="edCustomExName" type="text" class="text-input" style="flex:1; min-width:140px;" placeholder="手動輸入運動名稱..."
                  onkeydown="if(event.key==='Enter') addCustomDraftEx()" />
-          <input id="edCustomExDoc" type="text" class="text-input" style="flex:1.5; min-width:190px;" placeholder="documentation（如：Standing balance training...）"
+          <input id="edCustomExDoc" type="text" class="text-input" style="flex:1.4; min-width:180px;" placeholder="documentation 英文描述..."
                  onkeydown="if(event.key==='Enter') addCustomDraftEx()" />
-          <input id="edCustomExMin" type="number" min="1" max="90" value="${state.settings.defaultExMin || 15}" class="text-input tabular" style="width:68px; text-align:center;" />
-          <button type="button" class="btn-secondary" style="padding:7px 12px; font-weight:800;" onclick="addCustomDraftEx()">＋ 加入此節項目</button>
+          <input id="edCustomExMin" type="number" min="1" max="90" value="${state.settings.defaultExMin || 15}" class="text-input tabular" style="width:64px; text-align:center;" />
+          <label class="toggle-switch" style="font-size:12px; margin-left:2px;">
+            <input id="edSaveCustomToLib" type="checkbox" />
+            <span>加到運動清單</span>
+          </label>
+          <button type="button" class="btn-primary" style="padding:7px 12px; font-weight:800;" onclick="addCustomDraftEx()">＋ 加入此病人</button>
+        </div>
+        <div id="edCustomPainEptBox" style="display:none; flex-wrap:wrap; align-items:center; gap:6px; background:#eff6ff; border:1px solid #93c5fd; border-radius:8px; padding:7px 9px; margin-top:4px;">
+          <span style="font-size:11.5px; font-weight:800; color:#0369a1;">部位與方向：</span>
+          <select id="edCustomExSide" class="text-input" style="width:92px; padding:5px 7px; font-size:12px;">
+            <option value="">Side...</option>
+            ${PAIN_EPT_SIDES.map(sd => `<option value="${sd}">${sd}</option>`).join('')}
+          </select>
+          <select id="edCustomExRegion" class="text-input" style="width:105px; padding:5px 7px; font-size:12px;" onchange="toggleCustomPainEptPickerVisibility()">
+            <option value="">Region...</option>
+            ${PAIN_EPT_REGIONS.map(rg => `<option value="${rg}">${rg}</option>`).join('')}
+          </select>
+          <select id="edCustomExFinger" class="text-input" style="display:none; width:105px; padding:5px 7px; font-size:12px;">
+            <option value="">手指...</option>
+            ${FINGER_SUB_REGIONS.map(fg => `<option value="${fg}">${fg}</option>`).join('')}
+          </select>
+          <select id="edCustomExAspect" class="text-input" style="width:100px; padding:5px 7px; font-size:12px;">
+            <option value="">內/外側...</option>
+            ${PAIN_EPT_ASPECTS.map(ap => `<option value="${ap}">${ap}</option>`).join('')}
+          </select>
         </div>
       `;
+    }
+
+    function toggleCustomPainEptPickerVisibility() {
+      const cat = document.getElementById('edCustomExCat')?.value || '';
+      const box = document.getElementById('edCustomPainEptBox');
+      if (box) box.style.display = isPainOrEptCategory(cat) ? 'flex' : 'none';
+      const fingerSel = document.getElementById('edCustomExFinger');
+      const reg = document.getElementById('edCustomExRegion')?.value || '';
+      if (fingerSel) fingerSel.style.display = reg === '手指' ? 'inline-block' : 'none';
     }
 
     function addCustomDraftEx() {
@@ -3998,20 +4132,42 @@
       const nameInp = document.getElementById('edCustomExName');
       const docInp = document.getElementById('edCustomExDoc');
       const minInp = document.getElementById('edCustomExMin');
+      const catSel = document.getElementById('edCustomExCat');
+      const saveToLibChk = document.getElementById('edSaveCustomToLib');
+
       const name = (nameInp ? nameInp.value : '').trim();
       const docText = (docInp ? docInp.value : '').trim();
       const mins = Math.max(1, Math.min(90, parseInt(minInp ? minInp.value : '15', 10) || 15));
+      const cat = (catSel ? catSel.value : '功能性治療') || '功能性治療';
+      const addToList = Boolean(saveToLibChk && saveToLibChk.checked);
+
       if (!name) { showToast('請輸入運動名稱'); return; }
-      registerSessionExerciseAndDoc(draftSid, name, '自訂快捷', mins, docText);
+
       const exObj = makeEx(name, { plannedMin: mins });
+      exObj.category = cat;
       if (docText) exObj.customDoc = docText;
+
+      if (isPainOrEptCategory(cat)) {
+        exObj.targetSide = document.getElementById('edCustomExSide')?.value || '';
+        exObj.targetRegion = document.getElementById('edCustomExRegion')?.value || '';
+        exObj.targetFinger = exObj.targetRegion === '手指' ? (document.getElementById('edCustomExFinger')?.value || '') : '';
+        exObj.targetAspect = document.getElementById('edCustomExAspect')?.value || '';
+      }
+
+      if (addToList) {
+        registerSessionExerciseAndDoc(draftSid, name, cat, mins, docText);
+        persistState(true);
+        renderPrescriptionMatrix();
+        showToast(`✓ 已加入「${name}」至此病人並儲存至本節運動清單`);
+      } else {
+        showToast(`✓ 已加入「${name}」（僅限此病人，移除時會一併刪除）`);
+      }
+
       uiCtx.draft.exercises.push(exObj);
       nameInp.value = '';
       if (docInp) docInp.value = '';
-      persistState(true);
-      renderPrescriptionMatrix();
+      if (saveToLibChk) saveToLibChk.checked = false;
       renderDraftExercises();
-      showToast(`✓ 已加入「${name}」及 documentation 至此節`);
     }
 
     function renderDraftExercises() {
@@ -4023,6 +4179,9 @@
             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
               <button class="step-btn ${ex.mustDo ? 'must-on' : ''}" onclick="uiCtx.draft.exercises[${idx}].mustDo=!uiCtx.draft.exercises[${idx}].mustDo; renderDraftExercises();">${ex.mustDo ? '★ 必做' : '☆ 一般'}</button>
               <strong>${esc(ex.name)}</strong>
+              <select onchange="uiCtx.draft.exercises[${idx}].category=this.value; renderDraftExercises();" style="padding:3px 6px; font-size:12px; font-weight:700; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                ${EX_CATEGORIES.map(c => `<option value="${c}" ${(ex.category || '功能性治療') === c ? 'selected' : ''}>${c}</option>`).join('')}
+              </select>
               <input type="text" value="${esc(ex.note || '')}" placeholder="備註 (如 2lb)" oninput="uiCtx.draft.exercises[${idx}].note=this.value" style="width:120px; padding:4px 7px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px;" />
             </div>
             <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
@@ -4038,6 +4197,34 @@
               </select>
               <button class="step-btn" style="color:var(--red);" onclick="uiCtx.draft.exercises.splice(${idx},1); renderDraftExercises();">✕</button>
             </div>
+            ${(() => {
+              const exCat = ex.category || '';
+              const showPE = isPainOrEptCategory(exCat) || ex.targetSide || ex.targetRegion || ex.targetAspect;
+              if (!showPE) return '';
+              return `
+                <div style="width:100%; display:flex; flex-wrap:wrap; align-items:center; gap:5px; padding-top:5px; border-top:1px dashed #e2e8f0; font-size:12px;">
+                  <span style="font-weight:800; color:#0369a1;">${esc(exCat || 'Pain/EPT')}：</span>
+                  <select onchange="uiCtx.draft.exercises[${idx}].targetSide=this.value" style="padding:3px 6px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                    <option value="">Side</option>
+                    ${PAIN_EPT_SIDES.map(sd => `<option value="${sd}" ${ex.targetSide === sd ? 'selected' : ''}>${sd}</option>`).join('')}
+                  </select>
+                  <select onchange="uiCtx.draft.exercises[${idx}].targetRegion=this.value; renderDraftExercises();" style="padding:3px 6px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                    <option value="">Region</option>
+                    ${PAIN_EPT_REGIONS.map(rg => `<option value="${rg}" ${ex.targetRegion === rg ? 'selected' : ''}>${rg}</option>`).join('')}
+                  </select>
+                  ${ex.targetRegion === '手指' ? `
+                    <select onchange="uiCtx.draft.exercises[${idx}].targetFinger=this.value" style="padding:3px 6px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                      <option value="">手指</option>
+                      ${FINGER_SUB_REGIONS.map(fg => `<option value="${fg}" ${ex.targetFinger === fg ? 'selected' : ''}>${fg}</option>`).join('')}
+                    </select>
+                  ` : ''}
+                  <select onchange="uiCtx.draft.exercises[${idx}].targetAspect=this.value" style="padding:3px 6px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                    <option value="">內/外側</option>
+                    ${PAIN_EPT_ASPECTS.map(ap => `<option value="${ap}" ${ex.targetAspect === ap ? 'selected' : ''}>${ap}</option>`).join('')}
+                  </select>
+                </div>
+              `;
+            })()}
           </div>
         `).join('');
     }
@@ -4328,7 +4515,11 @@
       'Leg press': 'Leg press strengthening exercise',
       '拱橋': 'Bridging exercise',
       '側臥抬腿': 'Side-lying hip abduction exercise',
-      '拋波': 'Ball throwing and catching exercise'
+      '拋波': 'Ball throwing and catching exercise',
+      '關節鬆動': 'Joint mobilization',
+      '軟組織放鬆': 'Soft tissue release',
+      '超聲波': 'Therapeutic ultrasound',
+      '站立訓練': 'Standing training'
     };
 
     function formatDocNote(rawNote) {
@@ -4380,8 +4571,9 @@
         const mins = secToWholeMin(m.elapsedSec);
         const ptSid = getPatientEffectiveSessionId(pt);
         const enName = (ex.customDoc && ex.customDoc.trim()) ? ex.customDoc.trim() : getSessionDocTextForExercise(ptSid, ex.name);
+        const peSuffix = formatPainEptDocSuffix(ex);
         const noteStr = formatDocNote(ex.note);
-        let line = `- ${enName}${noteStr} x ${mins} min`;
+        let line = `- ${enName}${peSuffix}${noteStr} x ${mins} min`;
 
         const bpParts = [];
         if (idx === 0 && pt.bpLogs) {
@@ -4709,7 +4901,14 @@
               const curDoc = getSessionDocTextForExercise(curSid, item.name);
               return `
                 <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; padding:7px 10px; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
-                  <div style="min-width:140px;"><strong>${esc(item.name)}</strong> <span style="font-size:11.5px; color:#64748b;">(${esc(item.category)} · ${item.defaultMin}m)</span></div>
+                  <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; min-width:210px;">
+                    <strong>${esc(item.name)}</strong>
+                    <select class="text-input" style="width:142px; padding:3px 6px; font-size:12px;"
+                            onchange="state.settings.sessionExerciseConfigs['${poolKey}'].items[${i}].category=this.value; ${isSharedL2 ? `state.settings.exerciseLibrary = state.settings.sessionExerciseConfigs['C3_L2_SHARED'].items.map(x => Object.assign({}, x));` : ''} persistState(true); renderSettingsTabContent(); showToast('✓ 已更新此節運動組別');">
+                      ${EX_CATEGORIES.map(c => `<option value="${c}" ${(item.category || '功能性治療') === c ? 'selected' : ''}>${c}</option>`).join('')}
+                    </select>
+                    <span style="font-size:11.5px; color:#64748b;">(${item.defaultMin}m)</span>
+                  </div>
                   <input type="text" class="text-input" style="flex:1; min-width:220px; padding:4px 8px; font-size:12px;"
                          value="${esc(curDoc)}" placeholder="documentation..."
                          onchange="state.settings.sessionExerciseConfigs['${poolKey}'].docMap['${esc(item.name)}']=this.value.trim(); ${isSharedL2 ? `EX_EN_DICT['${esc(item.name)}']=this.value.trim();` : ''} persistState(true);" />
