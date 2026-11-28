@@ -426,7 +426,7 @@
     .tv-row {
       position: relative;
       display: grid;
-      grid-template-columns: var(--tv-col-bed) var(--tv-col-name) var(--tv-col-mob) 1fr;
+      grid-template-columns: var(--tv-grid-cols, var(--tv-col-bed) var(--tv-col-name) var(--tv-col-mob) 1fr);
       grid-template-rows: 1fr auto;
       align-items: stretch;
       border-radius: 10px;
@@ -2704,13 +2704,22 @@
       const timerFont = Math.min(54, Math.max(20, Math.floor(rowH * 0.46)));
       const staffFont = Math.min(24, Math.max(12, Math.floor(rowH * 0.24)));
 
-      const colBedW = Math.round(bedFont * 2.3 + thFont * 1.2 + 34);
-      const colNameW = Math.round(nameFont * 3.3 + 12);
+      const curMeta = getCurrentSessionMeta();
+      const hideBedCol = !curMeta.isL2Fixed;
+
+      const colBedW = hideBedCol ? 0 : Math.round(bedFont * 2.3 + thFont * 1.2 + 34);
+      const colNameW = hideBedCol
+        ? Math.round(nameFont * 3.6 + thFont * 1.3 + 28)
+        : Math.round(nameFont * 3.3 + 12);
       const colMobW = Math.round(mobFont * 7.8 + 16);
 
       const tvFontScale = Number(state.settings.tvFontScale || 1.0);
       const tvSpeedSec = Number(state.settings.pageIntervalSec || 3.0);
       const isUnstartedMode = (state.settings.tvPriorityMode || 'standard') === 'unstarted_first';
+
+      const gridColsCss = hideBedCol
+        ? `${colNameW}px ${colMobW}px 1fr`
+        : `${colBedW}px ${colNameW}px ${colMobW}px 1fr`;
 
       const boardVars = `
         --tv-font-scale:${tvFontScale};
@@ -2722,13 +2731,14 @@
         --tv-note:${noteFont}px;
         --tv-timer:${timerFont}px;
         --tv-staff:${staffFont}px;
+        --tv-grid-cols:${gridColsCss};
         --tv-col-bed:${colBedW}px;
         --tv-col-name:${colNameW}px;
         --tv-col-mob:${colMobW}px;
       `;
 
       const boardW = (isStandaloneTV || viewMode === 'tv') ? window.innerWidth : Math.floor(window.innerWidth * 0.54);
-      const availExW = Math.max(240, boardW - colBedW - colNameW - colMobW - 36);
+      const availExW = Math.max(280, boardW - colBedW - colNameW - colMobW - 36);
 
       const rowsHtml = rows.length === 0
         ? '<div style="flex:1; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:28px; font-weight:900;">今日暫無出席排程</div>'
@@ -2828,20 +2838,44 @@
         : '';
 
       const ptMeta = getSessionMeta(getPatientEffectiveSessionId(pt));
-      const slotBadge = !ptMeta.isL2Fixed ? padSlot2(pt.qrSlot || pt.bed) : '';
-      const wardBedDisplay = (!ptMeta.isL2Fixed && pt.ward) ? `${pt.ward}-${pt.bed}` : '';
+      const noBedCol = !ptMeta.isL2Fixed;
+      const slotBadge = noBedCol ? padSlot2(pt.qrSlot || pt.bed) : '';
+      const wardBedDisplay = noBedCol ? `${pt.ward ? pt.ward + '-' : ''}${pt.bed || ''}` : '';
+
+      if (noBedCol) {
+        return `
+          <div class="tv-row ${r.cls} ${isAllDone ? 'is-all-done' : ''} ${isPinned ? 'is-pinned' : ''}">
+            <div class="tv-col tv-col-name" style="grid-column:1; grid-row:1; position:relative; flex-direction:column; padding-left:${thFont + 12}px;">
+              ${pt.therapist ? `<span class="tv-therapist-corner" style="background:${tCol};">${esc(pt.therapist)}</span>` : ''}
+              ${slotBadge ? `<span class="tv-slot-corner" title="固定QR牌號">${esc(slotBadge)}</span>` : ''}
+              <span style="display:inline-flex; align-items:center; gap:4px;">${esc(maskName(pt.name))}${r.symHtml}</span>
+              ${wardBedDisplay ? `<span class="tv-ward-sub tabular">${esc(wardBedDisplay)}</span>` : ''}
+            </div>
+            <div class="tv-col tv-col-mob" style="grid-column:2; grid-row:1 / -1;">
+              <div class="tv-mob-top">
+                ${renderSideVisual(pt.side)}
+                <span class="tv-mob-aid">${esc(pt.aid)}</span>
+              </div>
+              <div class="tv-mob-bottom">
+                ${warnAssist ? `<span class="tv-mob-warn">${esc(pt.assist)}</span>` : `<span class="tv-mob-assist">${esc(pt.assist)}</span>`}
+                <span class="tv-walk-badge ${walkDone ? 'done' : ''}">${walkDone ? '✓ 步行' : '步行'}</span>
+              </div>
+            </div>
+            <div class="tv-col tv-col-ex" style="grid-column:3; grid-row:1 / -1;">${exCardsHtml}</div>
+            ${showNote ? `<div class="tv-row-footer-note" style="grid-column:1 / 2;">📌 ${esc(pt.specialNote.trim())}</div>` : ''}
+          </div>
+        `;
+      }
 
       return `
         <div class="tv-row ${r.cls} ${isAllDone ? 'is-all-done' : ''} ${isPinned ? 'is-pinned' : ''}">
           <div class="tv-col tv-col-bed tabular">
             ${pt.therapist ? `<span class="tv-therapist-corner" style="background:${tCol};">${esc(pt.therapist)}</span>` : ''}
-            ${slotBadge ? `<span class="tv-slot-corner" title="固定QR牌號">${esc(slotBadge)}</span>` : ''}
             <span class="tv-bed-num">${esc(pt.bed)}</span>
             ${r.symHtml}
           </div>
-          <div class="tv-col tv-col-name" style="flex-direction:column;">
+          <div class="tv-col tv-col-name">
             <span>${esc(maskName(pt.name))}</span>
-            ${wardBedDisplay ? `<span class="tv-ward-sub tabular">${esc(wardBedDisplay)}</span>` : ''}
           </div>
           <div class="tv-col tv-col-mob">
             <div class="tv-mob-top">
