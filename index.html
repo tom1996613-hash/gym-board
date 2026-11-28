@@ -6,6 +6,9 @@
   <title>復康運動室電子看板</title>
   <link rel="icon" href="data:," />
   <style>
+    /* ==========================================================================
+       1. 全域設計系統與色彩變數
+       ========================================================================== */
     :root {
       --font-sans: "PingFang HK", "Microsoft JhengHei", "Noto Sans TC", "Heiti TC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       --bg-app: #eef2f6;
@@ -53,7 +56,6 @@
       --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
       --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.1);
       --shadow-lg: 0 18px 40px rgba(15, 23, 42, 0.28);
-      --tv-font-scale: 1;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -77,6 +79,9 @@
     button:active { transform: scale(0.97); }
     input, select, textarea { font-family: inherit; }
 
+    /* ==========================================================================
+       2. 頂部工具列
+       ========================================================================== */
     .topbar {
       position: sticky;
       top: 0;
@@ -129,6 +134,9 @@
     .tool-btn.btn-add { background: #0f4c81; border-color: #38bdf8; color: #fff; }
     .tool-btn.btn-export { background: #059669; border-color: #10b981; color: #fff; }
 
+    /* ==========================================================================
+       3. 主版面容器 (雙畫面 46%/54%、純操作台、大電視、手機掃碼專屬端)
+       ========================================================================== */
     .workspace { width: 100%; min-height: calc(100vh - 48px); }
     .workspace.mode-pc { max-width: 1460px; margin: 0 auto; padding: 12px 14px 28px; }
     .workspace.mode-tv { height: calc(100vh - 48px); background: #090e1a; overflow: hidden; }
@@ -153,6 +161,9 @@
       background: #1e293b; color: #e2e8f0; border-bottom: 1px solid #334155; flex-shrink: 0;
     }
 
+    /* ==========================================================================
+       4. 患側「左｜右」雙色圖示 (健側淺綠、患側高對比紅)
+       ========================================================================== */
     .side-box {
       display: inline-flex;
       align-items: center;
@@ -175,6 +186,9 @@
     .side-ok { background: #f0fdf4; color: #22c55e; }
     .side-bad { background: #fee2e2; color: #dc2626; }
 
+    /* ==========================================================================
+       5. 電腦操作台 (PC Console)
+       ========================================================================== */
     .transport-bar {
       background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: var(--radius-md);
       padding: 8px 10px; margin-bottom: 8px; box-shadow: var(--shadow-sm);
@@ -239,6 +253,7 @@
     .band-count.done { background: #e2e8f0; color: #475569; }
     .band-count.inactive { background: #f1f5f9; color: #64748b; }
 
+    /* PC 病人卡片 */
     .pc-card {
       position: relative; border-radius: var(--radius-md);
       border: 1.5px solid var(--risk-none-border); background: var(--risk-none-bg);
@@ -332,6 +347,7 @@
       padding: 4px 8px; margin-bottom: 7px; display: flex; align-items: center; justify-content: space-between; gap: 6px;
     }
 
+    /* PC 運動卡片 */
     .pc-ex-row { display: flex; flex-wrap: wrap; gap: 6px; }
     .pc-ex {
       min-width: 132px; border-radius: 8px; border: 1.5px solid var(--border-strong);
@@ -369,6 +385,9 @@
     .ex-ctrl.done { background: #059669; color: #fff; }
     .ex-ctrl.early { background: #fff; border-color: #fca5a5; color: #dc2626; }
 
+    /* ==========================================================================
+       6. 46 吋大電視極大字體看板 (統一字號、貼邊放大、貫穿底部置中提示)
+       ========================================================================== */
     .tv-board {
       height: 100%;
       min-height: 100%;
@@ -438,6 +457,8 @@
       overflow: hidden;
     }
     .tv-col-bed {
+      grid-column: 1;
+      grid-row: 1;
       position: relative;
       justify-content: center;
       gap: 2px;
@@ -470,6 +491,8 @@
     .tv-sym.pm { color: #dc2626; }
 
     .tv-col-name {
+      grid-column: 2;
+      grid-row: 1;
       justify-content: center;
       font-size: var(--tv-name);
       font-weight: 900;
@@ -480,6 +503,7 @@
     }
 
     .tv-col-mob {
+      grid-column: 3;
       grid-row: 1 / -1;
       flex-direction: column;
       justify-content: center;
@@ -552,6 +576,7 @@
     }
 
     .tv-col-ex {
+      grid-column: 4;
       grid-row: 1 / -1;
       border-right: none;
       flex-wrap: wrap;
@@ -652,6 +677,10 @@
       50% { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0.1); }
     }
 
+
+    :root {
+      --tv-font-scale: 1;
+    }
     .tv-ctrl-bar {
       display: inline-flex;
       align-items: center;
@@ -686,6 +715,9 @@
       font-weight: 800;
     }
 
+    /* ==========================================================================
+       7. 手機掃描床號 QR Code 專屬極簡大按鈕端 (#bed=21)
+       ========================================================================== */
     .mobile-bed-app {
       min-height: 100vh;
       background: #0f172a;
@@ -723,6 +755,13 @@
       box-shadow: 0 3px 10px rgba(15, 23, 42, 0.08);
     }
     .m-ex-btn.is-running { border-color: #0284c7; background: #f0f9ff; border-width: 3px; }
+    .m-ex-btn.stage-warn { border-color: #d97706; background: #fffbeb; }
+    .m-ex-btn.stage-due { border-color: #dc2626; background: #fee2e2; animation: pulseRed 1.2s ease-in-out infinite; }
+    .m-ex-btn.stage-critical { border-color: #7f1d1d; background: #b91c1c; color: #ffffff; }
+    .m-ex-timer { font-size: 38px; font-weight: 900; color: #0369a1; }
+    .stage-warn .m-ex-timer { color: #b45309; }
+    .stage-due .m-ex-timer { color: #dc2626; }
+    .stage-critical .m-ex-timer { color: #ffffff; }
     .m-ex-btn.is-done { opacity: 0.55; background: #f1f5f9; border-style: dashed; }
 
     .m-staff-chip {
@@ -731,6 +770,9 @@
     }
     .m-staff-chip.selected { background: #0f4c81; border-color: #0f4c81; color: #fff; }
 
+    /* ==========================================================================
+       8. 彈窗系統與系統設定樣式
+       ========================================================================== */
     .modal-backdrop {
       position: fixed; inset: 0; z-index: 100; background: rgba(15, 23, 42, 0.62);
       backdrop-filter: blur(2px); display: none; align-items: center; justify-content: center; padding: 12px;
@@ -792,21 +834,15 @@
     .reason-btn { padding: 10px 8px; border-radius: 10px; font-size: 13px; font-weight: 800; background: #f8fafc; border: 2px solid var(--border-strong); text-align: center; }
     .reason-btn.selected { background: #fee2e2; border-color: #dc2626; color: #991b1b; }
 
-    .bp-panel { background: #e0f2fe; border: 1.5px solid #7dd3fc; border-radius: 10px; padding: 11px; display: flex; flex-direction: column; gap: 8px; }
+    .bp-panel { background: #e0f2fe; border: 1.5px solid #7dd3fc; border-radius: 10px; padding: 11px; display: flex; flex-direction: column; gap: 9px; }
     .bp-multi-row {
-      display: grid; grid-template-columns: 145px 82px 1fr 1fr 1fr auto auto; gap: 5px; align-items: center;
+      display: grid; grid-template-columns: 135px 78px 1fr 1fr 1fr auto; gap: 5px; align-items: center;
       background: #fff; padding: 6px 8px; border-radius: 8px; border: 1px solid #bae6fd;
     }
-    .bp-multi-row.is-ticked { background: #f0fdf4; border-color: #86efac; }
-    @media (max-width: 680px) {
-      .bp-multi-row { grid-template-columns: 1fr 82px auto; }
+    @media (max-width: 600px) {
+      .bp-multi-row { grid-template-columns: 1fr 78px; }
     }
-    .bp-input { width: 100%; padding: 6px; font-size: 15px; font-weight: 900; text-align: center; border: 1.5px solid #7dd3fc; border-radius: 7px; }
-    .bp-tick-btn {
-      padding: 6px 10px; border-radius: 7px; font-size: 13px; font-weight: 900;
-      background: #0284c7; color: #ffffff; white-space: nowrap;
-    }
-    .bp-tick-btn.ticked { background: #059669; color: #ffffff; }
+    .bp-input { width: 100%; padding: 6px; font-size: 16px; font-weight: 900; text-align: center; border: 1.5px solid #7dd3fc; border-radius: 7px; }
 
     .matrix-box { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
     .preset-btn { padding: 5px 9px; border-radius: 7px; font-size: 12px; font-weight: 700; background: #fff; border: 1px solid var(--border-strong); }
@@ -817,6 +853,7 @@
     .step-btn.must-on { background: #f59e0b; border-color: #d97706; color: #fff; }
     .step-btn.countup-on { background: #0d9488; border-color: #0f766e; color: #fff; }
 
+    /* 報表治療師分組卡片 */
     #reportModalBody > * { flex-shrink: 0; }
     .rep-pt-card > div:last-child { white-space: pre-line; }
     .rep-therapist-block { border: 2px solid #cbd5e1; border-radius: 12px; overflow: hidden; margin-bottom: 14px; background: #fff; }
@@ -853,11 +890,12 @@
 </head>
 <body>
 
+  <!-- 頂部工具列 -->
   <header id="topbar" class="topbar">
     <div class="topbar-left">
       <div class="brand-badge">PT</div>
       <div style="min-width:0;">
-        <div class="brand-title" id="topbarTitle">復康運動室電子看板</div>
+        <div class="brand-title" id="topbarTitle">復康運動室電子看板與排程系統</div>
         <div class="brand-sub">
           <span id="topbarSub">今日排程</span>
           <span id="syncStatusPill" class="sync-pill">💾 準備連線雲端...</span>
@@ -866,7 +904,7 @@
     </div>
 
     <div class="topbar-controls">
-      <div class="seg-group">
+      <div class="seg-group" title="按時段篩選床號（同步隱藏非該節病人）">
         <button class="seg-top-btn" data-session="ALL" onclick="setSessionFilter('ALL')">全部時段</button>
         <button class="seg-top-btn" data-session="AM" onclick="setSessionFilter('AM')">AM (女 1-15)</button>
         <button class="seg-top-btn" data-session="PM" onclick="setSessionFilter('PM')">PM (男 16-30)</button>
@@ -887,7 +925,9 @@
         <button class="seg-top-btn" data-page="4" onclick="setTvPageSize(4)">每頁 4 人</button>
       </div>
 
-      <button class="tool-btn btn-save-html" onclick="exportUpdatedSelfHtml()">💾 匯出備份</button>
+      <button class="tool-btn btn-save-html" onclick="exportUpdatedSelfHtml()" title="匯出本地備份檔">
+        💾 匯出備份
+      </button>
       <button id="btnAudio" class="tool-btn is-on" onclick="toggleAudio()">🔊 提示音開</button>
       <button class="tool-btn btn-settings" onclick="openSettingsModal('people')">⚙️ 系統設定</button>
       <button class="tool-btn" onclick="confirmCarryOver()">🔄 重置運動與PCA</button>
@@ -896,8 +936,10 @@
     </div>
   </header>
 
+  <!-- 主工作區 -->
   <main id="workspace" class="workspace"></main>
 
+  <!-- 獨立大電視懸浮列 -->
   <div id="tvFloatBar" class="tv-float-bar">
     <button class="tool-btn" onclick="cycleTvPageSize()">📄 分頁: <span id="floatPageLabel">全部顯示</span></button>
     <button id="tvFloatAudio" class="tool-btn is-on" onclick="toggleAudio()">🔊 提示音開</button>
@@ -905,13 +947,16 @@
     <button class="tool-btn" onclick="exitStandaloneTV()">⚙️ 返回操作台</button>
   </div>
 
-  <!-- 彈窗 1：系統設定 -->
+  <!-- 彈窗 1：⚙️ 系統設定 (所有設定與去識別化病人姓名「姓X名」自動同步上 Firebase 雲端) -->
   <div id="settingsModal" class="modal-backdrop" onclick="onBackdrop(event, 'settingsModal')">
     <div class="modal-box lg">
       <div class="modal-header">
-        <div class="modal-title">⚙️ 系統設定</div>
+        <div>
+          <div class="modal-title">⚙️ 系統設定</div>
+        </div>
         <button class="modal-close" onclick="closeModal('settingsModal')">✕</button>
       </div>
+
       <div class="settings-tabs">
         <button class="s-tab" data-stab="people" onclick="switchSettingsTab('people')">👥 人員名單</button>
         <button class="s-tab" data-stab="exercises" onclick="switchSettingsTab('exercises')">🏋️ 運動項目庫</button>
@@ -920,7 +965,9 @@
         <button class="s-tab" data-stab="backup" onclick="switchSettingsTab('backup')">💾 運動記錄與備份</button>
         <button class="s-tab" data-stab="firebase" onclick="switchSettingsTab('firebase')">☁️ Firebase 連線</button>
       </div>
+
       <div id="settingsBody" class="modal-body" style="min-height:400px;"></div>
+
       <div class="modal-footer" style="justify-content:space-between;">
         <button class="tool-btn btn-save-html" style="padding:7px 12px; font-size:12.5px;" onclick="exportUpdatedSelfHtml()">💾 匯出本地離線快照 (.html)</button>
         <button class="btn-primary" onclick="closeModal('settingsModal')">完成並關閉</button>
@@ -928,11 +975,13 @@
     </div>
   </div>
 
-  <!-- 彈窗 2：床號 QR Code -->
+  <!-- 彈窗 2：📱 床號 QR Code 列印與手機測試中心 -->
   <div id="qrModal" class="modal-backdrop" onclick="onBackdrop(event, 'qrModal')">
     <div class="modal-box lg">
       <div class="modal-header">
-        <div class="modal-title">📱 床號 QR Code</div>
+        <div>
+          <div class="modal-title">📱 床號 QR Code</div>
+        </div>
         <button class="modal-close" onclick="closeModal('qrModal')">✕</button>
       </div>
       <div class="modal-body" id="qrModalBody"></div>
@@ -946,9 +995,9 @@
     </div>
   </div>
 
-  <!-- 彈窗 3：開始運動（企車/企枱開始時先顯示 Pre BP 並可即時在右方 Tick 與下方新增時間 Tick） -->
+  <!-- 彈窗 3：開始運動 -->
   <div id="startModal" class="modal-backdrop" onclick="onBackdrop(event, 'startModal')">
-    <div class="modal-box lg" style="max-width:680px;">
+    <div class="modal-box">
       <div class="modal-header">
         <div class="modal-title" id="startModalTitle">開始運動</div>
         <button class="modal-close" onclick="closeModal('startModal')">✕</button>
@@ -969,18 +1018,6 @@
           </div>
         </div>
 
-        <div id="startStandBpPanel" class="bp-panel" style="display:none;">
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
-            <span style="font-size:13px; font-weight:900; color:#0369a1;">💓 企車／企枱 Pre BP（輸入後按右方 ✓ 即時記錄）</span>
-          </div>
-          <div id="startBpRowsContainer" style="display:flex; flex-direction:column; gap:6px;"></div>
-          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding-top:4px; border-top:1px dashed #7dd3fc;">
-            <span style="font-size:12px; font-weight:800; color:#0369a1;">自選時間加記：</span>
-            <input id="startExtraBpTime" type="text" class="text-input tabular" style="width:86px; padding:4px 6px; font-size:12.5px; text-align:center;" placeholder="HH:MM" />
-            <button class="btn-secondary" style="padding:4px 10px; font-size:12px; border-color:#0284c7; color:#0369a1; font-weight:800;" onclick="addStartCustomBpRow()">✓ 即時 Tick 新增 BP</button>
-          </div>
-        </div>
-
         <div class="field-group" id="startStaffSection">
           <span class="field-label">點選負責助理（可同時多選超過一位，點選後按「確認開始」）：</span>
           <div id="startStaffGrid" class="staff-grid"></div>
@@ -996,7 +1033,7 @@
     </div>
   </div>
 
-  <!-- 彈窗 4：完成 / 提早結束 -->
+  <!-- 彈窗 4：完成 / 提早結束 / 多選交接助理 / 企車企枱分段 BP P -->
   <div id="finishModal" class="modal-backdrop" onclick="onBackdrop(event, 'finishModal')">
     <div class="modal-box lg" style="max-width:680px;">
       <div class="modal-header">
@@ -1012,20 +1049,20 @@
         </div>
 
         <div id="earlyReasonWrap" class="field-group" style="display:none;">
-          <span class="field-label" style="color:var(--red);">提早結束原因（可選擇性點選或留空）：</span>
+          <span class="field-label" style="color:var(--red);">請點選提早結束原因：</span>
           <div id="earlyReasonGrid" class="reason-grid"></div>
-          <input id="earlyNoteInput" type="text" class="text-input" placeholder="c/o 症狀或補充備註（可選填）" style="margin-top:4px;" />
+          <input id="earlyNoteInput" type="text" class="text-input" placeholder="c/o 症狀或補充備註（如：no dizziness / 頭暈 / 右膝痛）" style="margin-top:4px;" />
         </div>
 
         <div id="bpExpandWrap" style="display:none;">
           <button class="btn-secondary" style="width:100%; justify-content:center; border-color:#7dd3fc; color:#0369a1;" onclick="showBpPanelInFinish()">
-            💓 展開輸入血壓／脈搏 (SBP / DBP / HR)
+            💓 展開輸入血壓／脈搏 (SBP / DBP / HR，可新增多組時間點)
           </button>
         </div>
 
         <div id="bpPanel" class="bp-panel" style="display:none;">
           <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
-            <span style="font-size:13px; font-weight:800; color:#0369a1;">💓 血壓與脈搏紀錄（按完成後自動轉為 Post BP record）</span>
+            <span style="font-size:13px; font-weight:800; color:#0369a1;">💓 血壓與脈搏紀錄（企車／企枱／血壓不穩支援多時段輸入）</span>
             <button class="btn-secondary" style="padding:3px 9px; font-size:11.5px; border-color:#0284c7; color:#0369a1;" onclick="addFinishBpRow()">＋ 加多一組讀數</button>
           </div>
           <div id="finishBpRowsContainer" style="display:flex; flex-direction:column; gap:6px;"></div>
@@ -1039,7 +1076,7 @@
     </div>
   </div>
 
-  <!-- 彈窗 5：步行紀錄 -->
+  <!-- 彈窗 5：🚶 步行紀錄管理 -->
   <div id="walkModal" class="modal-backdrop" onclick="onBackdrop(event, 'walkModal')">
     <div class="modal-box">
       <div class="modal-header">
@@ -1065,6 +1102,7 @@
           </div>
           <button class="btn-primary" style="background:#16a34a; justify-content:center;" onclick="saveWalkSession()">✓ 儲存今次步行紀錄</button>
         </div>
+
         <div class="field-group">
           <span class="field-label">今日已完成步行紀錄：</span>
           <div id="walkLogList"></div>
@@ -1076,7 +1114,7 @@
     </div>
   </div>
 
-  <!-- 彈窗 6：獨立血壓紀錄 -->
+  <!-- 彈窗 6：獨立血壓檢視與加記 -->
   <div id="bpModal" class="modal-backdrop" onclick="onBackdrop(event, 'bpModal')">
     <div class="modal-box">
       <div class="modal-header">
@@ -1129,13 +1167,14 @@
           </div>
           <div class="field-group">
             <label class="field-label">顯示名稱／代號 * <span id="edMaskLive" style="color:var(--primary);"></span></label>
-            <input id="edName" type="text" class="text-input" placeholder="如：林淑儀" oninput="updateLiveMaskPreview()" />
+            <input id="edName" type="text" class="text-input" placeholder="如：林淑儀（雲端自動同步為「林X儀」）" oninput="updateLiveMaskPreview()" />
           </div>
           <div class="field-group">
             <label class="field-label">出席狀態</label>
             <div id="edAttendanceChips" class="chip-row"></div>
           </div>
         </div>
+
         <div class="field-group">
           <span class="field-label">主診治療師：</span>
           <div style="display:flex; flex-wrap:wrap; align-items:center; gap:7px;">
@@ -1143,6 +1182,7 @@
             <input id="edTherapistCustom" type="text" class="text-input" placeholder="臨時輸入" style="width:100px; padding:5px 8px;" />
           </div>
         </div>
+
         <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
           <div class="field-group">
             <span class="field-label">患側（健側淺綠、患側紅色）：</span>
@@ -1153,6 +1193,7 @@
             <div id="edAssistChips" class="chip-row"></div>
           </div>
         </div>
+
         <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
           <div class="field-group">
             <span class="field-label">助行器（單選）：</span>
@@ -1163,6 +1204,7 @@
             <div id="edAidExtraChips" class="chip-row"></div>
           </div>
         </div>
+
         <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
           <div class="field-group">
             <span class="field-label">接送方式（單選）：</span>
@@ -1178,24 +1220,28 @@
             </div>
           </div>
         </div>
+
         <div class="field-group">
-          <span class="field-label">安全暗號：</span>
+          <span class="field-label">安全暗號（大電視僅呈現柔和底色與極簡符號）：</span>
           <div id="edRiskChips" class="chip-row"></div>
         </div>
+
         <div class="field-group">
           <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px;">
-            <label class="field-label">📌 特別注意事項：</label>
+            <label class="field-label">📌 特別注意事項（會同步至雲端）：</label>
             <label class="toggle-switch" style="font-size:12px;">
               <input id="edShowNoteTv" type="checkbox" />
-              <span>於大電視床號與名稱下顯示</span>
+              <span>於大電視底部置中顯示（預設不顯示）</span>
             </label>
           </div>
-          <input id="edSpecialNote" type="text" class="text-input" placeholder="例如：裝有心臟起搏器 / NSTEMI, RPE<14" />
+          <input id="edSpecialNote" type="text" class="text-input" placeholder="例如：裝有心臟起搏器，企車需分段度血壓 / NSTEMI, RPE<14" />
         </div>
+
         <div class="field-group">
           <span class="field-label">運動處方選擇（步行已設為預設項目）：</span>
           <div class="matrix-box" id="editorMatrixContainer"></div>
         </div>
+
         <div class="field-group">
           <span class="field-label">已選運動處方：</span>
           <div id="edDraftExList" class="draft-ex-list"></div>
@@ -1244,13 +1290,13 @@
         </div>
         <div style="display:flex; flex-wrap:wrap; gap:6px;">
           <button class="btn-secondary" onclick="window.print()">🖨️ 列印</button>
-          <button class="btn-primary" style="background:#059669;" onclick="saveDailyReportToFolderOrDownload()">📥 儲存每日報告</button>
+          <button class="btn-primary" style="background:#059669;" onclick="saveDailyReportToFolderOrDownload()">📥 儲存每日報告 (CSV + 英文紀錄)</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 彈窗 10：接送總表 -->
+  <!-- 彈窗 10：🚐 接送總表（按助理分組，吊機／雙人高亮，只顯示床號） -->
   <div id="transportSummaryModal" class="modal-backdrop" onclick="onBackdrop(event, 'transportSummaryModal')">
     <div class="modal-box lg">
       <div class="modal-header">
@@ -1264,6 +1310,33 @@
       <div class="modal-footer" style="justify-content:space-between;">
         <button class="btn-secondary" onclick="copyTransportSummary()">📋 複製文字版</button>
         <button class="btn-primary" onclick="closeModal('transportSummaryModal')">關閉</button>
+      </div>
+    </div>
+  </div>
+
+    <!-- 彈窗 11：企台／企車運動中途 BP 記錄（即時 Tick 儲存，關螢幕／關網頁亦保留） -->
+  <div id="midBpModal" class="modal-backdrop" onclick="onBackdrop(event, 'midBpModal')">
+    <div class="modal-box lg" style="max-width:700px;">
+      <div class="modal-header">
+        <div class="modal-title" id="midBpModalTitle">💓 運動中途 BP 記錄</div>
+        <button class="modal-close" onclick="closeModal('midBpModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="midBpSummary" style="background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:9px 12px; font-size:13px;"></div>
+        <div class="bp-panel">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+            <span style="font-size:13px; font-weight:900; color:#0369a1;">填寫 SBP / DBP / HR 與時間後，按右方「✓ Tick」即時寫入並保留</span>
+            <button type="button" class="btn-secondary" style="padding:3px 9px; font-size:11.5px; border-color:#0284c7; color:#0369a1;" onclick="addMidBpRow()">＋ 新增一組</button>
+          </div>
+          <div id="midBpRowsContainer" style="display:flex; flex-direction:column; gap:6px;"></div>
+        </div>
+        <div class="field-group">
+          <span class="field-label">已儲存的中途／已記 BP 紀錄：</span>
+          <div id="midBpSavedList"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" onclick="closeModal('midBpModal')">完成並關閉</button>
       </div>
     </div>
   </div>
@@ -1283,6 +1356,7 @@
       '#7e22ce', '#047857', '#c2410c', '#0369a1', '#374151'
     ];
 
+    // 內建 Firebase 預設連線資訊，上傳 GitHub 後開機即自動連線
     const BUILTIN_FIREBASE_CONFIG = JSON.stringify({
       apiKey: "AIzaSyDJ3ej-k33nzzVo9a1vHp5CN4mrhdblIRo",
       authDomain: "rehab-gym-sync.firebaseapp.com",
@@ -1356,6 +1430,9 @@
       };
     }
 
+    /* ========================================================================
+       應用程式狀態
+       ======================================================================== */
     let state = null;
     let viewMode = 'split';
     let isStandaloneTV = false;
@@ -1379,7 +1456,6 @@
       startMin: 15,
       startCountUp: false,
       selectedStartStaff: [],
-      startBpRows: [],
       finishMode: 'completed',
       selectedFinishStaff: [],
       finishBpRows: [],
@@ -1391,6 +1467,9 @@
       selectedWalkStaff: []
     };
 
+    /* ========================================================================
+       Firebase 全設定＋去識別化排程（支援「姓X名」雲端同步）
+       ======================================================================== */
     let fbDb = null;
     let fbRef = null;
     let fbConnected = false;
@@ -1458,6 +1537,7 @@
         const app = window.firebase.apps.length ? window.firebase.app() : window.firebase.initializeApp(cfg);
         fbDb = app.database();
 
+        // 固定單一房間名稱（請確認與 Firebase Console 裡有最新資料的節點名稱一致）
         const FIXED_ROOM = 'gym_room_1';
         fbRef = fbDb.ref(`rehab_boards/${FIXED_ROOM}`);
 
@@ -1468,7 +1548,10 @@
           updateSyncPill('online', '☁️ 已同步雲端');
           const remote = snap.val();
 
+          // 雲端為空時不自動把本地原始資料推上去覆蓋，避免新裝置洗掉資料
           if (!remote) return;
+
+          // 首次連線無條件信任雲端資料，之後才比較 updatedAt
           if (!isFirstSync && remote.updatedAt && remote.updatedAt <= (state._lastUpdatedAt || 0)) return;
           isApplyingRemoteUpdate = true;
           mergeRemoteState(remote);
@@ -1487,6 +1570,8 @@
       });
     }
 
+
+    /** 把全部系統設定＋去識別化排程上傳至 Firebase（絕不上傳全名，僅上傳「姓X名」） */
     function pushStateToFirebase() {
       if (!fbRef || isApplyingRemoteUpdate || !hasInitialRemoteSync) return;
       const now = Date.now();
@@ -1591,6 +1676,9 @@
       }
     });
 
+    /* ========================================================================
+       防意外關閉網頁保障機制
+       ======================================================================== */
     window.addEventListener('beforeunload', (e) => {
       if (mobileBedNum) return;
       const hasRunning = state && state.patients && state.patients.some(p => p.exercises.some(ex => ex.status === 'running' || ex.status === 'paused'));
@@ -1601,6 +1689,9 @@
       }
     });
 
+    /* ========================================================================
+       基礎工具函式
+       ======================================================================== */
     function getSurnameTitle(pt) {
       const raw = (pt.name || '').trim();
       if (!raw || raw.endsWith('號床')) return pt.surnameLabel || '';
@@ -1717,6 +1808,9 @@
       return s.includes('企車') || s.includes('企枱') || s.includes('企台') || s.toLowerCase().includes('standing');
     }
 
+    /* ========================================================================
+       範例個案與狀態初始化
+       ======================================================================== */
     function makeEx(name, opts = {}) {
       const defMin = (state && state.settings && state.settings.defaultExMin) ? Number(state.settings.defaultExMin) : 15;
       return {
@@ -1881,11 +1975,14 @@
       const snapshot = JSON.parse(JSON.stringify(state));
       snapshot._embeddedVersion = Date.now();
       const jsonPayload = JSON.stringify(snapshot).replace(/<\/script>/gi, '<\\/script>');
+
       const docClone = document.documentElement.cloneNode(true);
       const emb = docClone.querySelector('#embeddedStateScript');
       if (emb) emb.textContent = jsonPayload;
+
       const ws = docClone.querySelector('#workspace');
       if (ws) ws.innerHTML = '';
+
       const htmlStr = '<!DOCTYPE html>\n' + docClone.outerHTML;
       const blob = new Blob([htmlStr], { type: 'text/html;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -1899,6 +1996,9 @@
       showToast('💾 已下載本地離線快照 HTML 備份檔');
     }
 
+    /* ========================================================================
+       音效與語音報時
+       ======================================================================== */
     let audioCtx = null;
     function unlockAudio() {
       try {
@@ -1943,6 +2043,9 @@
       } catch (e) {}
     }
 
+    /* ========================================================================
+       自動排序與大電視分頁
+       ======================================================================== */
     function isPatientInSelectedSession(pt) {
       const sf = (state && state.settings && state.settings.sessionFilter) || 'ALL';
       if (sf === 'ALL') return true;
@@ -2073,6 +2176,7 @@
         }
 
         const totalPages = Math.max(1, Math.ceil(allOrdered.length / pageSize));
+        // 若仍有未有運動或夠鐘個案，停留在第一頁（未處理名單）；全部進行中才按設定跳頁時間去下頁
         const safeIdx = hasUnhandled ? 0 : (tvPageIndex % totalPages);
         if (hasUnhandled) tvPageIndex = 0;
 
@@ -2116,6 +2220,9 @@
       };
     }
 
+    /* ========================================================================
+       路由與主渲染
+       ======================================================================== */
     function parseHashRoute() {
       const h = window.location.hash || '';
       if (h.startsWith('#bed=')) {
@@ -2243,6 +2350,9 @@
       }
     }
 
+    /* ========================================================================
+       手機掃描床號 QR Code 專屬極簡操作介面 (#bed=21)
+       ======================================================================== */
     function renderMobileBedView(bedNum) {
       const pt = state.patients.find(p => String(p.bed) === String(bedNum));
       if (!pt) {
@@ -2287,13 +2397,18 @@
         if (ex.status === 'running' || ex.status === 'paused') {
           const timeStr = m.isCountdown ? (m.remainingSec < 0 ? `+${formatMMSS(m.overdueSec)}` : formatMMSS(m.remainingSec)) : formatMMSS(m.elapsedSec);
           const staffStr = formatStaffList(ex.startStaffList);
+          const stageCls = m.stage !== 'normal' ? `stage-${m.stage}` : '';
           return `
-            <div class="m-ex-btn is-running">
+            <div class="m-ex-btn is-running ${stageCls}" data-ex-card="${ex.id}">
               <div style="display:flex; justify-content:space-between; align-items:center;">
                 <span style="font-size:22px; font-weight:900;">${esc(ex.name)}</span>
                 ${staffStr ? `<span style="background:#0f172a; color:#fff; padding:3px 9px; border-radius:7px; font-weight:900;">${esc(staffStr)}</span>` : ''}
               </div>
-              <div style="font-size:38px; font-weight:900; color:#0369a1;" class="tabular">${timeStr}</div>
+              <div class="m-ex-timer tabular" data-timer-ex="${ex.id}">${timeStr}</div>
+              ${isStandExerciseName(ex.name) ? `
+                <button type="button" style="width:100%; padding:12px; border-radius:10px; background:#e0f2fe; border:2px solid #0284c7; color:#0369a1; font-size:17px; font-weight:900; margin-top:4px;"
+                        onclick="openMidBpModal('${pt.id}', '${ex.id}')">💓 中途 BP 記錄${(ex.bpRecords && ex.bpRecords.length) ? ` (${ex.bpRecords.length}組已記)` : ''}</button>
+              ` : ''}
               <div style="display:flex; gap:10px; margin-top:4px;">
                 <button style="flex:1; padding:14px; border-radius:10px; background:#059669; color:#fff; font-size:18px; font-weight:900;"
                         onclick="openFinishModal('${pt.id}', '${ex.id}', 'completed')">✓ 完成</button>
@@ -2360,10 +2475,6 @@
         showToast('請先在上方點選你的助理代號（可多選）');
         return;
       }
-      if (isStandExerciseName(ex.name)) {
-        openStartModal(ptId, exId);
-        return;
-      }
       ex.status = 'running';
       ex.startStaffList = [...mobileStaffSelected];
       ex.startedAt = Date.now();
@@ -2373,6 +2484,9 @@
       showToast(`▶ ${pt.bed}號床「${ex.name}」已開始並同步大電視`);
     }
 
+    /* ========================================================================
+       46 吋大電視看板渲染
+       ======================================================================== */
     function renderTVBoard() {
       const model = computeTVPageModel();
       const rows = model.visibleRows;
@@ -2451,16 +2565,7 @@
                 <button type="button" class="tv-ctrl-btn" onclick="adjustTvFontScale(0.05)">A+</button>
                 <span>過頁</span>
                 <select class="tv-ctrl-select tabular" onchange="setTvPageSpeed(this.value)">
-                  <option value="0.5" ${Math.abs(tvSpeedSec - 0.5) < 0.05 ? "selected" : ""}>0.5s</option>
-                  <option value="1.0" ${Math.abs(tvSpeedSec - 1.0) < 0.05 ? "selected" : ""}>1.0s</option>
-                  <option value="1.5" ${Math.abs(tvSpeedSec - 1.5) < 0.05 ? "selected" : ""}>1.5s</option>
-                  <option value="2.0" ${Math.abs(tvSpeedSec - 2.0) < 0.05 ? "selected" : ""}>2.0s</option>
-                  <option value="2.5" ${Math.abs(tvSpeedSec - 2.5) < 0.05 ? "selected" : ""}>2.5s</option>
-                  <option value="3.0" ${Math.abs(tvSpeedSec - 3.0) < 0.05 ? "selected" : ""}>3.0s</option>
-                  <option value="3.5" ${Math.abs(tvSpeedSec - 3.5) < 0.05 ? "selected" : ""}>3.5s</option>
-                  <option value="4.0" ${Math.abs(tvSpeedSec - 4.0) < 0.05 ? "selected" : ""}>4.0s</option>
-                  <option value="4.5" ${Math.abs(tvSpeedSec - 4.5) < 0.05 ? "selected" : ""}>4.5s</option>
-                  <option value="5.0" ${Math.abs(tvSpeedSec - 5.0) < 0.05 ? "selected" : ""}>5.0s</option>
+                  <option value="0.5" ${Math.abs(tvSpeedSec - 0.5) < 0.05 ? "selected" : ""}>0.5s</option><option value="1.0" ${Math.abs(tvSpeedSec - 1.0) < 0.05 ? "selected" : ""}>1.0s</option><option value="1.5" ${Math.abs(tvSpeedSec - 1.5) < 0.05 ? "selected" : ""}>1.5s</option><option value="2.0" ${Math.abs(tvSpeedSec - 2.0) < 0.05 ? "selected" : ""}>2.0s</option><option value="2.5" ${Math.abs(tvSpeedSec - 2.5) < 0.05 ? "selected" : ""}>2.5s</option><option value="3.0" ${Math.abs(tvSpeedSec - 3.0) < 0.05 ? "selected" : ""}>3.0s</option><option value="3.5" ${Math.abs(tvSpeedSec - 3.5) < 0.05 ? "selected" : ""}>3.5s</option><option value="4.0" ${Math.abs(tvSpeedSec - 4.0) < 0.05 ? "selected" : ""}>4.0s</option><option value="4.5" ${Math.abs(tvSpeedSec - 4.5) < 0.05 ? "selected" : ""}>4.5s</option><option value="5.0" ${Math.abs(tvSpeedSec - 5.0) < 0.05 ? "selected" : ""}>5.0s</option>
                 </select>
               </div>
               <div class="tv-clock tabular">${nowHHMMSS()}</div>
@@ -2480,9 +2585,10 @@
       const showNote = Boolean(pt.showNoteOnTv && pt.specialNote && pt.specialNote.trim());
       const trackStaff = state.settings.trackStaffAssignment;
 
+      const effectiveRowH = rowH;
       const totalChars = exList.reduce((acc, ex) => acc + Array.from(ex.name).length + (ex.status === 'running' ? 6 : 1), 0) || 4;
       const byWidth = Math.floor((availExW - exList.length * 18) / (totalChars * 1.08));
-      const byHeight = Math.floor(rowH * 0.56);
+      const byHeight = Math.floor(effectiveRowH * 0.56);
       const exFont = Math.min(44, Math.max(14, Math.min(byWidth, byHeight)));
 
       const exCardsHtml = exList.map(ex => {
@@ -2545,11 +2651,15 @@
       `;
     }
 
+    /* ========================================================================
+       電腦操作台渲染 (PC Console)
+       ======================================================================== */
     function renderPCConsole() {
       const therapists = Array.from(new Set([...state.settings.therapists, ...state.patients.map(p => p.therapist).filter(Boolean)]));
       const groups = categorizePatients(therapistFilter);
       const sf = state.settings.sessionFilter || 'ALL';
       const sessionPts = state.patients.filter(p => isPatientInSelectedSession(p));
+      // 嚴格依照「系統設定 → 人員名單」排好的先後次序排列當值助理
       const dutyList = state.settings.assistants.filter(s => state.onDutyTransport.includes(s));
       const trCounts = {};
       dutyList.forEach(s => { trCounts[s] = 0; });
@@ -2569,7 +2679,7 @@
           <div class="transport-bar-top">
             <span class="transport-title">🚐 今日接送計數</span>
             <div style="display:flex; flex-wrap:wrap; gap:5px;">
-              <button class="btn-primary" style="padding:4px 9px; font-size:11.5px; background:#0284c7;" onclick="autoAssignTransport()">⚡ 自動分配接送</button>
+              <button class="btn-primary" style="padding:4px 9px; font-size:11.5px; background:#0284c7;" onclick="autoAssignTransport()" title="按當值助理排位次序，由細床號到大床號自動順排給出席病人">⚡ 自動分配接送</button>
               <button class="btn-primary" style="padding:4px 9px; font-size:11.5px; background:#0f766e;" onclick="openTransportSummaryModal()">📋 接送總表</button>
               <button class="mini-action-btn" onclick="showDutyDrawer=!showDutyDrawer; renderWorkspace();">${showDutyDrawer ? '▲ 收合' : '👤 當值助理'}</button>
               <button class="seg-btn ${pcSortMode === 'clinical' ? 'active' : ''}" onclick="pcSortMode='clinical'; renderWorkspace();">排程順序</button>
@@ -2579,7 +2689,7 @@
           <div class="transport-pills">
             ${dutyList.length
               ? dutyList.map(ch => `<span class="tr-stat-pill ${(trCounts[ch] || 0) === minTr ? 'next-turn' : ''}">${esc(ch)} <span class="tr-stat-num tabular">${trCounts[ch] || 0}</span></span>`).join('')
-              : '<span style="font-size:12px; color:#64748b; font-weight:700;">尚未勾選當值助理，請點「👤 當值助理」設定</span>'}
+              : '<span style="font-size:12px; color:#64748b; font-weight:700;">尚未勾選當值助理，請點右上角「👤 當值助理」設定</span>'}
           </div>
           ${showDutyDrawer ? `
             <div class="duty-drawer">
@@ -2693,6 +2803,10 @@
                     <div class="ex-head"><span class="ex-name">${esc(ex.name)}</span>${staffStr ? `<span class="staff-pill">${esc(staffStr)}</span>` : ''}</div>
                     <div class="ex-head"><span class="pc-timer-text tabular" data-timer-ex="${ex.id}">${timeStr}</span><span style="font-size:11px; font-weight:800;">${ex.status === 'paused' ? '暫停' : '計時中'}</span></div>
                     <div class="prog-track"><div class="prog-fill" data-prog-ex="${ex.id}" style="width:${m.pct}%; background:${fillCol};"></div></div>
+                    ${isStandExerciseName(ex.name) ? `
+                      <button type="button" class="ex-ctrl" style="background:#e0f2fe; border:1px solid #7dd3fc; color:#0369a1; margin-top:2px;"
+                              onclick="openMidBpModal('${pt.id}','${ex.id}')">💓 中途 BP${(ex.bpRecords && ex.bpRecords.length) ? ` (${ex.bpRecords.length})` : ''}</button>
+                    ` : ''}
                     <div class="ex-btn-row">
                       <button class="ex-ctrl pause" onclick="togglePause('${pt.id}','${ex.id}')">${ex.status === 'paused' ? '▶' : '⏸'}</button>
                       <button class="ex-ctrl done" onclick="openFinishModal('${pt.id}','${ex.id}','completed')">✓ 完成</button>
@@ -2716,6 +2830,9 @@
       `;
     }
 
+    /* ========================================================================
+       開始運動、多選助理、完成與企車企枱分段 BP P
+       ======================================================================== */
     function getPtEx(ptId, exId) {
       const pt = state.patients.find(p => p.id === ptId);
       const ex = pt ? pt.exercises.find(e => e.id === exId) : null;
@@ -2726,7 +2843,7 @@
       const { pt, ex } = getPtEx(ptId, exId);
       if (!pt || !ex) return;
 
-      if (!state.settings.trackStaffAssignment && !isStandExerciseName(ex.name)) {
+      if (!state.settings.trackStaffAssignment) {
         unlockAudio();
         ex.status = 'running';
         ex.startStaffList = [];
@@ -2750,19 +2867,7 @@
       uiCtx.exId = exId;
       uiCtx.startMin = Number(ex.plannedMin) || state.settings.defaultExMin;
       uiCtx.startCountUp = Boolean(ex.countUp);
-      uiCtx.selectedStartStaff = [...mobileStaffSelected];
-
-      const isStand = isStandExerciseName(ex.name);
-      document.getElementById('startStandBpPanel').style.display = isStand ? 'flex' : 'none';
-      if (isStand) {
-        uiCtx.startBpRows = [
-          { id: uid('sbp'), label: 'Pre standing BP', time: nowHHMM(), sbp: '', dbp: '', hr: '', ticked: false }
-        ];
-        document.getElementById('startExtraBpTime').value = nowHHMM();
-        renderStartBpRows();
-      } else {
-        uiCtx.startBpRows = [];
-      }
+      uiCtx.selectedStartStaff = [];
 
       document.getElementById('startModalTitle').textContent = `開始運動：${pt.bed}號床 — ${ex.name}`;
       document.getElementById('startModalInfo').innerHTML = `<strong>${esc(pt.bed)}號床 ${esc(pt.name)}</strong>｜運動：<strong>${esc(ex.name)}</strong> ${ex.note ? `(${esc(ex.note)})` : ''}`;
@@ -2770,71 +2875,6 @@
       syncStartDurationUI();
       renderStartStaffGrid();
       openModal('startModal');
-    }
-
-    function renderStartBpRows() {
-      const wrap = document.getElementById('startBpRowsContainer');
-      if (!wrap) return;
-      wrap.innerHTML = uiCtx.startBpRows.map((row, idx) => `
-        <div class="bp-multi-row ${row.ticked ? 'is-ticked' : ''}">
-          <input type="text" class="text-input" style="padding:5px 7px; font-size:12px; font-weight:800;" value="${esc(row.label)}" oninput="uiCtx.startBpRows[${idx}].label=this.value" />
-          <input type="text" class="text-input tabular" style="padding:5px; font-size:12.5px; text-align:center;" placeholder="HH:MM" value="${esc(row.time)}" oninput="uiCtx.startBpRows[${idx}].time=this.value" />
-          <input type="number" class="bp-input tabular" placeholder="SBP" value="${esc(row.sbp)}" oninput="uiCtx.startBpRows[${idx}].sbp=this.value; uiCtx.startBpRows[${idx}].ticked=false;" />
-          <input type="number" class="bp-input tabular" placeholder="DBP" value="${esc(row.dbp)}" oninput="uiCtx.startBpRows[${idx}].dbp=this.value; uiCtx.startBpRows[${idx}].ticked=false;" />
-          <input type="number" class="bp-input tabular" placeholder="HR" value="${esc(row.hr)}" oninput="uiCtx.startBpRows[${idx}].hr=this.value; uiCtx.startBpRows[${idx}].ticked=false;" />
-          <button type="button" class="bp-tick-btn ${row.ticked ? 'ticked' : ''}" onclick="tickStartBpRow(${idx})">${row.ticked ? '✓ 已記' : '✓ Tick'}</button>
-          <button type="button" class="step-btn" style="color:var(--red);" onclick="uiCtx.startBpRows.splice(${idx},1); renderStartBpRows();">✕</button>
-        </div>
-      `).join('');
-    }
-
-    function addStartCustomBpRow() {
-      const tVal = (document.getElementById('startExtraBpTime')?.value || '').trim() || nowHHMM();
-      uiCtx.startBpRows.push({
-        id: uid('sbp'),
-        label: `Pre standing BP (${tVal})`,
-        time: tVal,
-        sbp: '',
-        dbp: '',
-        hr: '',
-        ticked: false
-      });
-      renderStartBpRows();
-    }
-
-    function tickStartBpRow(idx) {
-      const { pt, ex } = getPtEx(uiCtx.patientId, uiCtx.exId);
-      const row = uiCtx.startBpRows[idx];
-      if (!pt || !ex || !row) return;
-      const hasVal = String(row.sbp).trim() || String(row.dbp).trim() || String(row.hr).trim();
-      if (!hasVal) {
-        showToast('請先輸入 SBP / DBP / HR 數值');
-        return;
-      }
-      const entry = {
-        id: row.loggedId || uid('bp'),
-        label: (row.label || 'Pre standing BP').trim(),
-        sbp: String(row.sbp).trim() || '-',
-        dbp: String(row.dbp).trim() || '-',
-        hr: String(row.hr).trim() || '-',
-        time: (row.time || nowHHMM()).trim()
-      };
-      row.loggedId = entry.id;
-      row.ticked = true;
-
-      if (!Array.isArray(ex.bpRecords)) ex.bpRecords = [];
-      const exIdx = ex.bpRecords.findIndex(b => b.id === entry.id);
-      if (exIdx >= 0) ex.bpRecords[exIdx] = entry;
-      else ex.bpRecords.push(entry);
-
-      if (!Array.isArray(pt.bpLogs)) pt.bpLogs = [];
-      const ptIdx = pt.bpLogs.findIndex(b => b.id === entry.id);
-      if (ptIdx >= 0) pt.bpLogs[ptIdx] = entry;
-      else pt.bpLogs.push(entry);
-
-      renderStartBpRows();
-      persistState(true);
-      showToast(`✓ 已即時記錄 ${entry.label} (${entry.time})：${entry.sbp}/${entry.dbp}`);
     }
 
     function renderStartStaffGrid() {
@@ -2858,31 +2898,6 @@
     function applyStartModalMin(v) { uiCtx.startMin = Math.max(1, Math.min(90, parseInt(v, 10) || 15)); syncStartDurationUI(); }
     function toggleStartModalCountUp() { uiCtx.startCountUp = !uiCtx.startCountUp; syncStartDurationUI(); }
 
-    function commitUntickedStartBps(pt, ex) {
-      if (!Array.isArray(uiCtx.startBpRows) || !uiCtx.startBpRows.length) return;
-      uiCtx.startBpRows.forEach(row => {
-        const hasVal = String(row.sbp).trim() || String(row.dbp).trim() || String(row.hr).trim();
-        if (!hasVal) return;
-        const entry = {
-          id: row.loggedId || uid('bp'),
-          label: (row.label || 'Pre standing BP').trim(),
-          sbp: String(row.sbp).trim() || '-',
-          dbp: String(row.dbp).trim() || '-',
-          hr: String(row.hr).trim() || '-',
-          time: (row.time || nowHHMM()).trim()
-        };
-        if (!Array.isArray(ex.bpRecords)) ex.bpRecords = [];
-        const exIdx = ex.bpRecords.findIndex(b => b.id === entry.id);
-        if (exIdx >= 0) ex.bpRecords[exIdx] = entry;
-        else ex.bpRecords.push(entry);
-
-        if (!Array.isArray(pt.bpLogs)) pt.bpLogs = [];
-        const ptIdx = pt.bpLogs.findIndex(b => b.id === entry.id);
-        if (ptIdx >= 0) pt.bpLogs[ptIdx] = entry;
-        else pt.bpLogs.push(entry);
-      });
-    }
-
     function confirmStartExercise(directDone) {
       const { pt, ex } = getPtEx(uiCtx.patientId, uiCtx.exId);
       if (!pt || !ex) return;
@@ -2891,7 +2906,6 @@
         return;
       }
       unlockAudio();
-      commitUntickedStartBps(pt, ex);
       closeModal('startModal');
 
       ex.plannedMin = uiCtx.startMin;
@@ -2953,7 +2967,7 @@
 
       const isEarly = mode === 'early_stopped';
       const isStand = isStandExerciseName(ex.name);
-      const shouldOpenBp = Boolean(!isEarly && (pt.riskBp || isStand));
+      const shouldOpenBp = Boolean(pt.riskBp || isStand);
 
       document.getElementById('finishModalTitle').textContent = isEarly ? `提早結束：${pt.bed}號床 — ${ex.name}` : `完成運動：${pt.bed}號床 — ${ex.name}`;
       document.getElementById('finishSummary').innerHTML = `
@@ -2967,14 +2981,14 @@
       document.getElementById('earlyNoteInput').value = '';
       if (isEarly) {
         document.getElementById('earlyReasonGrid').innerHTML = state.settings.earlyReasons.map(r => `
-          <button type="button" class="reason-btn" onclick="selectEarlyReason('${esc(r)}', this)">${esc(r)}</button>
+          <button class="reason-btn" onclick="uiCtx.earlyReason='${esc(r)}'; document.querySelectorAll('.reason-btn').forEach(b=>b.classList.toggle('selected', b.textContent==='${esc(r)}'))">${esc(r)}</button>
         `).join('');
       }
 
       const defTime = nowHHMM();
       if (isStand) {
-        // 按完成時，自動以 Post standing BP 為預設完成血壓紀錄
         uiCtx.finishBpRows = [
+          { timing: 'Pre standing BP', clockTime: defTime, sbp: '', dbp: '', hr: '' },
           { timing: 'Post standing BP', clockTime: defTime, sbp: '', dbp: '', hr: '' }
         ];
       } else {
@@ -2989,24 +3003,13 @@
 
       const logs = pt.bpLogs || [];
       document.getElementById('bpHistoryBar').innerHTML = logs.length
-        ? `已記錄讀數：` + logs.map(b => `${esc(b.label)} (${esc(b.time)}) ${esc(b.sbp)}/${esc(b.dbp)} HR ${esc(b.hr)}`).join('； ')
+        ? `早前讀數：` + logs.map(b => `${esc(b.label)} ${esc(b.sbp)}/${esc(b.dbp)} HR ${esc(b.hr)}`).join('； ')
         : '';
 
       const okBtn = document.getElementById('btnFinishConfirm');
       okBtn.textContent = isEarly ? '確認提早結束並儲存' : '確認完成並儲存';
       okBtn.style.background = isEarly ? '#dc2626' : '#059669';
       openModal('finishModal');
-    }
-
-    function selectEarlyReason(val, btnEl) {
-      if (uiCtx.earlyReason === val) {
-        uiCtx.earlyReason = '';
-        btnEl.classList.remove('selected');
-      } else {
-        uiCtx.earlyReason = val;
-        document.querySelectorAll('#earlyReasonGrid .reason-btn').forEach(b => b.classList.remove('selected'));
-        btnEl.classList.add('selected');
-      }
     }
 
     function renderFinishStaffGrid() {
@@ -3022,18 +3025,18 @@
 
     function renderFinishBpRows() {
       const timings = [
-        'Post standing BP', 'Pre standing BP', 'initial BP',
+        'Pre standing BP', 'Post standing BP', 'initial BP',
         'Post standing 1min', 'Post standing 2min', 'Post standing 3min',
         'Post standing 5min', 'Post standing 8min', 'Post standing 10min', 'Post standing 12min',
         'Post standing 15min', 'Post standing 20min', 'Post standing 25min', 'Post standing 30min',
         'Post exercise BP', 'R/C BP in sitting position'
       ];
       document.getElementById('finishBpRowsContainer').innerHTML = uiCtx.finishBpRows.map((row, idx) => `
-        <div class="bp-multi-row" style="grid-template-columns: 140px 78px 1fr 1fr 1fr auto;">
+        <div class="bp-multi-row">
           <select class="text-input" style="padding:5px; font-size:12px;" onchange="uiCtx.finishBpRows[${idx}].timing=this.value">
             ${Array.from(new Set([row.timing, ...timings])).map(t => `<option value="${esc(t)}" ${row.timing === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}
           </select>
-          <input type="text" class="text-input tabular" style="padding:5px; font-size:12.5px; text-align:center;" placeholder="HH:MM" value="${esc(row.clockTime || '')}" oninput="uiCtx.finishBpRows[${idx}].clockTime=this.value" />
+          <input type="text" class="text-input tabular" style="padding:5px; font-size:12.5px; text-align:center;" placeholder="時間 HH:MM" value="${esc(row.clockTime || '')}" oninput="uiCtx.finishBpRows[${idx}].clockTime=this.value" />
           <input type="number" class="bp-input tabular" placeholder="SBP" value="${esc(row.sbp)}" oninput="uiCtx.finishBpRows[${idx}].sbp=this.value" />
           <input type="number" class="bp-input tabular" placeholder="DBP" value="${esc(row.dbp)}" oninput="uiCtx.finishBpRows[${idx}].dbp=this.value" />
           <input type="number" class="bp-input tabular" placeholder="HR" value="${esc(row.hr)}" oninput="uiCtx.finishBpRows[${idx}].hr=this.value" />
@@ -3062,26 +3065,20 @@
       ex.status = isEarly ? 'early_stopped' : 'completed';
       ex.endStaffList = uiCtx.selectedFinishStaff.length ? [...uiCtx.selectedFinishStaff] : [...(ex.startStaffList || [])];
       ex.finishedAt = Date.now();
-      // 提早結束原因為選擇性輸入
-      ex.earlyReason = isEarly ? (uiCtx.earlyReason || '') : '';
+      ex.earlyReason = isEarly ? uiCtx.earlyReason : '';
       ex.earlyNote = isEarly ? document.getElementById('earlyNoteInput').value.trim() : '';
 
       const validBps = uiCtx.finishBpRows.filter(r => String(r.sbp).trim() || String(r.dbp).trim() || String(r.hr).trim());
-      if (validBps.length) {
-        if (!Array.isArray(ex.bpRecords)) ex.bpRecords = [];
-        if (!Array.isArray(pt.bpLogs)) pt.bpLogs = [];
-        validBps.forEach(r => {
-          const rec = {
-            id: uid('bp'),
-            label: r.timing,
-            sbp: String(r.sbp).trim() || '-',
-            dbp: String(r.dbp).trim() || '-',
-            hr: String(r.hr).trim() || '-',
-            time: String(r.clockTime || '').trim() || nowHHMM()
-          };
-          ex.bpRecords.push(rec);
-          pt.bpLogs.push(rec);
-        });
+      ex.bpRecords = validBps.map(r => ({
+        id: uid('bp'),
+        label: r.timing,
+        sbp: String(r.sbp).trim() || '-',
+        dbp: String(r.dbp).trim() || '-',
+        hr: String(r.hr).trim() || '-',
+        time: String(r.clockTime || '').trim() || nowHHMM()
+      }));
+      if (ex.bpRecords.length) {
+        pt.bpLogs.push(...ex.bpRecords);
       }
 
       closeModal('finishModal');
@@ -3106,6 +3103,9 @@
       renderWorkspace();
     }
 
+    /* ========================================================================
+       步行紀錄彈窗
+       ======================================================================== */
     function openWalkModal(ptId) {
       const pt = state.patients.find(p => p.id === ptId);
       if (!pt) return;
@@ -3150,7 +3150,7 @@
       persistState(true);
       renderWalkLogList(pt);
       renderWorkspace();
-      showToast(`✓ 已記錄 ${pt.bed}號床步行 ${dist}m`);
+      showToast(`✓ 已記錄 ${pt.bed}號床步行 ${dist}m（大電視已顯示 Tick）`);
     }
 
     function renderWalkLogList(pt) {
@@ -3173,6 +3173,111 @@
       pt.walkLogs = pt.walkLogs.filter(w => w.id !== wkId);
       persistState(true);
       renderWalkLogList(pt);
+      renderWorkspace();
+    }
+
+    /* ========================================================================
+       獨立血壓紀錄彈窗
+       ======================================================================== */
+    let midBpCtx = { ptId: null, exId: null, rows: [] };
+
+    function openMidBpModal(ptId, exId) {
+      const { pt, ex } = getPtEx(ptId, exId);
+      if (!pt || !ex) return;
+      midBpCtx.ptId = ptId;
+      midBpCtx.exId = exId;
+      midBpCtx.rows = [
+        { id: uid('mbp'), label: 'During standing BP', time: nowHHMM(), sbp: '', dbp: '', hr: '', ticked: false }
+      ];
+      document.getElementById('midBpModalTitle').textContent = `💓 ${pt.bed}號床 — ${ex.name} 中途 BP`;
+      document.getElementById('midBpSummary').innerHTML = `<strong>${esc(pt.bed)}號床 ${esc(pt.name)}</strong>｜運動：<strong>${esc(ex.name)}</strong>（每次按 <strong>✓ Tick</strong> 即時寫入本機及雲端，關螢幕／關網頁亦保留）`;
+      renderMidBpRows();
+      renderMidBpSavedList(pt, ex);
+      openModal('midBpModal');
+    }
+
+    function addMidBpRow() {
+      midBpCtx.rows.push({ id: uid('mbp'), label: 'During standing BP', time: nowHHMM(), sbp: '', dbp: '', hr: '', ticked: false });
+      renderMidBpRows();
+    }
+
+    function renderMidBpRows() {
+      const wrap = document.getElementById('midBpRowsContainer');
+      if (!wrap) return;
+      wrap.innerHTML = midBpCtx.rows.map((row, idx) => `
+        <div class="bp-multi-row ${row.ticked ? 'is-ticked' : ''}" style="grid-template-columns: 145px 78px 1fr 1fr 1fr auto auto;">
+          <input type="text" class="text-input" style="padding:5px 7px; font-size:12px; font-weight:800;" value="${esc(row.label)}" oninput="midBpCtx.rows[${idx}].label=this.value" />
+          <input type="text" class="text-input tabular" style="padding:5px; font-size:12.5px; text-align:center;" placeholder="HH:MM" value="${esc(row.time)}" oninput="midBpCtx.rows[${idx}].time=this.value" />
+          <input type="number" class="bp-input tabular" placeholder="SBP" value="${esc(row.sbp)}" oninput="midBpCtx.rows[${idx}].sbp=this.value; midBpCtx.rows[${idx}].ticked=false;" />
+          <input type="number" class="bp-input tabular" placeholder="DBP" value="${esc(row.dbp)}" oninput="midBpCtx.rows[${idx}].dbp=this.value; midBpCtx.rows[${idx}].ticked=false;" />
+          <input type="number" class="bp-input tabular" placeholder="HR" value="${esc(row.hr)}" oninput="midBpCtx.rows[${idx}].hr=this.value; midBpCtx.rows[${idx}].ticked=false;" />
+          <button type="button" class="bp-tick-btn ${row.ticked ? 'ticked' : ''}" onclick="tickMidBpRow(${idx})">${row.ticked ? '✓ 已記' : '✓ Tick'}</button>
+          <button type="button" class="step-btn" style="color:var(--red);" onclick="midBpCtx.rows.splice(${idx},1); renderMidBpRows();">✕</button>
+        </div>
+      `).join('');
+    }
+
+    function tickMidBpRow(idx) {
+      const { pt, ex } = getPtEx(midBpCtx.ptId, midBpCtx.exId);
+      const row = midBpCtx.rows[idx];
+      if (!pt || !ex || !row) return;
+      const hasVal = String(row.sbp).trim() || String(row.dbp).trim() || String(row.hr).trim();
+      if (!hasVal) {
+        showToast('請先輸入 SBP / DBP / HR');
+        return;
+      }
+      const recId = row.savedId || uid('bp');
+      const rec = {
+        id: recId,
+        label: (row.label || 'During standing BP').trim(),
+        sbp: String(row.sbp).trim() || '-',
+        dbp: String(row.dbp).trim() || '-',
+        hr: String(row.hr).trim() || '-',
+        time: (row.time || nowHHMM()).trim()
+      };
+      row.savedId = recId;
+      row.ticked = true;
+
+      if (!Array.isArray(ex.bpRecords)) ex.bpRecords = [];
+      const exIdx = ex.bpRecords.findIndex(b => b.id === recId);
+      if (exIdx >= 0) ex.bpRecords[exIdx] = rec;
+      else ex.bpRecords.push(rec);
+
+      if (!Array.isArray(pt.bpLogs)) pt.bpLogs = [];
+      const ptIdx = pt.bpLogs.findIndex(b => b.id === recId);
+      if (ptIdx >= 0) pt.bpLogs[ptIdx] = rec;
+      else pt.bpLogs.push(rec);
+
+      persistState(true);
+      renderMidBpRows();
+      renderMidBpSavedList(pt, ex);
+      renderWorkspace();
+      showToast(`✓ 已即時 Tick 記錄中途 BP (${rec.time})，關螢幕亦會保留`);
+    }
+
+    function renderMidBpSavedList(pt, ex) {
+      const wrap = document.getElementById('midBpSavedList');
+      if (!wrap) return;
+      const list = ex.bpRecords || [];
+      if (!list.length) {
+        wrap.innerHTML = '<div class="empty-box" style="padding:8px;">尚未 Tick 任何中途 BP</div>';
+        return;
+      }
+      wrap.innerHTML = list.map(b => `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:#f0fdf4; border:1px solid #86efac; border-radius:8px; margin-bottom:5px; font-size:13px;">
+          <span><strong>✓ ${esc(b.label)} (${esc(b.time)})：</strong>BP ${esc(b.sbp)}/${esc(b.dbp)}, HR ${esc(b.hr)}</span>
+          <button type="button" style="color:var(--red); font-weight:800;" onclick="deleteMidBpRecord('${pt.id}','${ex.id}','${b.id}')">刪除</button>
+        </div>
+      `).join('');
+    }
+
+    function deleteMidBpRecord(ptId, exId, bpId) {
+      const { pt, ex } = getPtEx(ptId, exId);
+      if (!pt || !ex) return;
+      ex.bpRecords = (ex.bpRecords || []).filter(b => b.id !== bpId);
+      pt.bpLogs = (pt.bpLogs || []).filter(b => b.id !== bpId);
+      persistState(true);
+      renderMidBpSavedList(pt, ex);
       renderWorkspace();
     }
 
@@ -3227,6 +3332,9 @@
       renderWorkspace();
     }
 
+    /* ========================================================================
+       接送與病人編輯器（PCA 接送總表只顯示床號，不顯示名稱）
+       ======================================================================== */
     function toggleAssistantOnDuty(ch) {
       if (state.onDutyTransport.includes(ch)) {
         if (state.onDutyTransport.length <= 1) return;
@@ -3274,7 +3382,7 @@
       renderWorkspace();
     }
 
-    function getAssistantColor(name) {
+  function getAssistantColor(name) {
       if (!name) return '#64748b';
       const list = (state && state.settings && state.settings.assistants) || [];
       const idx = list.indexOf(name);
@@ -3537,7 +3645,7 @@
       closeModal('patientModal');
       persistState(true);
       renderWorkspace();
-      showToast(`✓ 已儲存 ${d.bed}號床`);
+      showToast(`✓ 已儲存 ${d.bed}號床（雲端已同步為 ${maskName(d.name)}）`);
     }
 
     function confirmDeletePatient() {
@@ -3551,6 +3659,9 @@
       });
     }
 
+    /* ========================================================================
+       床號 QR Code 卡彈窗
+       ======================================================================== */
     function openQrModal() {
       const baseUrl = window.location.href.split('#')[0];
       const presentPts = state.patients.filter(p => p.attendance === 'present').sort((a, b) => bedNumeric(a.bed) - bedNumeric(b.bed));
@@ -3559,9 +3670,9 @@
       document.getElementById('qrModalBody').innerHTML = `
         ${isLocalFile ? `
           <div style="background:#fef3c7; border:1.5px solid #f59e0b; border-radius:10px; padding:10px 12px; font-size:13px; color:#92400e;">
-            ⚠️ 目前使用本機檔案（<code>file://</code>）開啟，建議於 GitHub Pages 網址開啟列印 QR Code。
+            ⚠️ 目前你正在用本地電腦檔案（<code>file://</code>）開啟；請先將本檔案存為 <code>index.html</code> 上傳至免費 <strong>GitHub Pages</strong>，再用 GitHub 網址打開本頁列印 QR Code，同事手機 4G/5G 才能掃描進入。
           </div>
-        ` : `<div style="background:#ecfdf5; border:1.5px solid #10b981; border-radius:10px; padding:9px 12px; font-size:13px; color:#065f46; font-weight:800;">✓ 雲端網址已就緒，可列印或下載 1–30 號床固定 QR Code。</div>`}
+        ` : `<div style="background:#ecfdf5; border:1.5px solid #10b981; border-radius:10px; padding:9px 12px; font-size:13px; color:#065f46; font-weight:800;">✓ 雲端網址已就緒！列印以下可重複使用過膠床號 QR Code 卡，同事手機一掃即與大電視毫秒級同步。</div>`}
         <div class="qr-grid">
           ${presentPts.map(pt => {
             const targetUrl = `${baseUrl}#bed=${encodeURIComponent(pt.bed)}`;
@@ -3658,6 +3769,9 @@
       showToast('📥 已下載 1 至 30 號床 QR Code Word 檔');
     }
 
+    /* ========================================================================
+       每日完結報表與英文 Clinical Documentation
+       ======================================================================== */
     const EX_EN_DICT = {
       'Lokomat': 'Lokomat robotic-assisted gait training',
       '綠平衡': 'Balance training on green rocker board',
@@ -3732,15 +3846,13 @@
             '檢查／覆診': 'investigation / FU',
             '其他': 'other'
           };
-          const enReason = ex.earlyReason ? (reasonDict[ex.earlyReason] || ex.earlyReason) : '';
+          const enReason = reasonDict[ex.earlyReason] || ex.earlyReason;
           const co = [enReason, ex.earlyNote].filter(Boolean).join(' - ');
           const hasEarlyLabel = bpParts.some(p => p.toLowerCase().includes('early terminated'));
           if (hasEarlyLabel) {
             if (co) bpParts.push(`c/o: ${co}`);
-          } else if (co) {
-            bpParts.push(`Early terminated at ${mins} min, c/o: ${co}`);
           } else {
-            bpParts.push(`Early terminated at ${mins} min`);
+            bpParts.push(`Early terminated at ${mins} min${co ? `, c/o: ${co}` : ''}`);
           }
         }
         if (bpParts.length) {
@@ -3784,7 +3896,7 @@
               <div class="rep-pt-head">
                 <strong style="font-size:15px;">${esc(pt.bed)}號床 ${esc(pt.name)}</strong>
                 <span>${esc(pt.side)} · ${esc(aidFull)} · ${esc(pt.assist)}</span>
-                <span>${esc(trFull)}</span>
+                <span>🚐 ${esc(trFull)}</span>
                 ${r.label !== '一般' ? `<span style="color:#b91c1c; font-weight:800;">${esc(r.label)}</span>` : ''}
                 ${pt.specialNote ? `<span style="color:#9a3412;">📌 ${esc(pt.specialNote)}</span>` : ''}
               </div>
@@ -3797,7 +3909,7 @@
                     const staffStr = state.settings.trackStaffAssignment
                       ? `${formatStaffList(ex.startStaffList)}${ex.endStaffList && formatStaffList(ex.endStaffList) !== formatStaffList(ex.startStaffList) ? ' → ' + formatStaffList(ex.endStaffList) : ''}`
                       : '-';
-                    const bpStr = (ex.bpRecords || []).map(b => `${b.label} (${b.time}): ${b.sbp}/${b.dbp} HR${b.hr}`).join('； ');
+                    const bpStr = (ex.bpRecords || []).map(b => `${b.label}: ${b.sbp}/${b.dbp} HR${b.hr}`).join('； ');
                     return `
                       <tr>
                         <td><strong>${esc(ex.name)}</strong> ${ex.note ? `(${esc(ex.note)})` : ''}</td>
@@ -3827,14 +3939,14 @@
         return `
           <div class="rep-therapist-block">
             <div class="rep-th-banner" style="background:${col};">
-              <span>主診治療師：${esc(th)}（共 ${thPts.length} 位病人）</span>
+              <span>主診治療師：${esc(th)}（共 ${thPts.length} 位病人・已按床號順序排列）</span>
             </div>
             ${ptCardsHtml}
           </div>
         `;
       }).join('');
 
-      document.getElementById('reportMetaLine').textContent = `日期：${todayISO()}（${weekdayZh()}）`;
+      document.getElementById('reportMetaLine').textContent = `日期：${todayISO()}（${weekdayZh()}）｜已按治療師分類及床號排序`;
       document.getElementById('reportModalBody').innerHTML = `
         <div class="filter-chips" style="margin-bottom:4px;">
           <button class="filter-chip ${reportTherapistFilter === 'ALL' ? 'active' : ''}" onclick="reportTherapistFilter='ALL'; openReportModal();">全部治療師</button>
@@ -3842,7 +3954,7 @@
         </div>
         ${blocksHtml}
         <div class="field-group">
-          <span class="field-label">📝 英文 Clinical Documentation 總匯：</span>
+          <span class="field-label">📝 英文 Clinical Documentation 總匯（可直接複製貼入 CMS / 病歷）：</span>
           <textarea id="allEnglishDocArea" class="doc-note-box" readonly>${esc(allDocs.join('\n\n'))}</textarea>
         </div>
       `;
@@ -3859,7 +3971,7 @@
 
     async function sendReportEmail() {
       if (!navigator.onLine) {
-        showToast('⚠️ 目前處於離線狀態，請先連接網絡再發送');
+        showToast('⚠️ 目前主電腦處於離線狀態，請先連接網絡再發送');
         return;
       }
       const to = (state.settings.emailRecipients || '').trim();
@@ -3869,7 +3981,7 @@
       const subject = `復康運動室每日紀錄 (${todayISO()})`;
 
       if (!to) {
-        showToast('⚠️ 請先在系統設定輸入收件同事 Email');
+        showToast('⚠️ 請先在「系統設定 → 運動記錄與備份」輸入收件同事 Email');
         return;
       }
 
@@ -3890,7 +4002,7 @@
       }
 
       window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
-      showToast('✉️ 已開啟本機郵件程式');
+      showToast('✉️ 未設定雲端發信網址，已開啟本機郵件程式（可在系統設定貼上 Google Apps Script 網址）');
     }
 
     async function saveDailyReportToFolderOrDownload() {
@@ -3905,7 +4017,7 @@
           await writable.write(docText);
           await writable.close();
           hasUnsavedDailyWork = false;
-          showToast(`📂 已儲存至資料夾：${fileName}`);
+          showToast(`📂 已自動儲存至指定資料夾：${fileName}`);
           return;
         } catch (e) {}
       }
@@ -3920,9 +4032,12 @@
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       hasUnsavedDailyWork = false;
-      showToast(`📥 已下載 ${fileName}`);
+      showToast(`📥 已下載 ${fileName}（可於系統設定綁定固定資料夾）`);
     }
 
+    /* ========================================================================
+       ⚙️ 系統設定（全部設定自動雲端同步 ＋ 上載 JSON 回復）
+       ======================================================================== */
     function openSettingsModal(tab = 'people') {
       currentSettingsTab = tab;
       renderSettingsTabContent();
@@ -3947,12 +4062,13 @@
           </div>
           <div class="settings-section">
             <div class="settings-section-title">
-              <span>🪪 PCA 助理名單與輪值排位次序</span>
+              <span>🪪 PCA 助理名單與輪值排位次序（自動同步雲端）</span>
               <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                <button class="btn-secondary" style="padding:4px 9px; font-size:12px;" onclick="rotateAssistantOrder(-1)">🔼 輪轉前移</button>
-                <button class="btn-primary" style="padding:4px 10px; font-size:12px; background:#0f766e;" onclick="rotateAssistantOrder(1)">🔽 每日順延後移一位</button>
+                <button class="btn-secondary" style="padding:4px 9px; font-size:12px;" onclick="rotateAssistantOrder(-1)" title="第一位調到最後，其餘前移一位">🔼 輪轉前移</button>
+                <button class="btn-primary" style="padding:4px 10px; font-size:12px; background:#0f766e;" onclick="rotateAssistantOrder(1)" title="順住名單每日後移一位（最後一位調到第一位）">🔽 每日順延後移一位</button>
               </div>
             </div>
+            <div class="field-hint">可按 ◀ / ▶ 或直接拖拉調整先後次序；按「⚡ 自動分配接送」時會按此排位由細床號到大床號順派。</div>
             <div class="tag-chip-list">
               ${s.assistants.map((a, idx) => `
                 <span class="removable-chip" draggable="true"
@@ -3961,10 +4077,10 @@
                       ondrop="dropAssistantOrder(${idx})"
                       style="cursor:grab; gap:4px; padding:5px 8px;">
                   <span style="display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:999px; background:#0f4c81; color:#fff; font-size:11px; font-weight:900;">${idx + 1}</span>
-                  <button type="button" class="chip-x" style="background:#e2e8f0;" onclick="moveAssistantOrder(${idx}, -1)">◀</button>
+                  <button type="button" class="chip-x" style="background:#e2e8f0;" onclick="moveAssistantOrder(${idx}, -1)" title="往前移">◀</button>
                   <strong>${esc(a)}</strong>
-                  <button type="button" class="chip-x" style="background:#e2e8f0;" onclick="moveAssistantOrder(${idx}, 1)">▶</button>
-                  <button type="button" class="chip-x" onclick="removeList('assistants','${esc(a)}')">×</button>
+                  <button type="button" class="chip-x" style="background:#e2e8f0;" onclick="moveAssistantOrder(${idx}, 1)" title="往後移">▶</button>
+                  <button type="button" class="chip-x" onclick="removeList('assistants','${esc(a)}')" title="刪除">×</button>
                 </span>
               `).join('')}
             </div>
@@ -4006,7 +4122,7 @@
             <div class="settings-section-title">🦯 Walking aid 助行器選項</div>
             <div class="tag-chip-list">${s.aids.map(x => `<span class="removable-chip">${esc(x)}<button class="chip-x" onclick="removeList('aids','${esc(x)}')">×</button></span>`).join('')}</div>
             <div class="add-inline-row">
-              <input id="inpAid" type="text" class="text-input" style="max-width:200px;" placeholder="新增助行器..." />
+              <input id="inpAid" type="text" class="text-input" style="max-width:200px;" placeholder="新增助行器（如：Elbow crutch）..." />
               <button class="btn-primary" onclick="addList('aids','inpAid')">＋新增</button>
             </div>
           </div>
@@ -4014,11 +4130,11 @@
             <div class="settings-section-title">🤝 協助者／步行協助選項</div>
             <div class="tag-chip-list">${s.assists.map(x => `<span class="removable-chip">${esc(x)}<button class="chip-x" onclick="removeList('assists','${esc(x)}')">×</button></span>`).join('')}</div>
             <div class="add-inline-row">
-              <input id="inpAssistOpt" type="text" class="text-input" style="max-width:200px;" placeholder="新增協助程度..." />
+              <input id="inpAssistOpt" type="text" class="text-input" style="max-width:200px;" placeholder="新增協助程度（如：Standby）..." />
               <button class="btn-primary" onclick="addList('assists','inpAssistOpt')">＋新增</button>
             </div>
             <div class="field-group" style="margin-top:4px;">
-              <label class="field-label">醒目警示標籤：</label>
+              <label class="field-label">大電視與操作台醒目紅橙色警示標籤：</label>
               <select class="text-input" style="max-width:220px;" onchange="state.settings.assistHighlightTag=this.value; persistState(true); renderWorkspace();">
                 <option value="" ${!s.assistHighlightTag ? 'selected' : ''}>不特別標示</option>
                 ${s.assists.map(x => `<option value="${esc(x)}" ${s.assistHighlightTag === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}
@@ -4051,15 +4167,15 @@
             <div class="settings-section-title">🔔 提示音與語音報時設定</div>
             <label class="toggle-switch">
               <input type="checkbox" ${state.audioOn ? 'checked' : ''} onchange="state.audioOn=this.checked; persistState(true); renderWorkspace();" />
-              <span>啟用計時結束提示音</span>
+              <span>啟用計時結束提示音（關閉後整體靜音）</span>
             </label>
             <label class="toggle-switch">
               <input type="checkbox" ${s.voiceEnabled ? 'checked' : ''} onchange="state.settings.voiceEnabled=this.checked; persistState(true);" />
-              <span>計時到期／超時時啟用廣東話語音廣播</span>
+              <span>計時到期／超時時啟用廣東話語音廣播（雲端同步）</span>
             </label>
             <div class="form-grid" style="margin-top:4px;">
               <div class="field-group">
-                <label class="field-label">超時提醒門檻（分鐘）</label>
+                <label class="field-label">超時提醒門檻（分鐘，高危跌倒／血壓自動少 1 分鐘）</label>
                 <input type="number" min="1" max="30" class="text-input tabular" value="${s.overtimeAlertMin || 3}"
                        onchange="state.settings.overtimeAlertMin=Math.max(1,parseInt(this.value,10)||3); persistState(true);" />
               </div>
@@ -4074,7 +4190,7 @@
             <div class="settings-section-title">👷 助理記錄與看板設定</div>
             <label class="toggle-switch">
               <input type="checkbox" ${s.trackStaffAssignment ? 'checked' : ''} onchange="state.settings.trackStaffAssignment=this.checked; persistState(true); renderWorkspace();" />
-              <span>記錄及顯示負責助理</span>
+              <span>記錄及顯示誰 Set up 及結束運動（關閉後：點選運動直接一鍵倒數，並隱藏所有助理代號）</span>
             </label>
             <div class="form-grid">
               <div class="field-group">
@@ -4116,22 +4232,22 @@
             </div>
           </div>
           <div class="settings-section">
-            <div class="settings-section-title">✉️ 雲端自動發 Email 設定</div>
+            <div class="settings-section-title">✉️ 雲端自動發 Email 設定（使用你的 Gmail 寄出，同步至所有電腦）</div>
             <div class="field-group">
-              <label class="field-label">收件同事 Email 名單：</label>
+              <label class="field-label">收件同事 Email 名單（可隨時新增或點 × 移除，即時同步）：</label>
               <div class="tag-chip-list">
                 ${(s.emailRecipients || '').split(',').map(x => x.trim()).filter(Boolean).map(em => `
                   <span class="removable-chip">${esc(em)}<button class="chip-x" onclick="removeEmailRecipient('${esc(em)}')">×</button></span>
                 `).join('') || '<span style="font-size:12px; color:#64748b;">尚未新增收件同事</span>'}
               </div>
               <div class="add-inline-row" style="margin-top:4px;">
-                <input id="inpAddEmail" type="email" class="text-input" style="max-width:280px;" placeholder="輸入同事 Email"
+                <input id="inpAddEmail" type="email" class="text-input" style="max-width:280px;" placeholder="輸入同事 Email（如：chan@ha.org.hk）"
                        onkeydown="if(event.key==='Enter') addEmailRecipient()" />
                 <button class="btn-primary" onclick="addEmailRecipient()">＋新增收件人</button>
               </div>
             </div>
             <div class="field-group" style="margin-top:4px;">
-              <label class="field-label">Google Apps Script 雲端發信網址：</label>
+              <label class="field-label">Google Apps Script 雲端發信網址（貼上一次即可永久使用）：</label>
               <div class="add-inline-row">
                 <input id="inpEmailWebhook" type="text" class="text-input" style="flex:1;" value="${esc(s.emailWebhookUrl || '')}"
                        placeholder="https://script.google.com/macros/s/....../exec"
@@ -4149,6 +4265,9 @@
         body.innerHTML = `
           <div class="settings-section">
             <div class="settings-section-title">☁️ Google Firebase Realtime Database 連線狀態</div>
+            <div class="field-hint">
+              已內建你的 <code>rehab-gym-sync</code> 新加坡資料庫連線設定。所有系統設定、治療師、運動項目庫及去識別化排程（「姓X名」）皆會自動同步。
+            </div>
             <div class="field-group">
               <label class="field-label">運動室房間代碼 (Room ID)</label>
               <input id="setFbRoom" type="text" class="text-input" value="${esc(s.firebaseRoomId)}" placeholder="gym_room_1" />
@@ -4174,7 +4293,7 @@
       state.settings.emailRecipients = list.join(', ');
       persistState(true);
       renderSettingsTabContent();
-      showToast('☁️ 已新增收件人');
+      showToast('☁️ 已新增收件人並同步雲端');
     }
 
     function removeEmailRecipient(em) {
@@ -4182,7 +4301,7 @@
       state.settings.emailRecipients = list.join(', ');
       persistState(true);
       renderSettingsTabContent();
-      showToast('☁️ 已更新收件人');
+      showToast('☁️ 已更新收件人並同步雲端');
     }
 
     async function testCloudEmailWebhook() {
@@ -4199,12 +4318,12 @@
           body: JSON.stringify({
             to,
             subject: `復康運動室系統連線測試 (${todayISO()})`,
-            body: '此為復康運動室電子看板自動發信測試郵件。'
+            body: '此為復康運動室電子看板自動發信測試郵件，代表雲端 Gmail 代寄已設定成功。'
           })
         });
-        showToast(`✅ 測試請求已送出至 ${to}`);
+        showToast(`✅ 測試請求已送出至 ${to}，請檢查收件匣`);
       } catch (e) {
-        showToast('❌ 測試發信失敗');
+        showToast('❌ 測試發信失敗，請檢查網址是否正確');
       }
     }
 
@@ -4218,13 +4337,13 @@
 
     async function bindReportDirectory() {
       if (!window.showDirectoryPicker) {
-        showToast('此瀏覽器不支援直接綁定資料夾');
+        showToast('此瀏覽器不支援直接綁定資料夾，儲存時將使用標準下載');
         return;
       }
       try {
         savedDirectoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
         renderSettingsTabContent();
-        showToast(`📂 已綁定資料夾：${savedDirectoryHandle.name}`);
+        showToast(`📂 已成功綁定資料夾：${savedDirectoryHandle.name}`);
       } catch (e) {}
     }
 
@@ -4249,6 +4368,7 @@
       try {
         const text = await file.text();
         let parsed = null;
+
         if (file.name.toLowerCase().endsWith('.html') || text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
           const doc = new DOMParser().parseFromString(text, 'text/html');
           const emb = doc.querySelector('#embeddedStateScript');
@@ -4258,13 +4378,15 @@
         } else {
           parsed = JSON.parse(text);
         }
+
         if (!parsed || typeof parsed !== 'object' || (!Array.isArray(parsed.patients) && !parsed.settings)) {
-          throw new Error('檔案格式不正確');
+          throw new Error('檔案格式不正確，找不到病人或設定資料');
         }
+
         const ptCount = Array.isArray(parsed.patients) ? parsed.patients.length : 0;
         openConfirm(
           '📤 確認上載 JSON 回復',
-          `即將還原備份檔「<strong>${esc(file.name)}</strong>」（共 <strong>${ptCount}</strong> 位病人與系統設定）。確定執行？`,
+          `即將還原備份檔「<strong>${esc(file.name)}</strong>」（包含 <strong>${ptCount}</strong> 位病人與系統設定），並覆蓋目前畫面資料與同步上雲端。確定執行？`,
           '確認還原',
           '#4f46e5',
           () => {
@@ -4273,7 +4395,7 @@
             persistState(true);
             renderWorkspace();
             renderSettingsTabContent();
-            showToast(`✅ 已從 JSON 還原 ${ptCount} 位病人`);
+            showToast(`✅ 已成功從 JSON 還原 ${ptCount} 位病人與全部設定！`);
           }
         );
       } catch (err) {
@@ -4294,7 +4416,7 @@
       persistState(true);
       renderWorkspace();
       renderSettingsTabContent();
-      showToast('☁️ 已更新 PCA 排位次序');
+      showToast('☁️ 已更新 PCA 排位次序並同步雲端');
     }
 
     function dropAssistantOrder(targetIdx) {
@@ -4306,13 +4428,14 @@
       persistState(true);
       renderWorkspace();
       renderSettingsTabContent();
-      showToast('☁️ 已更新 PCA 排位次序');
+      showToast('☁️ 已更新 PCA 排位次序並同步雲端');
     }
 
     function rotateAssistantOrder(step = 1) {
       const arr = state.settings.assistants;
       if (!Array.isArray(arr) || arr.length <= 1) return;
       if (step > 0) {
+        // 順住名單每日後移一位（最後一位移去第一位，所有人順位後移一格）
         const last = arr.pop();
         arr.unshift(last);
       } else {
@@ -4322,10 +4445,11 @@
       persistState(true);
       renderWorkspace();
       renderSettingsTabContent();
-      showToast('☁️ 已順延輪轉 PCA 排位');
+      showToast('☁️ 已順延輪轉 PCA 排位並同步雲端');
     }
 
     function autoAssignTransport() {
+      // 依照設定頁排好的先後次序，篩選出今日有當值的 PCA
       const orderedDuty = state.settings.assistants.filter(ch => state.onDutyTransport.includes(ch));
       if (!orderedDuty.length) {
         showDutyDrawer = true;
@@ -4334,6 +4458,7 @@
         return;
       }
 
+      // 取得目前顯示時段（全部 / AM 1-15 / PM 16-30）內「今日出席」的病人，由細床號到大床號排列
       const targetPts = state.patients
         .filter(p => p.attendance === 'present' && isPatientInSelectedSession(p))
         .slice()
@@ -4350,7 +4475,7 @@
       openConfirm(
         '⚡ 確認自動分配接送',
         `<div style="line-height:1.6;">
-          將為 <strong>${sfLabel}</strong>（共 <strong>${targetPts.length}</strong> 位出席病人，由細床號到大床號）按當值 PCA 排位輪流分配：<br/>
+          將為 <strong>${sfLabel}</strong>（共 <strong>${targetPts.length}</strong> 位出席病人，由細床號到大床號）按以下當值 PCA 排位次序輪流分配：<br/>
           <div style="margin-top:6px; padding:6px 10px; background:#f0f9ff; border:1px solid #7dd3fc; border-radius:7px; font-weight:900; color:#0369a1;">
             ${orderedDuty.map((n, i) => `${i + 1}. ${esc(n)}`).join(' → ')}
           </div>
@@ -4369,7 +4494,7 @@
           state.transportCounter = counter;
           persistState(true);
           renderWorkspace();
-          showToast(`⚡ 已自動分配 ${targetPts.length} 位病人接送`);
+          showToast(`⚡ 已按排位次序自動分配 ${targetPts.length} 位病人接送！`);
         }
       );
     }
@@ -4385,7 +4510,7 @@
       persistState(true);
       renderWorkspace();
       renderSettingsTabContent();
-      showToast('☁️ 已新增並同步雲端');
+      showToast('☁️ 已新增並同步上雲端');
     }
 
     function removeList(key, val) {
@@ -4396,7 +4521,7 @@
       persistState(true);
       renderWorkspace();
       renderSettingsTabContent();
-      showToast('☁️ 已更新並同步雲端');
+      showToast('☁️ 已更新並同步上雲端');
     }
 
     function addLibEx() {
@@ -4407,9 +4532,12 @@
       state.settings.exerciseLibrary.unshift({ id: uid('lib'), name: n, category: c, mode: 'countdown', defaultMin: m });
       persistState(true);
       renderSettingsTabContent();
-      showToast(`☁️ 已新增「${n}」`);
+      showToast(`☁️ 已新增「${n}」並同步上雲端`);
     }
 
+    /* ========================================================================
+       其他工具與計時心跳（精準重置功能）
+       ======================================================================== */
     function openStandaloneTVPopup() {
       const base = window.location.href.split('#')[0];
       window.open(`${base}#tv`, 'RehabTV', 'width=1440,height=860');
@@ -4594,7 +4722,7 @@
           });
           persistState(true);
           renderWorkspace();
-          showToast('🔄 已備份至雲端並重置今日紀錄');
+          showToast('🔄 已備份至雲端並重置今日運動與 PCA 紀錄');
         }
       );
     }
@@ -4653,6 +4781,10 @@
           const timeText = m.isCountdown ? (m.remainingSec < 0 ? `+${formatMMSS(m.overdueSec)}` : formatMMSS(m.remainingSec)) : formatMMSS(m.elapsedSec);
           document.querySelectorAll(`[data-timer-ex="${ex.id}"]`).forEach(el => { el.textContent = timeText; });
           document.querySelectorAll(`[data-prog-ex="${ex.id}"]`).forEach(el => { el.style.width = `${m.pct}%`; });
+          document.querySelectorAll(`[data-ex-card="${ex.id}"]`).forEach(el => {
+            el.classList.remove('stage-warn', 'stage-due', 'stage-critical');
+            if (m.stage !== 'normal') el.classList.add(`stage-${m.stage}`);
+          });
         });
       });
 
@@ -4670,6 +4802,19 @@
       }
     }
 
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden' && state) {
+        persistLocalOnly();
+        if (typeof pushStateToFirebase === 'function') pushStateToFirebase();
+      }
+    });
+    window.addEventListener('pagehide', () => {
+      if (state) {
+        persistLocalOnly();
+        if (typeof pushStateToFirebase === 'function') pushStateToFirebase();
+      }
+    });
+
     function init() {
       loadState();
       parseHashRoute();
@@ -4684,4 +4829,3 @@
   </script>
 </body>
 </html>
-```eofI have updated the standing frame/wheelchair (`企車` / `企枱`) workflow in `gym_board_standing_bp.html`: starting the exercise now presents `Pre standing BP` with instant right-side `✓ Tick` saving and custom-time `✓ Tick 新增 BP` rows, completing the exercise defaults to `Post standing BP`, and early stop reasons are optional.
