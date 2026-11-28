@@ -1455,6 +1455,38 @@
       return cat === '痛症控制' || cat === '電療儀器' || cat === 'Pain Control' || cat === 'EPT Modality';
     }
 
+    function formatPainEptChineseNote(ex) {
+      if (!ex) return '';
+      const parts = [];
+      if (ex.targetSide) parts.push(ex.targetSide);
+      if (ex.targetRegion === '手指') {
+        parts.push(ex.targetFinger || '手指');
+      } else if (ex.targetRegion) {
+        parts.push(ex.targetRegion);
+      }
+      if (ex.targetAspect) parts.push(ex.targetAspect);
+      return parts.join(' ').trim();
+    }
+
+    function updateDraftExPainEpt(idx, field, val) {
+      const ex = uiCtx.draft && uiCtx.draft.exercises && uiCtx.draft.exercises[idx];
+      if (!ex) return;
+      const prevAuto = ex._autoPeNote || '';
+      ex[field] = val;
+      if (field === 'targetRegion' && val !== '手指') {
+        ex.targetFinger = '';
+      }
+      const nextAuto = formatPainEptChineseNote(ex);
+      const curNote = String(ex.note || '').trim();
+      let extraManual = curNote;
+      if (prevAuto && extraManual.startsWith(prevAuto)) {
+        extraManual = extraManual.slice(prevAuto.length).replace(/^[\s,，、/｜-]+/, '').trim();
+      }
+      ex._autoPeNote = nextAuto;
+      ex.note = [nextAuto, extraManual].filter(Boolean).join(' ');
+      renderDraftExercises();
+    }
+
     function formatPainEptDocSuffix(ex) {
       const sideMap = { '左': 'L', '右': 'R', '兩邊': 'Bi' };
       const regionMap = {
@@ -3087,7 +3119,7 @@
       const trackStaff = state.settings.trackStaffAssignment;
 
       const effectiveRowH = rowH;
-      const totalChars = exList.reduce((acc, ex) => acc + Array.from(ex.name).length + (ex.status === 'running' ? 6 : 1), 0) || 4;
+      const totalChars = exList.reduce((acc, ex) => acc + Array.from(ex.name).length + (ex.note ? Math.min(8, Array.from(ex.note).length * 0.75) : 0) + (ex.status === 'running' ? 6 : 1), 0) || 4;
       const byWidth = Math.floor((availExW - exList.length * 18) / (totalChars * 1.08));
       const byHeight = Math.floor(effectiveRowH * 0.56);
       const exFont = Math.min(44, Math.max(14, Math.min(byWidth, byHeight)));
@@ -3095,10 +3127,13 @@
       const exCardsHtml = exList.map(ex => {
         const m = computeExMetrics(ex, pt);
         const stageCls = m.stage !== 'normal' ? `stage-${m.stage}` : '';
+        const noteTagHtml = (ex.note && ex.note.trim())
+          ? `<span style="font-size:0.74em; font-weight:900; padding:1px 6px; border-radius:5px; margin-left:4px; background:${m.stage === 'critical' ? 'rgba(255,255,255,0.22)' : '#e0f2fe'}; color:${m.stage === 'critical' ? '#fff' : '#0369a1'};">${esc(ex.note.trim())}</span>`
+          : '';
         if (ex.status === 'pending') {
           return `
             <div class="tv-ex status-pending ${ex.mustDo ? 'must-do' : ''}" style="--row-ex-font:${exFont}px;">
-              <span class="tv-ex-name-pending">${ex.mustDo ? '<span style="color:#d97706;">★</span>' : ''}${esc(ex.name)}</span>
+              <span class="tv-ex-name-pending">${ex.mustDo ? '<span style="color:#d97706;">★</span>' : ''}${esc(ex.name)}${noteTagHtml}</span>
             </div>
           `;
         }
@@ -3109,7 +3144,7 @@
           return `
             <div class="tv-ex status-${ex.status} ${stageCls}" style="--row-ex-active-font:${exFont}px;">
               <div class="tv-ex-active-row">
-                <span class="tv-ex-name-active">${esc(ex.name)}</span>
+                <span class="tv-ex-name-active">${esc(ex.name)}${noteTagHtml}</span>
                 <span class="tv-ex-timer tabular" data-timer-ex="${ex.id}">${timeText}</span>
                 ${staffStr ? `<span class="tv-staff">${esc(staffStr)}</span>` : ''}
               </div>
@@ -3119,7 +3154,7 @@
         }
         return `
           <div class="tv-ex status-${ex.status}" style="--row-ex-font:${exFont}px;">
-            <span class="tv-ex-name-pending" style="text-decoration:${ex.status === 'completed' ? 'line-through' : 'none'};">✓${esc(ex.name)}</span>
+            <span class="tv-ex-name-pending" style="text-decoration:${ex.status === 'completed' ? 'line-through' : 'none'};">✓${esc(ex.name)}${noteTagHtml}</span>
           </div>
         `;
       }).join('');
@@ -4190,24 +4225,36 @@
           </label>
           <button type="button" class="btn-primary" style="padding:7px 12px; font-weight:800;" onclick="addCustomDraftEx()">＋ 加入此病人</button>
         </div>
-        <div id="edCustomPainEptBox" style="display:none; flex-wrap:wrap; align-items:center; gap:6px; background:#eff6ff; border:1px solid #93c5fd; border-radius:8px; padding:7px 9px; margin-top:4px;">
-          <span style="font-size:11.5px; font-weight:800; color:#0369a1;">部位與方向：</span>
-          <select id="edCustomExSide" class="text-input" style="width:92px; padding:5px 7px; font-size:12px;">
-            <option value="">Side...</option>
-            ${PAIN_EPT_SIDES.map(sd => `<option value="${sd}">${sd}</option>`).join('')}
-          </select>
-          <select id="edCustomExRegion" class="text-input" style="width:105px; padding:5px 7px; font-size:12px;" onchange="toggleCustomPainEptPickerVisibility()">
-            <option value="">Region...</option>
-            ${PAIN_EPT_REGIONS.map(rg => `<option value="${rg}">${rg}</option>`).join('')}
-          </select>
-          <select id="edCustomExFinger" class="text-input" style="display:none; width:105px; padding:5px 7px; font-size:12px;">
-            <option value="">手指...</option>
-            ${FINGER_SUB_REGIONS.map(fg => `<option value="${fg}">${fg}</option>`).join('')}
-          </select>
-          <select id="edCustomExAspect" class="text-input" style="width:100px; padding:5px 7px; font-size:12px;">
-            <option value="">內/外側...</option>
-            ${PAIN_EPT_ASPECTS.map(ap => `<option value="${ap}">${ap}</option>`).join('')}
-          </select>
+        <div id="edCustomPainEptBox" style="display:none; flex-wrap:wrap; align-items:center; gap:8px; background:#eff6ff; border:1px solid #93c5fd; border-radius:8px; padding:7px 10px; margin-top:4px;">
+          <span style="font-size:12px; font-weight:900; color:#0369a1;">治療部位：</span>
+          <label style="display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:800; color:#334155;">
+            <span>側別</span>
+            <select id="edCustomExSide" class="text-input" style="width:88px; padding:4px 6px; font-size:12px;">
+              <option value="" selected>未選</option>
+              ${PAIN_EPT_SIDES.map(sd => `<option value="${sd}">${sd}</option>`).join('')}
+            </select>
+          </label>
+          <label style="display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:800; color:#334155;">
+            <span>部位</span>
+            <select id="edCustomExRegion" class="text-input" style="width:98px; padding:4px 6px; font-size:12px;" onchange="toggleCustomPainEptPickerVisibility()">
+              <option value="" selected>未選</option>
+              ${PAIN_EPT_REGIONS.map(rg => `<option value="${rg}">${rg}</option>`).join('')}
+            </select>
+          </label>
+          <label id="edCustomExFingerWrap" style="display:none; align-items:center; gap:4px; font-size:12px; font-weight:800; color:#334155;">
+            <span>手指</span>
+            <select id="edCustomExFinger" class="text-input" style="width:98px; padding:4px 6px; font-size:12px;">
+              <option value="" selected>未選</option>
+              ${FINGER_SUB_REGIONS.map(fg => `<option value="${fg}">${fg}</option>`).join('')}
+            </select>
+          </label>
+          <label style="display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:800; color:#334155;">
+            <span>位置</span>
+            <select id="edCustomExAspect" class="text-input" style="width:88px; padding:4px 6px; font-size:12px;">
+              <option value="" selected>未選</option>
+              ${PAIN_EPT_ASPECTS.map(ap => `<option value="${ap}">${ap}</option>`).join('')}
+            </select>
+          </label>
         </div>
       `;
     }
@@ -4216,9 +4263,9 @@
       const cat = document.getElementById('edCustomExCat')?.value || '';
       const box = document.getElementById('edCustomPainEptBox');
       if (box) box.style.display = isPainOrEptCategory(cat) ? 'flex' : 'none';
-      const fingerSel = document.getElementById('edCustomExFinger');
+      const fingerWrap = document.getElementById('edCustomExFingerWrap');
       const reg = document.getElementById('edCustomExRegion')?.value || '';
-      if (fingerSel) fingerSel.style.display = reg === '手指' ? 'inline-block' : 'none';
+      if (fingerWrap) fingerWrap.style.display = reg === '手指' ? 'inline-flex' : 'none';
     }
 
     function addCustomDraftEx() {
@@ -4246,6 +4293,11 @@
         exObj.targetRegion = document.getElementById('edCustomExRegion')?.value || '';
         exObj.targetFinger = exObj.targetRegion === '手指' ? (document.getElementById('edCustomExFinger')?.value || '') : '';
         exObj.targetAspect = document.getElementById('edCustomExAspect')?.value || '';
+        const peNote = formatPainEptChineseNote(exObj);
+        if (peNote) {
+          exObj._autoPeNote = peNote;
+          exObj.note = peNote;
+        }
       }
 
       if (addToList) {
@@ -4297,26 +4349,38 @@
               const showPE = isPainOrEptCategory(exCat) || ex.targetSide || ex.targetRegion || ex.targetAspect;
               if (!showPE) return '';
               return `
-                <div style="width:100%; display:flex; flex-wrap:wrap; align-items:center; gap:5px; padding-top:5px; border-top:1px dashed #e2e8f0; font-size:12px;">
-                  <span style="font-weight:800; color:#0369a1;">${esc(exCat || 'Pain/EPT')}：</span>
-                  <select onchange="uiCtx.draft.exercises[${idx}].targetSide=this.value" style="padding:3px 6px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
-                    <option value="">Side</option>
-                    ${PAIN_EPT_SIDES.map(sd => `<option value="${sd}" ${ex.targetSide === sd ? 'selected' : ''}>${sd}</option>`).join('')}
-                  </select>
-                  <select onchange="uiCtx.draft.exercises[${idx}].targetRegion=this.value; renderDraftExercises();" style="padding:3px 6px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
-                    <option value="">Region</option>
-                    ${PAIN_EPT_REGIONS.map(rg => `<option value="${rg}" ${ex.targetRegion === rg ? 'selected' : ''}>${rg}</option>`).join('')}
-                  </select>
-                  ${ex.targetRegion === '手指' ? `
-                    <select onchange="uiCtx.draft.exercises[${idx}].targetFinger=this.value" style="padding:3px 6px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
-                      <option value="">手指</option>
-                      ${FINGER_SUB_REGIONS.map(fg => `<option value="${fg}" ${ex.targetFinger === fg ? 'selected' : ''}>${fg}</option>`).join('')}
+                <div style="width:100%; display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding-top:6px; border-top:1px dashed #e2e8f0; font-size:12px;">
+                  <span style="font-weight:900; color:#0369a1;">治療部位（自動填入備註並顯示於大電視）：</span>
+                  <label style="display:inline-flex; align-items:center; gap:4px; font-weight:800; color:#334155;">
+                    <span>側別</span>
+                    <select onchange="updateDraftExPainEpt(${idx}, 'targetSide', this.value)" style="padding:3px 6px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                      <option value="" ${!ex.targetSide ? 'selected' : ''}>未選</option>
+                      ${PAIN_EPT_SIDES.map(sd => `<option value="${sd}" ${ex.targetSide === sd ? 'selected' : ''}>${sd}</option>`).join('')}
                     </select>
+                  </label>
+                  <label style="display:inline-flex; align-items:center; gap:4px; font-weight:800; color:#334155;">
+                    <span>部位</span>
+                    <select onchange="updateDraftExPainEpt(${idx}, 'targetRegion', this.value)" style="padding:3px 6px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                      <option value="" ${!ex.targetRegion ? 'selected' : ''}>未選</option>
+                      ${PAIN_EPT_REGIONS.map(rg => `<option value="${rg}" ${ex.targetRegion === rg ? 'selected' : ''}>${rg}</option>`).join('')}
+                    </select>
+                  </label>
+                  ${ex.targetRegion === '手指' ? `
+                    <label style="display:inline-flex; align-items:center; gap:4px; font-weight:800; color:#334155;">
+                      <span>手指</span>
+                      <select onchange="updateDraftExPainEpt(${idx}, 'targetFinger', this.value)" style="padding:3px 6px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                        <option value="" ${!ex.targetFinger ? 'selected' : ''}>未選</option>
+                        ${FINGER_SUB_REGIONS.map(fg => `<option value="${fg}" ${ex.targetFinger === fg ? 'selected' : ''}>${fg}</option>`).join('')}
+                      </select>
+                    </label>
                   ` : ''}
-                  <select onchange="uiCtx.draft.exercises[${idx}].targetAspect=this.value" style="padding:3px 6px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
-                    <option value="">內/外側</option>
-                    ${PAIN_EPT_ASPECTS.map(ap => `<option value="${ap}" ${ex.targetAspect === ap ? 'selected' : ''}>${ap}</option>`).join('')}
-                  </select>
+                  <label style="display:inline-flex; align-items:center; gap:4px; font-weight:800; color:#334155;">
+                    <span>位置</span>
+                    <select onchange="updateDraftExPainEpt(${idx}, 'targetAspect', this.value)" style="padding:3px 6px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+                      <option value="" ${!ex.targetAspect ? 'selected' : ''}>未選</option>
+                      ${PAIN_EPT_ASPECTS.map(ap => `<option value="${ap}" ${ex.targetAspect === ap ? 'selected' : ''}>${ap}</option>`).join('')}
+                    </select>
+                  </label>
                 </div>
               `;
             })()}
@@ -4667,7 +4731,12 @@
         const ptSid = getPatientEffectiveSessionId(pt);
         const enName = (ex.customDoc && ex.customDoc.trim()) ? ex.customDoc.trim() : getSessionDocTextForExercise(ptSid, ex.name);
         const peSuffix = formatPainEptDocSuffix(ex);
-        const noteStr = formatDocNote(ex.note);
+        const autoZh = formatPainEptChineseNote(ex);
+        let cleanManualNote = String(ex.note || '').trim();
+        if (autoZh && cleanManualNote.startsWith(autoZh)) {
+          cleanManualNote = cleanManualNote.slice(autoZh.length).replace(/^[\s,，、/｜-]+/, '').trim();
+        }
+        const noteStr = formatDocNote(cleanManualNote);
         let line = `- ${enName}${peSuffix}${noteStr} x ${mins} min`;
 
         const bpParts = [];
