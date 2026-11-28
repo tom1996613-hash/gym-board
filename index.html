@@ -477,6 +477,26 @@
       box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.28);
       z-index: 2;
     }
+    .tv-slot-corner {
+      position: absolute;
+      bottom: 0; left: 0;
+      font-size: var(--tv-therapist);
+      font-weight: 900;
+      line-height: 1.05;
+      padding: 2px 7px 3px 6px;
+      border-top-right-radius: 9px;
+      background: #0f172a;
+      color: #ffffff;
+      box-shadow: 1px -1px 4px rgba(0, 0, 0, 0.28);
+      z-index: 2;
+    }
+    .tv-ward-sub {
+      font-size: calc(var(--tv-name) * 0.44);
+      font-weight: 900;
+      color: #0369a1;
+      line-height: 1.05;
+      margin-top: 2px;
+    }
     .tv-bed-num {
       font-size: var(--tv-bed);
       font-weight: 900;
@@ -913,11 +933,7 @@
     </div>
 
     <div class="topbar-controls">
-      <div class="seg-group" title="按時段篩選床號（同步隱藏非該節病人）">
-        <button class="seg-top-btn" data-session="ALL" onclick="setSessionFilter('ALL')">全部時段</button>
-        <button class="seg-top-btn" data-session="AM" onclick="setSessionFilter('AM')">AM (女 1-15)</button>
-        <button class="seg-top-btn" data-session="PM" onclick="setSessionFilter('PM')">PM (男 16-30)</button>
-      </div>
+      <div id="topbarLocationSessionGroup" style="display:inline-flex; flex-wrap:wrap; align-items:center; gap:5px;"></div>
 
       <div class="seg-group">
         <button class="seg-top-btn" data-view="split" onclick="setViewMode('split')">雙畫面</button>
@@ -967,6 +983,7 @@
       </div>
 
       <div class="settings-tabs">
+        <button class="s-tab" data-stab="sessions" onclick="switchSettingsTab('sessions')">🏥 場地與節數</button>
         <button class="s-tab" data-stab="people" onclick="switchSettingsTab('people')">👥 人員名單</button>
         <button class="s-tab" data-stab="exercises" onclick="switchSettingsTab('exercises')">🏋️ 運動項目庫</button>
         <button class="s-tab" data-stab="clinical" onclick="switchSettingsTab('clinical')">🩺 臨床與接送選項</button>
@@ -1170,6 +1187,14 @@
       </div>
       <div class="modal-body">
         <div class="form-grid">
+          <div class="field-group" id="edSlotGroup" style="display:none;">
+            <label class="field-label">固定 QR 牌號 (01–15) *</label>
+            <select id="edQrSlot" class="text-input tabular"></select>
+          </div>
+          <div class="field-group" id="edWardGroup" style="display:none;">
+            <label class="field-label">所屬病房 *</label>
+            <input id="edWard" type="text" class="text-input" placeholder="如：4A / 5B / L2" />
+          </div>
           <div class="field-group">
             <label class="field-label">床號 *</label>
             <input id="edBed" type="text" class="text-input" placeholder="如：21" />
@@ -1410,6 +1435,84 @@
       return [...equip.map(n => make(n, '器械計時')), ...func.map(n => make(n, '功能訓練')), ...custom.map(n => make(n, '自訂快捷'))];
     }
 
+    const GYM_SESSION_CATALOG = [
+      { id: 'C3_S1', location: 'C3', label: '第 1 節', shortLabel: '第1節', isL2Fixed: false, defaultWard: '', maxSlots: 15 },
+      { id: 'C3_S2', location: 'C3', label: '第 2 節 [AM 女]', shortLabel: '第2節 [AM女]', isL2Fixed: true, defaultWard: 'L2', maxSlots: 15, bedMin: 1, bedMax: 15 },
+      { id: 'C3_S3', location: 'C3', label: '第 3 節 [PM 男]', shortLabel: '第3節 [PM男]', isL2Fixed: true, defaultWard: 'L2', maxSlots: 15, bedMin: 16, bedMax: 30 },
+      { id: 'C3_S4', location: 'C3', label: '第 4 節', shortLabel: '第4節', isL2Fixed: false, defaultWard: '', maxSlots: 15 },
+      { id: 'L5_PM', location: 'L5', label: 'PM Gym', shortLabel: 'PM Gym', isL2Fixed: false, defaultWard: '', maxSlots: 15 }
+    ];
+
+    function getSessionMeta(sessionId) {
+      return GYM_SESSION_CATALOG.find(x => x.id === sessionId) || GYM_SESSION_CATALOG[1];
+    }
+
+    function getActiveSessionIds() {
+      const active = (state && state.settings && Array.isArray(state.settings.activeSessions) && state.settings.activeSessions.length)
+        ? state.settings.activeSessions.filter(id => GYM_SESSION_CATALOG.some(s => s.id === id))
+        : ['C3_S2', 'C3_S3'];
+      return active.length ? active : ['C3_S2'];
+    }
+
+    function getCurrentSessionId() {
+      const active = getActiveSessionIds();
+      const cur = state && state.settings && state.settings.currentSessionId;
+      if (cur && active.includes(cur)) return cur;
+      return active[0];
+    }
+
+    function getCurrentSessionMeta() {
+      return getSessionMeta(getCurrentSessionId());
+    }
+
+    function padSlot2(n) {
+      const num = parseInt(String(n || '').replace(/[^\d]/g, ''), 10);
+      if (isNaN(num) || num <= 0) return '';
+      return String(num).padStart(2, '0');
+    }
+
+    function getPatientEffectiveSessionId(pt) {
+      if (pt.sessionId && GYM_SESSION_CATALOG.some(s => s.id === pt.sessionId)) return pt.sessionId;
+      const b = bedNumeric(pt.bed);
+      if (b >= 1 && b <= 15) return 'C3_S2';
+      return 'C3_S3';
+    }
+
+    function getPatientQrCodeKey(pt) {
+      const sid = getPatientEffectiveSessionId(pt);
+      const meta = getSessionMeta(sid);
+      if (meta.isL2Fixed) return String(pt.bed || '').trim();
+      return padSlot2(pt.qrSlot || pt.bed);
+    }
+
+    function getSessionEmailList(sessionId) {
+      const map = (state && state.settings && state.settings.sessionEmails) || {};
+      const raw = map[sessionId];
+      if (Array.isArray(raw)) return raw.map(x => String(x).trim()).filter(Boolean);
+      if (typeof raw === 'string') return raw.split(',').map(x => x.trim()).filter(Boolean);
+      return [];
+    }
+
+    function setCurrentLocation(loc) {
+      const active = getActiveSessionIds();
+      const match = active.find(id => getSessionMeta(id).location === loc);
+      if (!match) return;
+      state.settings.currentSessionId = match;
+      tvPageIndex = 0;
+      tvPageElapsedMs = 0;
+      persistState(true);
+      renderWorkspace();
+    }
+
+    function setCurrentSession(sessionId) {
+      const active = getActiveSessionIds();
+      if (!active.includes(sessionId)) return;
+      state.settings.currentSessionId = sessionId;
+      tvPageIndex = 0;
+      tvPageElapsedMs = 0;
+      persistState(true);
+      renderWorkspace();
+    }
     function createDefaultSettings() {
       return {
         systemTitle: '復康運動室電子看板',
@@ -1418,7 +1521,8 @@
         pageIntervalSec: 3.0,
         tvFontScale: 1.0,
         tvPriorityMode: 'standard',
-        sessionFilter: 'ALL',
+        activeSessions: ['C3_S2', 'C3_S3'],
+        currentSessionId: 'C3_S2',
         overtimeAlertMin: 3,
         voiceEnabled: true,
         trackStaffAssignment: true,
@@ -1431,6 +1535,13 @@
         transportModes: ['車', '企車', '跟車'],
         transportExtras: ['吊機', '雙人'],
         earlyReasons: ['疲倦', '頭暈／血壓不適', '痛楚', '檢查／覆診', '其他'],
+        sessionEmails: {
+          C3_S1: [],
+          C3_S2: [],
+          C3_S3: [],
+          C3_S4: [],
+          L5_PM: []
+        },
         emailRecipients: '',
         emailWebhookUrl: '',
         firebaseConfigText: BUILTIN_FIREBASE_CONFIG,
@@ -1446,6 +1557,8 @@
     let viewMode = 'split';
     let isStandaloneTV = false;
     let mobileBedNum = null;
+    let mobileSessionId = null;
+    let mobileSlotCode = null;
     let mobileStaffSelected = [];
     let therapistFilter = 'ALL';
     let reportTherapistFilter = 'ALL';
@@ -1591,8 +1704,12 @@
 
       const safePatients = state.patients.map(pt => {
         const masked = maskName(pt.name);
+        const sid = getPatientEffectiveSessionId(pt);
         return {
           id: pt.id,
+          sessionId: sid,
+          ward: pt.ward || (getSessionMeta(sid).isL2Fixed ? 'L2' : ''),
+          qrSlot: pt.qrSlot || '',
           bed: pt.bed,
           maskedName: (masked && masked !== '—') ? masked : `${pt.bed}號床`,
           surnameLabel: getSurnameTitle(pt),
@@ -1689,7 +1806,7 @@
        防意外關閉網頁保障機制
        ======================================================================== */
     window.addEventListener('beforeunload', (e) => {
-      if (mobileBedNum) return;
+      if (mobileBedNum || (mobileSessionId && mobileSlotCode)) return;
       const hasRunning = state && state.patients && state.patients.some(p => p.exercises.some(ex => ex.status === 'running' || ex.status === 'paused'));
       if (hasRunning || hasUnsavedDailyWork) {
         e.preventDefault();
@@ -1924,7 +2041,34 @@
       if (!Array.isArray(s.onDutyTransport)) s.onDutyTransport = [];
       s.onDutyTransport = s.onDutyTransport.filter(x => s.settings.assistants.includes(x));
       if (!Array.isArray(s.patients)) s.patients = [];
+      if (!Array.isArray(s.settings.activeSessions) || !s.settings.activeSessions.length) {
+        s.settings.activeSessions = ['C3_S2', 'C3_S3'];
+      }
+      if (!s.settings.currentSessionId || !s.settings.activeSessions.includes(s.settings.currentSessionId)) {
+        s.settings.currentSessionId = s.settings.activeSessions[0];
+      }
+      if (!s.settings.sessionEmails || typeof s.settings.sessionEmails !== 'object') {
+        s.settings.sessionEmails = { C3_S1: [], C3_S2: [], C3_S3: [], C3_S4: [], L5_PM: [] };
+      }
+      // Migrate legacy comma-separated emailRecipients into C3_S2/C3_S3 if sessionEmails are all empty
+      if (s.settings.emailRecipients && Object.values(s.settings.sessionEmails).every(arr => !Array.isArray(arr) || arr.length === 0)) {
+        const legacy = s.settings.emailRecipients.split(',').map(x => x.trim()).filter(Boolean);
+        if (legacy.length) {
+          s.settings.sessionEmails.C3_S2 = [...legacy];
+          s.settings.sessionEmails.C3_S3 = [...legacy];
+        }
+      }
       s.patients.forEach(pt => {
+        if (!pt.sessionId || !GYM_SESSION_CATALOG.some(m => m.id === pt.sessionId)) {
+          const b = bedNumeric(pt.bed);
+          pt.sessionId = (b >= 1 && b <= 15) ? 'C3_S2' : 'C3_S3';
+        }
+        const meta = getSessionMeta(pt.sessionId);
+        if (meta.isL2Fixed) {
+          if (!pt.ward) pt.ward = 'L2';
+        } else {
+          if (!pt.qrSlot) pt.qrSlot = padSlot2(pt.bed) || '01';
+        }
         if (!Array.isArray(pt.aidExtras)) pt.aidExtras = [];
         if (!Array.isArray(pt.transportExtras)) pt.transportExtras = [];
         if (!Array.isArray(pt.walkLogs)) pt.walkLogs = [];
@@ -2056,12 +2200,11 @@
        自動排序與大電視分頁
        ======================================================================== */
     function isPatientInSelectedSession(pt) {
-      const sf = (state && state.settings && state.settings.sessionFilter) || 'ALL';
-      if (sf === 'ALL') return true;
-      const num = bedNumeric(pt.bed);
-      if (sf === 'AM') return num >= 1 && num <= 15;
-      if (sf === 'PM') return num >= 16 && num <= 30;
-      return true;
+      const activeIds = getActiveSessionIds();
+      const curSid = getCurrentSessionId();
+      const ptSid = getPatientEffectiveSessionId(pt);
+      if (!activeIds.includes(ptSid)) return false;
+      return ptSid === curSid;
     }
 
     function setSessionFilter(val) {
@@ -2234,15 +2377,21 @@
        ======================================================================== */
     function parseHashRoute() {
       const h = window.location.hash || '';
-      if (h.startsWith('#bed=')) {
+      mobileBedNum = null;
+      mobileSessionId = null;
+      mobileSlotCode = null;
+      if (h.startsWith('#s=')) {
+        const params = new URLSearchParams(h.slice(1));
+        mobileSessionId = (params.get('s') || '').trim();
+        mobileSlotCode = padSlot2(params.get('slot') || '');
+        isStandaloneTV = false;
+      } else if (h.startsWith('#bed=')) {
         mobileBedNum = decodeURIComponent(h.slice(5)).trim();
         isStandaloneTV = false;
       } else if (h === '#tv') {
-        mobileBedNum = null;
         isStandaloneTV = true;
         viewMode = 'tv';
       } else {
-        mobileBedNum = null;
         isStandaloneTV = false;
       }
       document.body.classList.toggle('standalone-tv', isStandaloneTV);
@@ -2306,20 +2455,36 @@
     function renderWorkspace() {
       const ws = document.getElementById('workspace');
 
-      if (mobileBedNum) {
+      if (mobileBedNum || (mobileSessionId && mobileSlotCode)) {
         document.getElementById('topbar').style.display = 'none';
         document.getElementById('tvFloatBar').style.display = 'none';
         ws.className = 'workspace';
-        ws.innerHTML = renderMobileBedView(mobileBedNum);
+        ws.innerHTML = renderMobileBedView();
         return;
       }
 
       document.getElementById('topbar').style.display = isStandaloneTV ? 'none' : 'flex';
       document.getElementById('tvFloatBar').style.display = isStandaloneTV ? 'flex' : 'none';
-      document.getElementById('topbarTitle').textContent = state.settings.systemTitle;
+      const activeIds = getActiveSessionIds();
+      const curSid = getCurrentSessionId();
+      const curMeta = getSessionMeta(curSid);
+      const activeLocs = Array.from(new Set(activeIds.map(id => getSessionMeta(id).location)));
+      const locSessions = activeIds.map(id => getSessionMeta(id)).filter(m => m.location === curMeta.location);
+
+      document.getElementById('topbarTitle').textContent = `${state.settings.systemTitle} · ${curMeta.location} ${curMeta.shortLabel}`;
       document.getElementById('topbarSub').textContent = `${todayISO()}（${weekdayZh()}）`;
 
-      document.querySelectorAll('[data-session]').forEach(b => b.classList.toggle('active', b.dataset.session === (state.settings.sessionFilter || 'ALL')));
+      const locGrp = document.getElementById('topbarLocationSessionGroup');
+      if (locGrp) {
+        locGrp.innerHTML = `
+          <div class="seg-group" title="選擇場地 Location">
+            ${activeLocs.map(loc => `<button class="seg-top-btn ${curMeta.location === loc ? 'active' : ''}" style="${curMeta.location === loc ? 'background:#0d9488;' : ''}" onclick="setCurrentLocation('${loc}')">🏥 ${loc}</button>`).join('')}
+          </div>
+          <div class="seg-group" title="選擇該場地節數 Session">
+            ${locSessions.map(m => `<button class="seg-top-btn ${curSid === m.id ? 'active' : ''}" onclick="setCurrentSession('${m.id}')">${esc(m.shortLabel)}</button>`).join('')}
+          </div>
+        `;
+      }
       document.querySelectorAll('[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === viewMode));
       document.querySelectorAll('[data-page]').forEach(b => b.classList.toggle('active', Number(b.dataset.page) === Number(state.tvPageSize)));
 
@@ -2362,16 +2527,42 @@
     /* ========================================================================
        手機掃描床號 QR Code 專屬極簡操作介面 (#bed=21)
        ======================================================================== */
-    function renderMobileBedView(bedNum) {
-      const pt = state.patients.find(p => String(p.bed) === String(bedNum));
+    function renderMobileBedView() {
+      let pt = null;
+      let headerCodeLabel = '';
+      if (mobileSessionId && mobileSlotCode) {
+        const meta = getSessionMeta(mobileSessionId);
+        headerCodeLabel = `${meta.location} ${meta.shortLabel} · 牌號 ${mobileSlotCode}`;
+        const activeIds = getActiveSessionIds();
+        if (!activeIds.includes(mobileSessionId)) {
+          return `
+            <div class="mobile-bed-app" style="justify-content:center; align-items:center; text-align:center;">
+              <div style="font-size:26px; font-weight:900;">${esc(meta.location)} ${esc(meta.label)} 目前未啟用</div>
+              <div style="color:#94a3b8; font-size:15px;">請在主電腦「⚙️ 系統設定 → 🏥 場地與節數」啟用該節後再掃描</div>
+            </div>
+          `;
+        }
+        pt = state.patients.find(p => getPatientEffectiveSessionId(p) === mobileSessionId && padSlot2(p.qrSlot || p.bed) === mobileSlotCode);
+      } else {
+        headerCodeLabel = `${mobileBedNum} 號床`;
+        pt = state.patients.find(p => {
+          const sid = getPatientEffectiveSessionId(p);
+          return (sid === 'C3_S2' || sid === 'C3_S3') && String(p.bed) === String(mobileBedNum);
+        });
+      }
+
       if (!pt) {
         return `
           <div class="mobile-bed-app" style="justify-content:center; align-items:center; text-align:center;">
-            <div style="font-size:28px; font-weight:900;">找不到 ${esc(bedNum)} 號床排程</div>
-            <div style="color:#94a3b8; font-size:15px;">請確認主電腦已啟動並開啟今日排程</div>
+            <div style="font-size:28px; font-weight:900;">${esc(headerCodeLabel)} 暫無排程</div>
+            <div style="color:#94a3b8; font-size:15px;">請確認主電腦已將病人安排至此固定牌號／床號</div>
           </div>
         `;
       }
+      const ptMeta = getSessionMeta(getPatientEffectiveSessionId(pt));
+      const wardBedTitle = ptMeta.isL2Fixed
+        ? `${esc(pt.bed)}號床`
+        : `<span style="font-size:20px; background:#0f172a; color:#fff; padding:2px 9px; border-radius:7px; margin-right:6px;">牌 ${esc(padSlot2(pt.qrSlot || pt.bed))}</span>${esc(pt.ward ? pt.ward + '-' : '')}${esc(pt.bed)}號床`;
 
       const r = getRiskInfo(pt);
       const surnameStr = getSurnameTitle(pt);
@@ -2446,7 +2637,7 @@
 
           <div class="m-bed-card ${r.cls}">
             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-              <div style="font-size:38px; font-weight:900; line-height:1;">${esc(pt.bed)}號床 ${surnameStr ? `<span style="font-size:28px; margin-left:4px;">${esc(surnameStr)}</span>` : ''} ${r.symHtml}</div>
+              <div style="font-size:34px; font-weight:900; line-height:1.15;">${wardBedTitle} ${surnameStr ? `<span style="font-size:26px; margin-left:4px;">${esc(surnameStr)}</span>` : ''} ${r.symHtml}</div>
               ${renderSideVisual(pt.side)}
             </div>
             <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; align-items:center;">
@@ -2555,7 +2746,7 @@
         <div class="tv-board" style="${boardVars}">
           <div class="tv-header">
             <div class="tv-head-left">
-              <span class="tv-board-title">${esc(state.settings.tvTitle)}</span>
+              <span class="tv-board-title">${esc(state.settings.tvTitle)} · ${esc(getCurrentSessionMeta().location)} ${esc(getCurrentSessionMeta().shortLabel)}</span>
               ${pageNavHtml}
               <div class="tv-kpi-inline tabular">
                 <span class="tv-kpi-chip">等待 ${model.groups.waiting.length}</span>
@@ -2636,14 +2827,22 @@
         ? `<div class="tv-row-footer-note">📌 ${esc(pt.specialNote.trim())}</div>`
         : '';
 
+      const ptMeta = getSessionMeta(getPatientEffectiveSessionId(pt));
+      const slotBadge = !ptMeta.isL2Fixed ? padSlot2(pt.qrSlot || pt.bed) : '';
+      const wardBedDisplay = (!ptMeta.isL2Fixed && pt.ward) ? `${pt.ward}-${pt.bed}` : '';
+
       return `
         <div class="tv-row ${r.cls} ${isAllDone ? 'is-all-done' : ''} ${isPinned ? 'is-pinned' : ''}">
           <div class="tv-col tv-col-bed tabular">
             ${pt.therapist ? `<span class="tv-therapist-corner" style="background:${tCol};">${esc(pt.therapist)}</span>` : ''}
+            ${slotBadge ? `<span class="tv-slot-corner" title="固定QR牌號">${esc(slotBadge)}</span>` : ''}
             <span class="tv-bed-num">${esc(pt.bed)}</span>
             ${r.symHtml}
           </div>
-          <div class="tv-col tv-col-name">${esc(maskName(pt.name))}</div>
+          <div class="tv-col tv-col-name" style="flex-direction:column;">
+            <span>${esc(maskName(pt.name))}</span>
+            ${wardBedDisplay ? `<span class="tv-ward-sub tabular">${esc(wardBedDisplay)}</span>` : ''}
+          </div>
           <div class="tv-col tv-col-mob">
             <div class="tv-mob-top">
               ${renderSideVisual(pt.side)}
@@ -2710,9 +2909,15 @@
 
         <div class="pc-toolbar">
           <div class="filter-chips">
-            <button class="filter-chip ${sf === 'ALL' ? 'active' : ''}" onclick="setSessionFilter('ALL')">全部時段</button>
-            <button class="filter-chip ${sf === 'AM' ? 'active' : ''}" style="${sf === 'AM' ? 'background:#be185d; border-color:#be185d;' : 'border-color:#be185d; color:#be185d;'}" onclick="setSessionFilter('AM')">AM (女 1-15)</button>
-            <button class="filter-chip ${sf === 'PM' ? 'active' : ''}" style="${sf === 'PM' ? 'background:#1d4ed8; border-color:#1d4ed8;' : 'border-color:#1d4ed8; color:#1d4ed8;'}" onclick="setSessionFilter('PM')">PM (男 16-30)</button>
+            ${(() => {
+              const activeIds = getActiveSessionIds();
+              const curSid = getCurrentSessionId();
+              return activeIds.map(id => {
+                const m = getSessionMeta(id);
+                const act = id === curSid;
+                return `<button class="filter-chip ${act ? 'active' : ''}" style="${act ? 'background:#0f766e; border-color:#0f766e;' : 'border-color:#0f766e; color:#0f766e;'}" onclick="setCurrentSession('${m.id}')">${esc(m.location)} ${esc(m.shortLabel)}</button>`;
+              }).join('');
+            })()}
             <span style="color:#cbd5e1; margin:0 2px;">|</span>
             <button class="filter-chip ${therapistFilter === 'ALL' ? 'active' : ''}" onclick="therapistFilter='ALL'; renderWorkspace();">全部治療師 (${sessionPts.length})</button>
             ${therapists.map(t => {
@@ -2763,7 +2968,17 @@
         <article class="pc-card ${r.cls} ${isAllDone ? 'is-all-done' : ''} ${isInactive ? 'is-inactive' : ''}">
           <div class="pc-card-top">
             <div class="pc-meta-left">
-              <span class="bed-badge tabular">${esc(pt.bed)}${r.symHtml}</span>
+              ${(() => {
+                const ptMeta = getSessionMeta(getPatientEffectiveSessionId(pt));
+                if (ptMeta.isL2Fixed) {
+                  return `<span class="bed-badge tabular">${esc(pt.bed)}${r.symHtml}</span>`;
+                }
+                const slot = padSlot2(pt.qrSlot || pt.bed);
+                return `
+                  <span class="pc-tag tabular" style="background:#0f172a; color:#fff; border:none;">牌 ${esc(slot)}</span>
+                  <span class="bed-badge tabular">${esc(pt.ward ? pt.ward + '-' : '')}${esc(pt.bed)}${r.symHtml}</span>
+                `;
+              })()}
               <span class="pc-name">${esc(pt.name)}</span>
               ${pt.therapist ? `<span class="pc-tag therapist" style="background:${tCol};">${esc(pt.therapist)}</span>` : ''}
               ${pt.transportStaff
@@ -3505,13 +3720,29 @@
       uiCtx.editPatientId = ptId;
       const existing = ptId ? state.patients.find(p => p.id === ptId) : null;
       const s = state.settings;
+      const curSid = existing ? getPatientEffectiveSessionId(existing) : getCurrentSessionId();
+      const meta = getSessionMeta(curSid);
+
       if (existing) {
         uiCtx.draft = JSON.parse(JSON.stringify(existing));
-        document.getElementById('patientModalTitle').textContent = `編輯病人：${existing.bed}號床`;
+        uiCtx.draft.sessionId = curSid;
+        document.getElementById('patientModalTitle').textContent = `編輯病人（${meta.location} ${meta.shortLabel}）：${existing.bed}號床`;
         document.getElementById('btnRemovePatient').style.display = 'inline-block';
       } else {
+        // Pick first unused QR slot 01-15 in this session
+        const usedSlots = new Set(
+          state.patients
+            .filter(p => getPatientEffectiveSessionId(p) === curSid)
+            .map(p => padSlot2(p.qrSlot || p.bed))
+        );
+        let nextSlot = '01';
+        for (let i = 1; i <= 15; i++) {
+          const cand = String(i).padStart(2, '0');
+          if (!usedSlots.has(cand)) { nextSlot = cand; break; }
+        }
         uiCtx.draft = {
-          id: uid('pt'), bed: '', name: '', therapist: s.therapists[0] || '',
+          id: uid('pt'), sessionId: curSid, ward: meta.isL2Fixed ? 'L2' : '', qrSlot: meta.isL2Fixed ? '' : nextSlot,
+          bed: '', name: '', therapist: s.therapists[0] || '',
           side: 'L', aid: s.aids[1] || s.aids[0] || 'Frame', aidExtras: [],
           assist: s.assists.includes('1A') ? '1A' : (s.assists[0] || ''),
           transportMode: '', transportExtras: [],
@@ -3520,9 +3751,26 @@
           transportOrder: null, transportStaff: '', transportTime: '',
           walkLogs: [], bpLogs: [], exercises: []
         };
-        document.getElementById('patientModalTitle').textContent = '＋ 新增病人';
+        document.getElementById('patientModalTitle').textContent = `＋ 新增病人（${meta.location} ${meta.shortLabel}）`;
         document.getElementById('btnRemovePatient').style.display = 'none';
       }
+
+      const slotGrp = document.getElementById('edSlotGroup');
+      const wardGrp = document.getElementById('edWardGroup');
+      if (meta.isL2Fixed) {
+        slotGrp.style.display = 'none';
+        wardGrp.style.display = 'none';
+      } else {
+        slotGrp.style.display = 'flex';
+        wardGrp.style.display = 'flex';
+        const curSlot = padSlot2(uiCtx.draft.qrSlot || '01') || '01';
+        document.getElementById('edQrSlot').innerHTML = Array.from({ length: 15 }, (_, i) => {
+          const code = String(i + 1).padStart(2, '0');
+          return `<option value="${code}" ${code === curSlot ? 'selected' : ''}>固定 QR 牌 ${code}</option>`;
+        }).join('');
+        document.getElementById('edWard').value = uiCtx.draft.ward || '';
+      }
+
       document.getElementById('edBed').value = uiCtx.draft.bed;
       document.getElementById('edName').value = uiCtx.draft.name;
       document.getElementById('edSpecialNote').value = uiCtx.draft.specialNote || '';
@@ -3647,8 +3895,22 @@
       const bed = document.getElementById('edBed').value.trim();
       const name = document.getElementById('edName').value.trim();
       const customT = document.getElementById('edTherapistCustom').value.trim();
-      if (!bed || !name) { showToast('請填寫床號與名稱'); return; }
       const d = uiCtx.draft;
+      const meta = getSessionMeta(d.sessionId || getCurrentSessionId());
+      d.sessionId = meta.id;
+
+      if (meta.isL2Fixed) {
+        d.ward = 'L2';
+        d.qrSlot = '';
+      } else {
+        const wardVal = (document.getElementById('edWard')?.value || '').trim();
+        const slotVal = padSlot2(document.getElementById('edQrSlot')?.value || '01');
+        if (!wardVal) { showToast('請填寫所屬病房（例如 4A / 5B）'); return; }
+        d.ward = wardVal;
+        d.qrSlot = slotVal;
+      }
+
+      if (!bed || !name) { showToast('請填寫床號與名稱'); return; }
       d.bed = bed; d.name = name;
       if (customT) d.therapist = customT;
       d.specialNote = document.getElementById('edSpecialNote').value.trim();
@@ -3681,31 +3943,118 @@
        ======================================================================== */
     function openQrModal() {
       const baseUrl = window.location.href.split('#')[0];
-      const presentPts = state.patients.filter(p => p.attendance === 'present').sort((a, b) => bedNumeric(a.bed) - bedNumeric(b.bed));
+      const curMeta = getCurrentSessionMeta();
+      const presentPts = state.patients
+        .filter(p => p.attendance === 'present' && isPatientInSelectedSession(p))
+        .sort((a, b) => bedNumeric(getPatientQrCodeKey(a)) - bedNumeric(getPatientQrCodeKey(b)));
       const isLocalFile = baseUrl.startsWith('file://');
 
       document.getElementById('qrModalBody').innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; background:#f0f9ff; border:1.5px solid #38bdf8; border-radius:10px; padding:9px 12px;">
+          <span style="font-size:13.5px; font-weight:900; color:#0369a1;">目前場地與節數：${esc(curMeta.location)} — ${esc(curMeta.label)}</span>
+          ${!curMeta.isL2Fixed ? `<button class="btn-primary" style="background:#7c3aed;" onclick="downloadCurrentSession15SlotsWord()">📄 下載 ${esc(curMeta.location)} ${esc(curMeta.shortLabel)} 01–15 固定 QR 牌 (Word)</button>` : ''}
+        </div>
         ${isLocalFile ? `
           <div style="background:#fef3c7; border:1.5px solid #f59e0b; border-radius:10px; padding:10px 12px; font-size:13px; color:#92400e;">
-            ⚠️ 目前你正在用本地電腦檔案（<code>file://</code>）開啟；請先將本檔案存為 <code>index.html</code> 上傳至免費 <strong>GitHub Pages</strong>，再用 GitHub 網址打開本頁列印 QR Code，同事手機 4G/5G 才能掃描進入。
+            ⚠️ 目前你正在用本地電腦檔案（<code>file://</code>）開啟；請先將本檔案存為 <code>index.html</code> 上傳至免費 <strong>GitHub Pages</strong>，再用 GitHub 網址打開本頁列印 QR Code。
           </div>
-        ` : `<div style="background:#ecfdf5; border:1.5px solid #10b981; border-radius:10px; padding:9px 12px; font-size:13px; color:#065f46; font-weight:800;">✓ 雲端網址已就緒！列印以下可重複使用過膠床號 QR Code 卡，同事手機一掃即與大電視毫秒級同步。</div>`}
+        ` : ''}
         <div class="qr-grid">
           ${presentPts.map(pt => {
-            const targetUrl = `${baseUrl}#bed=${encodeURIComponent(pt.bed)}`;
+            const hashPart = curMeta.isL2Fixed
+              ? `#bed=${encodeURIComponent(pt.bed)}`
+              : `#s=${encodeURIComponent(curMeta.id)}&slot=${encodeURIComponent(padSlot2(pt.qrSlot || pt.bed))}`;
+            const targetUrl = `${baseUrl}${hashPart}`;
             const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(targetUrl)}`;
+            const cardTitle = curMeta.isL2Fixed
+              ? `${esc(pt.bed)} 號床`
+              : `${esc(curMeta.location)} ${esc(curMeta.shortLabel)} · 牌 ${esc(padSlot2(pt.qrSlot || pt.bed))}`;
+            const subLine = curMeta.isL2Fixed
+              ? `${esc(pt.side)} · ${esc(pt.aid)} · ${esc(pt.assist)}`
+              : `${esc(pt.ward ? pt.ward + '-' : '')}${esc(pt.bed)}床 (${esc(maskName(pt.name))})`;
             return `
               <div class="qr-card">
-                <div style="font-size:24px; font-weight:900;">${esc(pt.bed)} 號床</div>
-                <img src="${qrImg}" alt="${esc(pt.bed)}號床 QR" style="width:140px; height:140px; border:1px solid #e2e8f0; border-radius:8px;" />
-                <div style="font-size:12px; font-weight:800; color:#475569;">${esc(pt.side)} · ${esc(pt.aid)} · ${esc(pt.assist)}</div>
-                <a href="#bed=${encodeURIComponent(pt.bed)}" target="_blank" class="mini-action-btn" style="width:100%; justify-content:center;">📱 預覽此床手機畫面</a>
+                <div style="font-size:20px; font-weight:900;">${cardTitle}</div>
+                <img src="${qrImg}" alt="QR" style="width:140px; height:140px; border:1px solid #e2e8f0; border-radius:8px;" />
+                <div style="font-size:12px; font-weight:800; color:#475569;">${subLine}</div>
+                <a href="${hashPart}" target="_blank" class="mini-action-btn" style="width:100%; justify-content:center;">📱 預覽此牌手機畫面</a>
               </div>
             `;
           }).join('')}
         </div>
       `;
       openModal('qrModal');
+    }
+
+    async function downloadCurrentSession15SlotsWord() {
+      const baseUrl = window.location.href.split('#')[0];
+      const curMeta = getCurrentSessionMeta();
+      showToast(`⏳ 正在產生 ${curMeta.location} ${curMeta.shortLabel} 01–15 固定 QR 牌 Word 檔...`);
+
+      const fetchSlotBase64 = async (slotCode) => {
+        const targetUrl = `${baseUrl}#s=${encodeURIComponent(curMeta.id)}&slot=${slotCode}`;
+        const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=6&data=${encodeURIComponent(targetUrl)}`;
+        try {
+          const resp = await fetch(apiUrl);
+          const blob = await resp.blob();
+          return await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+          });
+        } catch (e) {
+          return apiUrl;
+        }
+      };
+
+      const slots = Array.from({ length: 15 }, (_, i) => String(i + 1).padStart(2, '0'));
+      const imgDataList = await Promise.all(slots.map(s => fetchSlotBase64(s)));
+
+      let tableRowsHtml = '';
+      for (let i = 0; i < slots.length; i += 3) {
+        tableRowsHtml += '<tr>';
+        for (let c = 0; c < 3; c++) {
+          const idx = i + c;
+          if (idx < slots.length) {
+            const code = slots[idx];
+            const src = imgDataList[idx];
+            tableRowsHtml += `
+              <td style="width:33.3%; border:2px solid #334155; padding:14px 10px; text-align:center; vertical-align:middle;">
+                <div style="font-size:13pt; font-weight:bold; color:#0f4c81; font-family:'Microsoft JhengHei',sans-serif;">${esc(curMeta.location)} · ${esc(curMeta.label)}</div>
+                <div style="font-size:26pt; font-weight:bold; color:#0f172a; margin:4px 0 6px 0; font-family:'Microsoft JhengHei',sans-serif;">牌號 ${code}</div>
+                <img src="${src}" width="155" height="155" style="width:155px; height:155px;" />
+                <div style="font-size:9.5pt; color:#475569; margin-top:6px; font-family:'Microsoft JhengHei',sans-serif;">固定 QR 牌・永久重用</div>
+              </td>
+            `;
+          } else {
+            tableRowsHtml += '<td style="width:33.3%; border:none;"></td>';
+          }
+        }
+        tableRowsHtml += '</tr>';
+      }
+
+      const wordHtml = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office"
+              xmlns:w="urn:schemas-microsoft-com:office:word"
+              xmlns="http://www.w3.org/TR/REC-html40">
+        <head><meta charset="utf-8" /><title>${esc(curMeta.location)}_${esc(curMeta.shortLabel)}_固定QR牌</title>
+        <style>@page { size: A4 portrait; margin: 1.2cm; } table { width: 100%; border-collapse: collapse; table-layout: fixed; } tr { page-break-inside: avoid; }</style>
+        </head>
+        <body>
+          <h2 style="text-align:center; margin:0 0 10px 0; font-family:'Microsoft JhengHei',sans-serif;">${esc(curMeta.location)} ${esc(curMeta.label)} — 01 至 15 號固定 QR 牌</h2>
+          <table>${tableRowsHtml}</table>
+        </body></html>
+      `;
+      const blob = new Blob(['﻿' + wordHtml], { type: 'application/msword;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${curMeta.location}_${curMeta.shortLabel}_01至15固定QR牌.doc`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+      showToast(`📥 已下載 ${curMeta.location} ${curMeta.shortLabel} 固定 QR 牌 Word 檔`);
     }
 
     async function downloadAll30BedsQrWord() {
@@ -3950,7 +4299,9 @@
         const ptCardsHtml = thPts.map(pt => {
           const r = getRiskInfo(pt);
           const docLine = generateEnglishDocumentation(pt);
-          allDocs.push(`[Bed ${pt.bed} ${pt.name}]\n${docLine}`);
+          const ptMeta = getSessionMeta(getPatientEffectiveSessionId(pt));
+          const bedLabel = (!ptMeta.isL2Fixed && pt.ward) ? `${pt.ward}-${pt.bed}` : `${pt.bed}`;
+          allDocs.push(`[Bed ${bedLabel} ${pt.name}]\n${docLine}`);
           const aidFull = [pt.aid, ...(pt.aidExtras || [])].join(' + ');
           const trFull = [pt.transportMode, ...(pt.transportExtras || [])].filter(Boolean).join(' + ') || '-';
           const doneEx = pt.exercises.filter(ex => isScheduledToday(ex.schedule));
@@ -3958,7 +4309,11 @@
           return `
             <div class="rep-pt-card">
               <div class="rep-pt-head">
-                <strong style="font-size:15px;">${esc(pt.bed)}號床 ${esc(pt.name)}</strong>
+                ${(() => {
+                  const ptMeta = getSessionMeta(getPatientEffectiveSessionId(pt));
+                  if (ptMeta.isL2Fixed) return `<strong style="font-size:15px;">${esc(pt.bed)}號床 ${esc(pt.name)}</strong>`;
+                  return `<strong style="font-size:15px;">[牌 ${esc(padSlot2(pt.qrSlot || pt.bed))}] ${esc(pt.ward ? pt.ward + '-' : '')}${esc(pt.bed)}號床 ${esc(pt.name)}</strong>`;
+                })()}
                 <span>${esc(pt.side)} · ${esc(aidFull)} · ${esc(pt.assist)}</span>
                 <span>🚐 ${esc(trFull)}</span>
                 ${r.label !== '一般' ? `<span style="color:#b91c1c; font-weight:800;">${esc(r.label)}</span>` : ''}
@@ -4017,7 +4372,9 @@
         `;
       }).join('');
 
-      document.getElementById('reportMetaLine').textContent = `日期：${todayISO()}（${weekdayZh()}）｜已按治療師分類及床號排序`;
+      const curMeta = getCurrentSessionMeta();
+      const sessEmails = getSessionEmailList(curMeta.id);
+      document.getElementById('reportMetaLine').textContent = `場地與節數：${curMeta.location} ${curMeta.label}｜日期：${todayISO()}（${weekdayZh()}）｜本節收件人：${sessEmails.length ? sessEmails.join(', ') : '尚未設定'}`;
       document.getElementById('reportModalBody').innerHTML = `
         <div class="filter-chips" style="margin-bottom:4px;">
           <button class="filter-chip ${reportTherapistFilter === 'ALL' ? 'active' : ''}" onclick="reportTherapistFilter='ALL'; openReportModal();">全部治療師</button>
@@ -4045,27 +4402,29 @@
         showToast('⚠️ 目前主電腦處於離線狀態，請先連接網絡再發送');
         return;
       }
-      const to = (state.settings.emailRecipients || '').trim();
+      const curMeta = getCurrentSessionMeta();
+      const emails = getSessionEmailList(curMeta.id);
+      const to = emails.join(', ');
       const webhookUrl = (state.settings.emailWebhookUrl || '').trim();
       const area = document.getElementById('allEnglishDocArea');
       const bodyText = area ? area.value : '';
-      const subject = `復康運動室每日紀錄 (${todayISO()})`;
+      const subject = `復康運動室每日紀錄 - ${curMeta.location} ${curMeta.label} (${todayISO()})`;
 
       if (!to) {
-        showToast('⚠️ 請先在「系統設定 → 運動記錄與備份」輸入收件同事 Email');
+        showToast(`⚠️ 請先在「系統設定 → 運動記錄與備份」為「${curMeta.location} ${curMeta.shortLabel}」設定收件 Email`);
         return;
       }
 
       if (webhookUrl) {
         try {
-          showToast('⏳ 正在透過雲端自動發送 Email...');
+          showToast(`⏳ 正在寄出「${curMeta.location} ${curMeta.shortLabel}」紀錄至 ${to}...`);
           await fetch(webhookUrl, {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify({ to, subject, body: bodyText })
           });
-          showToast(`✅ 已透過雲端寄出 Email 至 ${to}`);
+          showToast(`✅ 已透過雲端寄出（${curMeta.location} ${curMeta.shortLabel}）至 ${to}`);
           return;
         } catch (err) {
           showToast('❌ 雲端發信失敗，改為開啟本機郵件程式');
@@ -4073,7 +4432,7 @@
       }
 
       window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
-      showToast('✉️ 未設定雲端發信網址，已開啟本機郵件程式（可在系統設定貼上 Google Apps Script 網址）');
+      showToast(`✉️ 已開啟本機郵件程式（收件人：${to}）`);
     }
 
     async function saveDailyReportToFolderOrDownload() {
@@ -4278,14 +4637,101 @@
         return;
       }
 
-      if (currentSettingsTab === 'backup') {
+      if (currentSettingsTab === 'sessions') {
+        const activeIds = getActiveSessionIds();
         body.innerHTML = `
+          <div class="settings-section">
+            <div class="settings-section-title">🏥 啟用場地（Location）與節數（Gym Session）設定</div>
+            <div class="field-hint">
+              勾選目前需要使用的場地與節數。<strong>未勾選的節數會完全隱藏所有資料</strong>（不會刪除，下次重新勾選即恢復顯示）。
+            </div>
+            ${['C3', 'L5'].map(loc => {
+              const list = GYM_SESSION_CATALOG.filter(m => m.location === loc);
+              return `
+                <div style="background:#fff; border:1.5px solid #cbd5e1; border-radius:9px; padding:10px 12px; display:flex; flex-direction:column; gap:8px;">
+                  <div style="font-size:14px; font-weight:900; color:#0f4c81;">📍 場地：${loc} ${loc === 'C3' ? '（設有 4 節 Gym）' : '（設有 PM Gym 1 節）'}</div>
+                  <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                    ${list.map(m => {
+                      const isOn = activeIds.includes(m.id);
+                      return `
+                        <label style="display:inline-flex; align-items:center; gap:7px; padding:7px 12px; border-radius:8px; border:2px solid ${isOn ? '#059669' : '#cbd5e1'}; background:${isOn ? '#ecfdf5' : '#f8fafc'}; cursor:pointer; font-weight:800; font-size:13px;">
+                          <input type="checkbox" ${isOn ? 'checked' : ''} onchange="toggleActiveGymSession('${m.id}', this.checked)" style="width:17px; height:17px; accent-color:#059669;" />
+                          <span>${esc(m.label)}</span>
+                          <span style="font-size:11px; color:#64748b;">(${m.isL2Fixed ? '預設L2・不顯示病房' : '需填病房＋固定QR牌01-15'})</span>
+                        </label>
+                      `;
+                    }).join('')}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+        return;
+      }
+
+      if (currentSettingsTab === 'backup') {
+        const emailLoc = uiCtx.emailCfgLoc || getCurrentSessionMeta().location;
+        const locSessions = GYM_SESSION_CATALOG.filter(m => m.location === emailLoc);
+        const emailSid = (uiCtx.emailCfgSessionId && locSessions.some(m => m.id === uiCtx.emailCfgSessionId))
+          ? uiCtx.emailCfgSessionId
+          : (locSessions.some(m => m.id === getCurrentSessionId()) ? getCurrentSessionId() : locSessions[0].id);
+        uiCtx.emailCfgLoc = emailLoc;
+        uiCtx.emailCfgSessionId = emailSid;
+        const targetMeta = getSessionMeta(emailSid);
+        const targetEmails = getSessionEmailList(emailSid);
+
+        body.innerHTML = `
+          <div class="settings-section">
+            <div class="settings-section-title">✉️ 雲端自動發 Email 設定（先選 Location → 再選節數 → 填寫該節收件 Email）</div>
+            <div class="field-hint">
+              同一位同事的 Email 可重複加入多於一個場地或節數；每節可設定多位收件人。按「發 Email」時，系統<strong>只會寄給該節設定的 Email 名單</strong>。
+            </div>
+            <div class="form-grid" style="grid-template-columns: 160px 1fr;">
+              <div class="field-group">
+                <label class="field-label">1. 選擇負責 Location</label>
+                <select id="selEmailLoc" class="text-input" onchange="uiCtx.emailCfgLoc=this.value; uiCtx.emailCfgSessionId=null; renderSettingsTabContent();">
+                  <option value="C3" ${emailLoc === 'C3' ? 'selected' : ''}>C3</option>
+                  <option value="L5" ${emailLoc === 'L5' ? 'selected' : ''}>L5</option>
+                </select>
+              </div>
+              <div class="field-group">
+                <label class="field-label">2. 選擇負責節數 (Session)</label>
+                <select id="selEmailSession" class="text-input" onchange="uiCtx.emailCfgSessionId=this.value; renderSettingsTabContent();">
+                  ${locSessions.map(m => {
+                    const cnt = getSessionEmailList(m.id).length;
+                    return `<option value="${m.id}" ${m.id === emailSid ? 'selected' : ''}>${esc(m.location)} — ${esc(m.label)} (${cnt} 位收件人)</option>`;
+                  }).join('')}
+                </select>
+              </div>
+            </div>
+            <div class="field-group" style="background:#fff; border:1.5px solid #bae6fd; border-radius:8px; padding:10px;">
+              <label class="field-label" style="color:#0369a1;">3. 「${esc(targetMeta.location)} — ${esc(targetMeta.label)}」專屬收件 Email 名單（可加多個，點 × 移除）：</label>
+              <div class="tag-chip-list" style="margin:4px 0;">
+                ${targetEmails.map(em => `
+                  <span class="removable-chip">${esc(em)}<button class="chip-x" onclick="removeSessionEmailRecipient('${emailSid}', '${esc(em)}')">×</button></span>
+                `).join('') || '<span style="font-size:12px; color:#64748b;">此節尚未設定任何收件 Email</span>'}
+              </div>
+              <div class="add-inline-row">
+                <input id="inpAddSessionEmail" type="email" class="text-input" style="max-width:290px;" placeholder="輸入同事 Email（可與其他節重複）"
+                       onkeydown="if(event.key==='Enter') addSessionEmailRecipient('${emailSid}')" />
+                <button class="btn-primary" onclick="addSessionEmailRecipient('${emailSid}')">＋加入此節名單</button>
+                <button class="btn-secondary" onclick="testSessionCloudEmail('${emailSid}')">🧪 測試寄給此節名單</button>
+              </div>
+            </div>
+            <div class="field-group" style="margin-top:2px;">
+              <label class="field-label">Google Apps Script 雲端發信網址（全系統共用，貼上一次即可）：</label>
+              <input id="inpEmailWebhook" type="text" class="text-input" value="${esc(s.emailWebhookUrl || '')}"
+                     placeholder="https://script.google.com/macros/s/....../exec"
+                     onchange="state.settings.emailWebhookUrl=this.value.trim(); persistState(true); showToast('☁️ 已儲存雲端發信網址');" />
+            </div>
+          </div>
           <div class="settings-section">
             <div class="settings-section-title">
               <span>☁️ 歷史運動記錄與 Documentation 雲端備份</span>
               <button class="mini-action-btn" onclick="loadCloudResetBackupsUI()">🔄 重新整理</button>
             </div>
-            <div id="cloudResetBackupList" style="max-height:240px; overflow-y:auto;"></div>
+            <div id="cloudResetBackupList" style="max-height:220px; overflow-y:auto;"></div>
           </div>
           <div class="settings-section">
             <div class="settings-section-title">🔄 本地 JSON 備份與回復</div>
@@ -4300,31 +4746,6 @@
             <div>
               <button class="btn-primary" onclick="bindReportDirectory()">📂 選擇並綁定資料夾</button>
               <span id="dirBindStatus" style="margin-left:8px; font-size:12.5px; font-weight:800; color:var(--green);">${savedDirectoryHandle ? '✓ 已綁定：' + savedDirectoryHandle.name : ''}</span>
-            </div>
-          </div>
-          <div class="settings-section">
-            <div class="settings-section-title">✉️ 雲端自動發 Email 設定（使用你的 Gmail 寄出，同步至所有電腦）</div>
-            <div class="field-group">
-              <label class="field-label">收件同事 Email 名單（可隨時新增或點 × 移除，即時同步）：</label>
-              <div class="tag-chip-list">
-                ${(s.emailRecipients || '').split(',').map(x => x.trim()).filter(Boolean).map(em => `
-                  <span class="removable-chip">${esc(em)}<button class="chip-x" onclick="removeEmailRecipient('${esc(em)}')">×</button></span>
-                `).join('') || '<span style="font-size:12px; color:#64748b;">尚未新增收件同事</span>'}
-              </div>
-              <div class="add-inline-row" style="margin-top:4px;">
-                <input id="inpAddEmail" type="email" class="text-input" style="max-width:280px;" placeholder="輸入同事 Email（如：chan@ha.org.hk）"
-                       onkeydown="if(event.key==='Enter') addEmailRecipient()" />
-                <button class="btn-primary" onclick="addEmailRecipient()">＋新增收件人</button>
-              </div>
-            </div>
-            <div class="field-group" style="margin-top:4px;">
-              <label class="field-label">Google Apps Script 雲端發信網址（貼上一次即可永久使用）：</label>
-              <div class="add-inline-row">
-                <input id="inpEmailWebhook" type="text" class="text-input" style="flex:1;" value="${esc(s.emailWebhookUrl || '')}"
-                       placeholder="https://script.google.com/macros/s/....../exec"
-                       onchange="state.settings.emailWebhookUrl=this.value.trim(); persistState(true); showToast('☁️ 已儲存雲端發信網址');" />
-                <button class="btn-secondary" onclick="testCloudEmailWebhook()">🧪 測試發信</button>
-              </div>
             </div>
           </div>
         `;
@@ -4352,6 +4773,77 @@
             </div>
           </div>
         `;
+      }
+    }
+
+    function toggleActiveGymSession(sessionId, checked) {
+      let arr = getActiveSessionIds().slice();
+      if (checked) {
+        if (!arr.includes(sessionId)) arr.push(sessionId);
+      } else {
+        if (arr.length <= 1) {
+          showToast('⚠️ 至少需保留一個啟用中的場地與節數');
+          renderSettingsTabContent();
+          return;
+        }
+        arr = arr.filter(x => x !== sessionId);
+      }
+      // Keep canonical catalog order
+      state.settings.activeSessions = GYM_SESSION_CATALOG.map(m => m.id).filter(id => arr.includes(id));
+      if (!state.settings.activeSessions.includes(state.settings.currentSessionId)) {
+        state.settings.currentSessionId = state.settings.activeSessions[0];
+      }
+      persistState(true);
+      renderWorkspace();
+      renderSettingsTabContent();
+      showToast('☁️ 已更新啟用場地與節數並同步雲端');
+    }
+
+    function addSessionEmailRecipient(sessionId) {
+      const inp = document.getElementById('inpAddSessionEmail');
+      const v = (inp ? inp.value : '').trim();
+      if (!v || !v.includes('@')) { showToast('請輸入有效的 Email 地址'); return; }
+      if (!state.settings.sessionEmails || typeof state.settings.sessionEmails !== 'object') {
+        state.settings.sessionEmails = {};
+      }
+      const list = getSessionEmailList(sessionId);
+      if (!list.includes(v)) list.push(v);
+      state.settings.sessionEmails[sessionId] = list;
+      persistState(true);
+      renderSettingsTabContent();
+      showToast('☁️ 已加入此節收件 Email 並同步雲端');
+    }
+
+    function removeSessionEmailRecipient(sessionId, em) {
+      if (!state.settings.sessionEmails || typeof state.settings.sessionEmails !== 'object') return;
+      state.settings.sessionEmails[sessionId] = getSessionEmailList(sessionId).filter(x => x !== em);
+      persistState(true);
+      renderSettingsTabContent();
+      showToast('☁️ 已更新此節收件 Email');
+    }
+
+    async function testSessionCloudEmail(sessionId) {
+      const url = (state.settings.emailWebhookUrl || '').trim();
+      const list = getSessionEmailList(sessionId);
+      const to = list.join(', ');
+      const meta = getSessionMeta(sessionId);
+      if (!url) { showToast('請先貼上 Google Apps Script 網址'); return; }
+      if (!to) { showToast(`請先為「${meta.location} ${meta.shortLabel}」新增至少一位收件 Email`); return; }
+      try {
+        showToast(`⏳ 正在發送測試郵件至 ${meta.location} ${meta.shortLabel} 名單...`);
+        await fetch(url, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            to,
+            subject: `復康運動室測試 - ${meta.location} ${meta.label} (${todayISO()})`,
+            body: `此為「${meta.location} ${meta.label}」專屬自動發信測試郵件。`
+          })
+        });
+        showToast(`✅ 測試請求已送出至 ${to}`);
+      } catch (e) {
+        showToast('❌ 測試發信失敗');
       }
     }
 
@@ -4626,7 +5118,8 @@
       const timeTag = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
       const backupId = `${dateStr}_${timeTag}`;
 
-      const presentPts = (state.patients || []).filter(p => p.attendance === 'present');
+      const curMeta = getCurrentSessionMeta();
+      const presentPts = (state.patients || []).filter(p => p.attendance === 'present' && isPatientInSelectedSession(p));
       const compactRecords = presentPts.map(pt => ({
         bed: pt.bed,
         maskedName: maskName(pt.name) || `${pt.bed}號床`,
@@ -4657,9 +5150,10 @@
         .join('\n\n');
 
       const backupsRef = fbDb.ref(`rehab_boards/${FIXED_CLOUD_ROOM}/reset_backups`);
-      await backupsRef.child(backupId).set({
-        backupId,
-        date: dateStr,
+      await backupsRef.child(`${curMeta.id}_${backupId}`).set({
+        backupId: `${curMeta.id}_${backupId}`,
+        sessionLabel: `${curMeta.location} ${curMeta.label}`,
+        date: `${dateStr} (${curMeta.location} ${curMeta.shortLabel})`,
         savedAt: Date.now(),
         patientCount: compactRecords.length,
         records: compactRecords,
@@ -4772,6 +5266,7 @@
           state.onDutyTransport = [];
           hasUnsavedDailyWork = false;
           state.patients.forEach(pt => {
+            if (!isPatientInSelectedSession(pt)) return;
             pt.transportOrder = null;
             pt.transportStaff = '';
             pt.transportTime = '';
@@ -4895,7 +5390,7 @@
     }
 
     window.addEventListener('hashchange', () => { parseHashRoute(); renderWorkspace(); });
-    window.addEventListener('resize', () => { if (!mobileBedNum) renderWorkspace(); });
+    window.addEventListener('resize', () => { if (!mobileBedNum && !(mobileSessionId && mobileSlotCode)) renderWorkspace(); });
     init();
   </script>
 </body>
