@@ -4706,7 +4706,7 @@
                   <input type="text" class="text-input" style="flex:1; min-width:220px; padding:4px 8px; font-size:12px;"
                          value="${esc(curDoc)}" placeholder="documentation..."
                          onchange="state.settings.sessionExerciseConfigs['${poolKey}'].docMap['${esc(item.name)}']=this.value.trim(); ${isSharedL2 ? `EX_EN_DICT['${esc(item.name)}']=this.value.trim();` : ''} persistState(true);" />
-                  <button style="color:var(--red); font-weight:800;" onclick="state.settings.sessionExerciseConfigs['${poolKey}'].items.splice(${i},1); ${isSharedL2 ? 'state.settings.exerciseLibrary = [...state.settings.sessionExerciseConfigs['C3_L2_SHARED'].items];' : ''} persistState(true); renderSettingsTabContent();">刪除</button>
+                  <button style="color:var(--red); font-weight:800;" onclick="state.settings.sessionExerciseConfigs['${poolKey}'].items.splice(${i},1); ${isSharedL2 ? 'state.settings.exerciseLibrary = [...state.settings.sessionExerciseConfigs[\'C3_L2_SHARED\'].items];' : ''} persistState(true); renderSettingsTabContent();">刪除</button>
                 </div>
               `;
             }).join('')}
