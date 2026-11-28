@@ -1011,11 +1011,10 @@
         <button class="modal-close" onclick="closeModal('qrModal')">✕</button>
       </div>
       <div class="modal-body" id="qrModalBody"></div>
-      <div class="modal-footer" style="justify-content:space-between;">
-        <button class="btn-primary" style="background:#059669;" onclick="downloadAll30BedsQrWord()">📄 下載 1–30 號床固定 QR Code (Word)</button>
+      <div class="modal-footer" style="justify-content:flex-end;">
         <div style="display:flex; gap:8px;">
           <button class="btn-secondary" onclick="closeModal('qrModal')">關閉</button>
-          <button class="btn-primary" onclick="window.print()">🖨️ 列印目前排程床號</button>
+          <button class="btn-primary" onclick="window.print()">🖨️ 列印固定 QR 牌</button>
         </div>
       </div>
     </div>
@@ -4096,15 +4095,31 @@
     function openQrModal() {
       const baseUrl = window.location.href.split('#')[0];
       const curMeta = getCurrentSessionMeta();
-      const presentPts = state.patients
-        .filter(p => p.attendance === 'present' && isPatientInSelectedSession(p))
-        .sort((a, b) => bedNumeric(getPatientQrCodeKey(a)) - bedNumeric(getPatientQrCodeKey(b)));
       const isLocalFile = baseUrl.startsWith('file://');
+
+      let fixedCodes = [];
+      if (curMeta.isL2Fixed) {
+        const startBed = curMeta.id === 'C3_S3' ? 16 : 1;
+        fixedCodes = Array.from({ length: 15 }, (_, i) => ({
+          key: String(startBed + i),
+          title: `${startBed + i} 號床`,
+          hashPart: `#bed=${encodeURIComponent(String(startBed + i))}`
+        }));
+      } else {
+        fixedCodes = Array.from({ length: 15 }, (_, i) => {
+          const slot = String(i + 1).padStart(2, '0');
+          return {
+            key: slot,
+            title: `${curMeta.location} ${curMeta.shortLabel} · 牌 ${slot}`,
+            hashPart: `#s=${encodeURIComponent(curMeta.id)}&slot=${encodeURIComponent(slot)}`
+          };
+        });
+      }
 
       document.getElementById('qrModalBody').innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; background:#f0f9ff; border:1.5px solid #38bdf8; border-radius:10px; padding:9px 12px;">
-          <span style="font-size:13.5px; font-weight:900; color:#0369a1;">目前場地與節數：${esc(curMeta.location)} — ${esc(curMeta.label)}</span>
-          ${!curMeta.isL2Fixed ? `<button class="btn-primary" style="background:#7c3aed;" onclick="downloadCurrentSession15SlotsWord()">📄 下載 ${esc(curMeta.location)} ${esc(curMeta.shortLabel)} 01–15 固定 QR 牌 (Word)</button>` : ''}
+          <span style="font-size:13.5px; font-weight:900; color:#0369a1;">目前場地與節數：${esc(curMeta.location)} — ${esc(curMeta.label)}（永久固定牌面，不含即時病人資料）</span>
+          ${!curMeta.isL2Fixed ? `<button type="button" class="btn-primary" style="background:#7c3aed;" onclick="downloadCurrentSession15SlotsWord()">📄 下載 ${esc(curMeta.location)} ${esc(curMeta.shortLabel)} 01–15 固定 QR 牌・單張 A4 (Word)</button>` : ''}
         </div>
         ${isLocalFile ? `
           <div style="background:#fef3c7; border:1.5px solid #f59e0b; border-radius:10px; padding:10px 12px; font-size:13px; color:#92400e;">
@@ -4112,24 +4127,14 @@
           </div>
         ` : ''}
         <div class="qr-grid">
-          ${presentPts.map(pt => {
-            const hashPart = curMeta.isL2Fixed
-              ? `#bed=${encodeURIComponent(pt.bed)}`
-              : `#s=${encodeURIComponent(curMeta.id)}&slot=${encodeURIComponent(padSlot2(pt.qrSlot || pt.bed))}`;
-            const targetUrl = `${baseUrl}${hashPart}`;
+          ${fixedCodes.map(item => {
+            const targetUrl = `${baseUrl}${item.hashPart}`;
             const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(targetUrl)}`;
-            const cardTitle = curMeta.isL2Fixed
-              ? `${esc(pt.bed)} 號床`
-              : `${esc(curMeta.location)} ${esc(curMeta.shortLabel)} · 牌 ${esc(padSlot2(pt.qrSlot || pt.bed))}`;
-            const subLine = curMeta.isL2Fixed
-              ? `${esc(pt.side)} · ${esc(pt.aid)} · ${esc(pt.assist)}`
-              : `${esc(pt.ward ? pt.ward + '-' : '')}${esc(pt.bed)}床 (${esc(maskName(pt.name))})`;
             return `
               <div class="qr-card">
-                <div style="font-size:20px; font-weight:900;">${cardTitle}</div>
+                <div style="font-size:20px; font-weight:900;">${esc(item.title)}</div>
                 <img src="${qrImg}" alt="QR" style="width:140px; height:140px; border:1px solid #e2e8f0; border-radius:8px;" />
-                <div style="font-size:12px; font-weight:800; color:#475569;">${subLine}</div>
-                <a href="${hashPart}" target="_blank" class="mini-action-btn" style="width:100%; justify-content:center;">📱 預覽此牌手機畫面</a>
+                <a href="${item.hashPart}" target="_blank" class="mini-action-btn" style="width:100%; justify-content:center;">📱 預覽此牌手機畫面</a>
               </div>
             `;
           }).join('')}
@@ -4141,11 +4146,11 @@
     async function downloadCurrentSession15SlotsWord() {
       const baseUrl = window.location.href.split('#')[0];
       const curMeta = getCurrentSessionMeta();
-      showToast(`⏳ 正在產生 ${curMeta.location} ${curMeta.shortLabel} 01–15 固定 QR 牌 Word 檔...`);
+      showToast(`⏳ 正在產生 ${curMeta.location} ${curMeta.shortLabel} 01–15 一張 A4 固定 QR 牌 Word 檔...`);
 
       const fetchSlotBase64 = async (slotCode) => {
         const targetUrl = `${baseUrl}#s=${encodeURIComponent(curMeta.id)}&slot=${slotCode}`;
-        const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=6&data=${encodeURIComponent(targetUrl)}`;
+        const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=4&data=${encodeURIComponent(targetUrl)}`;
         try {
           const resp = await fetch(apiUrl);
           const blob = await resp.blob();
@@ -4162,25 +4167,21 @@
       const slots = Array.from({ length: 15 }, (_, i) => String(i + 1).padStart(2, '0'));
       const imgDataList = await Promise.all(slots.map(s => fetchSlotBase64(s)));
 
+      // 3 columns x 5 rows = 15 cards on a single A4 portrait page
       let tableRowsHtml = '';
-      for (let i = 0; i < slots.length; i += 3) {
+      for (let r = 0; r < 5; r++) {
         tableRowsHtml += '<tr>';
         for (let c = 0; c < 3; c++) {
-          const idx = i + c;
-          if (idx < slots.length) {
-            const code = slots[idx];
-            const src = imgDataList[idx];
-            tableRowsHtml += `
-              <td style="width:33.3%; border:2px solid #334155; padding:14px 10px; text-align:center; vertical-align:middle;">
-                <div style="font-size:13pt; font-weight:bold; color:#0f4c81; font-family:'Microsoft JhengHei',sans-serif;">${esc(curMeta.location)} · ${esc(curMeta.label)}</div>
-                <div style="font-size:26pt; font-weight:bold; color:#0f172a; margin:4px 0 6px 0; font-family:'Microsoft JhengHei',sans-serif;">牌號 ${code}</div>
-                <img src="${src}" width="155" height="155" style="width:155px; height:155px;" />
-                <div style="font-size:9.5pt; color:#475569; margin-top:6px; font-family:'Microsoft JhengHei',sans-serif;">固定 QR 牌・永久重用</div>
-              </td>
-            `;
-          } else {
-            tableRowsHtml += '<td style="width:33.3%; border:none;"></td>';
-          }
+          const idx = r * 3 + c;
+          const code = slots[idx];
+          const src = imgDataList[idx];
+          tableRowsHtml += `
+            <td style="width:33.33%; border:1.5px dashed #475569; padding:5px 4px; text-align:center; vertical-align:middle; height:3.65cm;">
+              <div style="font-size:8.5pt; font-weight:bold; color:#0f4c81; line-height:1.15; font-family:'Microsoft JhengHei',sans-serif;">${esc(curMeta.location)} · ${esc(curMeta.label)}</div>
+              <div style="font-size:14pt; font-weight:bold; color:#0f172a; line-height:1.15; margin:2px 0 3px 0; font-family:'Microsoft JhengHei',sans-serif;">牌號 ${code}</div>
+              <img src="${src}" width="92" height="92" style="width:92px; height:92px; display:block; margin:0 auto;" />
+            </td>
+          `;
         }
         tableRowsHtml += '</tr>';
       }
@@ -4189,24 +4190,30 @@
         <html xmlns:o="urn:schemas-microsoft-com:office:office"
               xmlns:w="urn:schemas-microsoft-com:office:word"
               xmlns="http://www.w3.org/TR/REC-html40">
-        <head><meta charset="utf-8" /><title>${esc(curMeta.location)}_${esc(curMeta.shortLabel)}_固定QR牌</title>
-        <style>@page { size: A4 portrait; margin: 1.2cm; } table { width: 100%; border-collapse: collapse; table-layout: fixed; } tr { page-break-inside: avoid; }</style>
+        <head><meta charset="utf-8" /><title>${esc(curMeta.location)}_${esc(curMeta.shortLabel)}_01至15固定QR牌_A4單頁</title>
+        <style>
+          @page { size: A4 portrait; margin: 0.65cm 0.8cm; }
+          body { margin: 0; padding: 0; font-family: "PingFang HK", "Microsoft JhengHei", sans-serif; }
+          .sheet-title { text-align:center; font-size:12pt; font-weight:bold; margin:0 0 5px 0; line-height:1.2; color:#0f172a; }
+          table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+          tr { page-break-inside: avoid; }
+        </style>
         </head>
         <body>
-          <h2 style="text-align:center; margin:0 0 10px 0; font-family:'Microsoft JhengHei',sans-serif;">${esc(curMeta.location)} ${esc(curMeta.label)} — 01 至 15 號固定 QR 牌</h2>
+          <div class="sheet-title">${esc(curMeta.location)} ${esc(curMeta.label)} — 01 至 15 號固定 QR 牌（單張 A4）</div>
           <table>${tableRowsHtml}</table>
         </body></html>
       `;
-      const blob = new Blob(['﻿' + wordHtml], { type: 'application/msword;charset=utf-8;' });
+      const blob = new Blob(['\uFEFF' + wordHtml], { type: 'application/msword;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${curMeta.location}_${curMeta.shortLabel}_01至15固定QR牌.doc`;
+      a.download = `${curMeta.location}_${curMeta.shortLabel}_01至15固定QR牌_A4單頁.doc`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1500);
-      showToast(`📥 已下載 ${curMeta.location} ${curMeta.shortLabel} 固定 QR 牌 Word 檔`);
+      showToast(`📥 已下載「${curMeta.location} ${curMeta.shortLabel}」單張 A4 固定 QR 牌 Word 檔`);
     }
 
     async function downloadAll30BedsQrWord() {
