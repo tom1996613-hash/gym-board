@@ -958,7 +958,12 @@
       <button class="tool-btn" onclick="confirmCarryOver()">🔄 重置運動與PCA</button>
       <button class="tool-btn btn-add" onclick="openPatientEditor(null)">＋ 新增病人</button>
       <button class="tool-btn btn-export" onclick="openReportModal()">📊 完結報表與英文紀錄</button>
-      <button id="btnTrialSandbox" class="tool-btn" onclick="toggleTrialSandboxMode()">🔑 試用鍵</button>
+      ${(state.settings.showTrialKeyButton !== false || IS_TRIAL_SANDBOX) ? `
+        ${IS_TRIAL_SANDBOX ? `<button type="button" class="tool-btn" style="background:#0d9488; border-color:#5eead4; color:#fff;" onclick="loadSandboxPracticeScenario()">🎯 載入實習示範個案</button>` : ''}
+        <button id="btnTrialSandbox" class="tool-btn ${IS_TRIAL_SANDBOX ? 'is-on' : ''}" style="${IS_TRIAL_SANDBOX ? 'background:#d97706; border-color:#f59e0b; color:#fff;' : ''}" onclick="toggleTrialSandboxMode()">
+          ${IS_TRIAL_SANDBOX ? '🧪 試用鍵中（點此回真實資料）' : '🔑 試用鍵'}
+        </button>
+      ` : ''}
     </div>
   </header>
 
@@ -1375,87 +1380,27 @@
     </div>
   </div>
 
-  <!-- 彈窗 12：🔑 試用鍵密碼驗證（0000） -->
-  <div id="sandboxPinModal" class="modal-backdrop" onclick="onBackdrop(event, 'sandboxPinModal')">
-    <div class="modal-box" style="max-width:380px;">
-      <div class="modal-header">
-        <div class="modal-title" id="sandboxPinTitle">🔑 試用鍵驗證</div>
-        <button class="modal-close" onclick="closeModal('sandboxPinModal')">✕</button>
-      </div>
-      <div class="modal-body">
-        <div id="sandboxPinDesc" style="font-size:13.5px; line-height:1.55;">請輸入 4 位數字密碼以切換試用模式：</div>
-        <input id="sandboxPinInput" type="password" inputmode="numeric" maxlength="4" class="text-input tabular"
-               style="text-align:center; font-size:22px; letter-spacing:0.35em;" placeholder="••••"
-               onkeydown="if(event.key==='Enter') submitSandboxPin()" />
-      </div>
-      <div class="modal-footer">
-        <button class="btn-secondary" onclick="closeModal('sandboxPinModal')">取消</button>
-        <button class="btn-primary" onclick="submitSandboxPin()">確認</button>
-      </div>
-    </div>
-  </div>
-
   <div id="toastStack" class="toast-stack"></div>
   <script id="embeddedStateScript" type="application/json">null</script>
 
   <script>
     'use strict';
 
-    const SANDBOX_PASSCODE = '0000';
-
-    function checkIsTrialSandbox() {
+    const IS_TRIAL_SANDBOX = (() => {
       const h = (window.location.hash || '').toLowerCase();
       const q = new URLSearchParams(window.location.search || '');
       return h.startsWith('#sandbox') || h.startsWith('#trial') || q.get('sandbox') === '1' || q.get('trial') === '1';
-    }
+    })();
 
-    let IS_TRIAL_SANDBOX = checkIsTrialSandbox();
-    let STORAGE_KEY = IS_TRIAL_SANDBOX
+    const STORAGE_KEY = IS_TRIAL_SANDBOX
       ? 'rehab_gym_board_v7_trial_sandbox'
       : 'rehab_gym_board_v7_cloud_settings';
-    let CHANNEL_NAME = IS_TRIAL_SANDBOX
+    const CHANNEL_NAME = IS_TRIAL_SANDBOX
       ? 'rehab_gym_sync_v7_trial_sandbox'
       : 'rehab_gym_sync_v7';
-    let ACTIVE_CLOUD_ROOM = IS_TRIAL_SANDBOX ? 'gym_room_trial_sandbox' : 'gym_room_1';
-
-    function refreshSandboxBindings() {
-      IS_TRIAL_SANDBOX = checkIsTrialSandbox();
-      STORAGE_KEY = IS_TRIAL_SANDBOX
-        ? 'rehab_gym_board_v7_trial_sandbox'
-        : 'rehab_gym_board_v7_cloud_settings';
-      CHANNEL_NAME = IS_TRIAL_SANDBOX
-        ? 'rehab_gym_sync_v7_trial_sandbox'
-        : 'rehab_gym_sync_v7';
-      ACTIVE_CLOUD_ROOM = IS_TRIAL_SANDBOX ? 'gym_room_trial_sandbox' : 'gym_room_1';
-      try {
-        if (syncChannel) syncChannel.close();
-      } catch (e) {}
-      syncChannel = null;
-      try {
-        if (typeof BroadcastChannel !== 'undefined') {
-          syncChannel = new BroadcastChannel(CHANNEL_NAME);
-          syncChannel.onmessage = (evt) => {
-            if (evt.data && evt.data.type === 'SYNC_STATE' && evt.data.state) {
-              state = ensureStateIntegrity(evt.data.state);
-              renderWorkspace();
-            }
-          };
-        }
-      } catch (e) {}
-      const btn = document.getElementById('btnTrialSandbox');
-      if (btn) {
-        const hidden = Boolean(state && state.settings && state.settings.hideSandboxKey);
-        btn.style.display = hidden ? 'none' : 'inline-flex';
-        btn.classList.toggle('is-on', IS_TRIAL_SANDBOX);
-        btn.style.background = IS_TRIAL_SANDBOX ? '#d97706' : '';
-        btn.style.borderColor = IS_TRIAL_SANDBOX ? '#f59e0b' : '';
-        btn.style.color = IS_TRIAL_SANDBOX ? '#fff' : '';
-        btn.textContent = IS_TRIAL_SANDBOX ? '🔑 試用模式中（點此退出）' : '🔑 試用鍵';
-      }
-    }
-
+    const ACTIVE_CLOUD_ROOM = IS_TRIAL_SANDBOX ? 'gym_room_trial_sandbox' : 'gym_room_1';
     const SIDES = ['L', 'R', 'Bi', '無'];
-    const EX_CATEGORIES = ['手法治療', '功能性治療', 'Therapeutic Ex', 'walking exercise', 'Pain Control', 'EPT Modality', '其他'];
+    const EX_CATEGORIES = ['手法治療', '功能性治療', '治療性運動', '步行訓練', '痛症控制', '電療儀器', '其他'];
     const THERAPIST_PALETTE = [
       '#4f46e5', '#0f766e', '#be185d', '#b45309', '#1d4ed8',
       '#7e22ce', '#047857', '#c2410c', '#0369a1', '#374151'
@@ -1507,7 +1452,7 @@
     const PAIN_EPT_ASPECTS = ['外側', '內側'];
 
     function isPainOrEptCategory(cat) {
-      return cat === 'Pain Control' || cat === 'EPT Modality';
+      return cat === '痛症控制' || cat === '電療儀器' || cat === 'Pain Control' || cat === 'EPT Modality';
     }
 
     function formatPainEptDocSuffix(ex) {
@@ -1561,10 +1506,10 @@
       return [
         ...manual.map(n => make(n, '手法治療')),
         ...func.map(n => make(n, '功能性治療')),
-        ...therEx.map(n => make(n, 'Therapeutic Ex')),
-        ...walkingEx.map(n => make(n, 'walking exercise')),
-        ...painCtrl.map(n => make(n, 'Pain Control')),
-        ...eptMod.map(n => make(n, 'EPT Modality')),
+        ...therEx.map(n => make(n, '治療性運動')),
+        ...walkingEx.map(n => make(n, '步行訓練')),
+        ...painCtrl.map(n => make(n, '痛症控制')),
+        ...eptMod.map(n => make(n, '電療儀器')),
         ...otherEx.map(n => make(n, '其他'))
       ];
     }
@@ -1687,9 +1632,9 @@
         activeSessions: ['C3_S2', 'C3_S3'],
         currentSessionId: 'C3_S2',
         overtimeAlertMin: 3,
+        showTrialKeyButton: true,
         voiceEnabled: true,
         trackStaffAssignment: true,
-        hideSandboxKey: false,
         therapists: ['江', '馬', '陳', '李'],
         assistants: ['A', 'B', 'C', 'G', 'H', 'J', 'K', 'R', 'Y'],
         aids: ['W/C', 'Frame', 'Rollator', 'Quad', 'Stick', 'Unaided'],
@@ -1913,7 +1858,7 @@
     }
 
     function mergeRemoteState(remote) {
-      if (remote && typeof remote === 'object') migrateTouchFloorToStandingTraining(remote);
+      if (remote && typeof remote === 'object') { migrateTouchFloorToStandingTraining(remote); normalizeExerciseCategoriesToZh(remote); }
       state._lastUpdatedAt = remote.updatedAt || Date.now();
       if (remote.tvPageSize !== undefined) state.tvPageSize = Number(remote.tvPageSize);
       if (remote.sessionTransportState && typeof remote.sessionTransportState === 'object') {
@@ -2189,11 +2134,22 @@
       }
     }
 
+    function inferCategoryFromExName(name) {
+      const n = String(name || '').trim();
+      if (['熱敷', '冰敷', '震震機'].includes(n)) return '痛症控制';
+      if (['電療', '超聲波'].includes(n)) return '電療儀器';
+      if (['吊住行', '跑步機', '踏級(高)', '踏級(低)'].includes(n)) return '步行訓練';
+      if (['治療師拉筋', '關節鬆動', '軟組織放鬆'].includes(n)) return '手法治療';
+      if (['NuStep', '手單車', '腳單車', 'Leg press', '沙包', '拱橋', '側臥抬腿', '舉棍', 'OB手', 'OB腳', 'Sling手', 'Sling腳'].includes(n)) return '治療性運動';
+      return '功能性治療';
+    }
+
     function makeEx(name, opts = {}) {
       const defMin = (state && state.settings && state.settings.defaultExMin) ? Number(state.settings.defaultExMin) : 15;
       return {
         id: uid('ex'),
         name,
+        category: opts.category || inferCategoryFromExName(name),
         plannedMin: opts.plannedMin !== undefined ? Number(opts.plannedMin) : defMin,
         countUp: Boolean(opts.countUp),
         mustDo: Boolean(opts.mustDo),
@@ -2312,12 +2268,51 @@
       s._migratedTouchFloorToStandingV1 = true;
     }
 
+    function normalizeExerciseCategoriesToZh(s) {
+      if (!s) return;
+      const mapCat = (c) => {
+        const v = String(c || '').trim();
+        if (v === 'Therapeutic Ex') return '治療性運動';
+        if (v === 'walking exercise') return '步行訓練';
+        if (v === 'Pain Control') return '痛症控制';
+        if (v === 'EPT Modality') return '電療儀器';
+        if (v === '器械計時' || v === '功能訓練' || v === '自訂快捷') {
+          return EX_CATEGORIES.includes(v) ? v : '功能性治療';
+        }
+        return v;
+      };
+      if (Array.isArray(s.patients)) {
+        s.patients.forEach(pt => {
+          if (Array.isArray(pt.exercises)) {
+            pt.exercises.forEach(ex => {
+              if (ex.category) ex.category = mapCat(ex.category);
+            });
+          }
+        });
+      }
+      if (s.settings && Array.isArray(s.settings.exerciseLibrary)) {
+        s.settings.exerciseLibrary.forEach(it => {
+          if (it.category) it.category = mapCat(it.category);
+        });
+      }
+      if (s.settings && s.settings.sessionExerciseConfigs && typeof s.settings.sessionExerciseConfigs === 'object') {
+        Object.keys(s.settings.sessionExerciseConfigs).forEach(k => {
+          const cfg = s.settings.sessionExerciseConfigs[k];
+          if (cfg && Array.isArray(cfg.items)) {
+            cfg.items.forEach(it => {
+              if (it.category) it.category = mapCat(it.category);
+            });
+          }
+        });
+      }
+    }
+
     function ensureStateIntegrity(raw) {
       const def = createDefaultSettings();
       const s = raw || createInitialState();
       migrateTouchFloorToStandingTraining(s);
+      normalizeExerciseCategoriesToZh(s);
       s.settings = Object.assign({}, def, s.settings || {});
-      if (typeof s.settings.hideSandboxKey !== 'boolean') s.settings.hideSandboxKey = false;
       if (!s.settings.firebaseConfigText) s.settings.firebaseConfigText = BUILTIN_FIREBASE_CONFIG;
       if (!Array.isArray(s.settings.therapists) || !s.settings.therapists.length) s.settings.therapists = [...def.therapists];
       if (!Array.isArray(s.settings.assistants) || !s.settings.assistants.length) s.settings.assistants = [...def.assistants];
@@ -2329,6 +2324,7 @@
       if (!Array.isArray(s.settings.earlyReasons)) s.settings.earlyReasons = [...def.earlyReasons];
       if (!Array.isArray(s.settings.exerciseLibrary) || !s.settings.exerciseLibrary.length) s.settings.exerciseLibrary = createDefaultExerciseLibrary();
       if (typeof s.settings.trackStaffAssignment !== 'boolean') s.settings.trackStaffAssignment = true;
+      if (typeof s.settings.showTrialKeyButton !== 'boolean') s.settings.showTrialKeyButton = true;
       if (!Array.isArray(s.onDutyTransport)) s.onDutyTransport = [];
       s.onDutyTransport = s.onDutyTransport.filter(x => s.settings.assistants.includes(x));
       if (!Array.isArray(s.patients)) s.patients = [];
@@ -2747,7 +2743,6 @@
     }
 
     function renderWorkspace() {
-      refreshSandboxBindings();
       const ws = document.getElementById('workspace');
 
       if (mobileBedNum || (mobileSessionId && mobileSlotCode)) {
@@ -2766,7 +2761,7 @@
       const activeLocs = Array.from(new Set(activeIds.map(id => getSessionMeta(id).location)));
       const locSessions = activeIds.map(id => getSessionMeta(id)).filter(m => m.location === curMeta.location);
 
-      const trialPrefix = IS_TRIAL_SANDBOX ? '🧪 [試用沙盒] ' : '';
+      const trialPrefix = IS_TRIAL_SANDBOX ? '🔑 [試用鍵] ' : '';
       document.getElementById('topbarTitle').textContent = `${trialPrefix}${state.settings.systemTitle} · ${curMeta.location} ${curMeta.shortLabel}`;
       document.getElementById('topbarSub').textContent = `${todayISO()}（${weekdayZh()}）`;
 
@@ -4169,7 +4164,7 @@
         return `
           <div>
             <div style="font-size:11px; font-weight:800; color:var(--primary); margin-bottom:4px;">${cat}</div>
-            <div class="chip-row">${items.map(item => `<button type="button" class="preset-btn" onclick="uiCtx.draft.exercises.push(makeEx('${esc(item.name)}',{plannedMin:${item.defaultMin},countUp:${item.mode === 'stopwatch'}})); renderDraftExercises();">＋ ${esc(item.name)} <span style="color:#64748b; font-weight:600;">${item.defaultMin}m</span></button>`).join('')}</div>
+            <div class="chip-row">${items.map(item => `<button type="button" class="preset-btn" onclick="uiCtx.draft.exercises.push(makeEx('${esc(item.name)}',{category:'${esc(item.category)}',plannedMin:${item.defaultMin},countUp:${item.mode === 'stopwatch'}})); renderDraftExercises();">＋ ${esc(item.name)} <span style="color:#64748b; font-weight:600;">${item.defaultMin}m</span></button>`).join('')}</div>
           </div>
         `;
       }).join('');
@@ -4297,7 +4292,8 @@
               <button class="step-btn" style="color:var(--red);" onclick="uiCtx.draft.exercises.splice(${idx},1); renderDraftExercises();">✕</button>
             </div>
             ${(() => {
-              const exCat = ex.category || '';
+              const exCat = ex.category || inferCategoryFromExName(ex.name);
+              if (!ex.category) ex.category = exCat;
               const showPE = isPainOrEptCategory(exCat) || ex.targetSide || ex.targetRegion || ex.targetAspect;
               if (!showPE) return '';
               return `
@@ -5091,14 +5087,17 @@
             </div>
           </div>
           <div class="settings-section">
+            <div class="settings-section-title">🔑 試用鍵顯示設定</div>
+            <label class="toggle-switch">
+              <input type="checkbox" ${s.showTrialKeyButton !== false ? 'checked' : ''} onchange="state.settings.showTrialKeyButton=this.checked; persistState(true); renderWorkspace(); renderSettingsTabContent();" />
+              <span>於頂部工具列顯示「試用鍵」（取消勾選可隱藏，切換試用鍵需密碼 0000）</span>
+            </label>
+          </div>
+          <div class="settings-section">
             <div class="settings-section-title">👷 助理記錄與看板設定</div>
             <label class="toggle-switch">
               <input type="checkbox" ${s.trackStaffAssignment ? 'checked' : ''} onchange="state.settings.trackStaffAssignment=this.checked; persistState(true); renderWorkspace();" />
               <span>記錄及顯示誰 Set up 及結束運動（關閉後：點選運動直接一鍵倒數，並隱藏所有助理代號）</span>
-            </label>
-            <label class="toggle-switch">
-              <input type="checkbox" ${s.hideSandboxKey ? 'checked' : ''} onchange="state.settings.hideSandboxKey=this.checked; persistState(true); renderWorkspace();" />
-              <span>隱藏頂部「試用鍵」（需密碼 0000 方可切換試用模式）</span>
             </label>
             <div class="form-grid">
               <div class="field-group">
@@ -5580,46 +5579,42 @@
     /* ========================================================================
        其他工具與計時心跳（精準重置功能）
        ======================================================================== */
-    function applySandboxSwitch(nextIsSandbox) {
-      const base = window.location.href.split('#')[0].split('?')[0];
-      const nextHash = nextIsSandbox ? '#sandbox' : '';
-      try {
-        history.replaceState(null, '', base + nextHash);
-      } catch (e) {}
-      window.location.hash = nextHash;
-      refreshSandboxBindings();
-      loadState();
-      parseHashRoute();
-      renderWorkspace();
-      initFirebaseSync();
-      showToast(nextIsSandbox ? '🔑 已開啟試用模式（與真實資料隔離）' : '🏠 已返回真實資料模式');
-    }
-
     function toggleTrialSandboxMode() {
-      const nextIsSandbox = !checkIsTrialSandbox();
-      document.getElementById('sandboxPinTitle').textContent = nextIsSandbox
-        ? '🔑 開啟試用模式（密碼：0000）'
-        : '🔑 退出試用模式（密碼：0000）';
-      document.getElementById('sandboxPinDesc').textContent = nextIsSandbox
-        ? '請輸入 4 位數字密碼以進入試用沙盒（不影響真實資料）：'
-        : '請輸入 4 位數字密碼以返回真實資料：';
-      const inp = document.getElementById('sandboxPinInput');
-      inp.value = '';
-      openModal('sandboxPinModal');
-      setTimeout(() => inp.focus(), 60);
-    }
-
-    function submitSandboxPin() {
-      const inp = document.getElementById('sandboxPinInput');
-      const code = (inp ? inp.value : '').trim();
-      if (code !== SANDBOX_PASSCODE) {
-        showToast('❌ 密碼錯誤');
-        if (inp) { inp.value = ''; inp.focus(); }
+      const pin = window.prompt(IS_TRIAL_SANDBOX ? '請輸入試用鍵密碼（0000）以返回真實資料：' : '請輸入試用鍵密碼（0000）以啟用試用鍵：');
+      if (pin === null) return;
+      if (String(pin).trim() !== '0000') {
+        showToast('❌ 試用鍵密碼錯誤（需輸入 0000）');
         return;
       }
-      const nextIsSandbox = !checkIsTrialSandbox();
-      closeModal('sandboxPinModal');
-      applySandboxSwitch(nextIsSandbox);
+      const base = window.location.href.split('#')[0].split('?')[0];
+      if (IS_TRIAL_SANDBOX) {
+        try {
+          history.replaceState(null, '', base);
+        } catch (e) {}
+        window.location.replace(base);
+      } else {
+        try {
+          history.replaceState(null, '', `${base}#sandbox`);
+        } catch (e) {}
+        window.location.replace(`${base}#sandbox`);
+      }
+    }
+
+    function loadSandboxPracticeScenario() {
+      if (!IS_TRIAL_SANDBOX) return;
+      const s = createInitialState();
+      s.settings.activeSessions = ['C3_S2', 'C3_S3', 'C3_S1', 'L5_PM'];
+      s.settings.currentSessionId = 'C3_S2';
+      s.onDutyTransport = ['A', 'B', 'G', 'J'];
+      s.transportCounter = 2;
+      state = ensureStateIntegrity(s);
+      state._lastUpdatedAt = Date.now();
+      persistLocalOnly();
+      if (typeof syncChannel !== 'undefined' && syncChannel) {
+        try { syncChannel.postMessage({ type: 'SYNC_STATE', state }); } catch (e) {}
+      }
+      renderWorkspace();
+      showToast('🧪 已載入完整臨床實習示範個案（含高危跌倒、血壓不穩、起搏器、站立訓練與接送）');
     }
 
     function openStandaloneTVPopup() {
@@ -5908,7 +5903,6 @@
 
     function init() {
       loadState();
-      refreshSandboxBindings();
       parseHashRoute();
       renderWorkspace();
       initFirebaseSync();
