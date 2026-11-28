@@ -1659,6 +1659,7 @@
         activeSessions: ['C3_S2', 'C3_S3'],
         currentSessionId: 'C3_S2',
         overtimeAlertMin: 3,
+        exerciseEditSyncAll: false,
         showTrialKeyButton: true,
         voiceEnabled: true,
         trackStaffAssignment: true,
@@ -2133,32 +2134,67 @@
       return docMap[exName] || EX_EN_DICT[exName] || exName;
     }
 
+    function applySessionExerciseChange(sourceKey, mutatorFn) {
+      ensureSessionExerciseConfigs();
+      const syncAll = Boolean(state.settings.exerciseEditSyncAll);
+      const allKeys = Object.keys(state.settings.sessionExerciseConfigs);
+      const targetKeys = syncAll ? allKeys : [sourceKey];
+
+      targetKeys.forEach(k => {
+        const cfg = state.settings.sessionExerciseConfigs[k];
+        if (!cfg) return;
+        mutatorFn(cfg, k);
+      });
+
+      if (sourceKey === 'C3_L2_SHARED' || syncAll) {
+        const l2Cfg = state.settings.sessionExerciseConfigs['C3_L2_SHARED'];
+        if (l2Cfg && Array.isArray(l2Cfg.items)) {
+          state.settings.exerciseLibrary = l2Cfg.items.map(x => Object.assign({}, x));
+        }
+        if (l2Cfg && l2Cfg.docMap) {
+          Object.assign(EX_EN_DICT, l2Cfg.docMap);
+        }
+      }
+      persistState(true);
+    }
+
+    function setExerciseSyncMode(isAllSync) {
+      state.settings.exerciseEditSyncAll = Boolean(isAllSync);
+      persistState(true);
+      renderWorkspace();
+      if (document.getElementById('settingsModal')?.classList.contains('open')) {
+        renderSettingsTabContent();
+      }
+      if (document.getElementById('patientModal')?.classList.contains('open')) {
+        renderPrescriptionMatrix();
+      }
+      showToast(isAllSync ? '🔗 已切換為「全部同步」（修改將同步至所有場地與節數）' : '✂️ 已切換為「個別更改」（各節獨立，C3 第 2、3 節共用）');
+    }
+
     function registerSessionExerciseAndDoc(sessionId, name, category, plannedMin, docText) {
       ensureSessionExerciseConfigs();
       const key = getSessionExPoolKey(sessionId || getCurrentSessionId());
-      const cfg = state.settings.sessionExerciseConfigs[key];
       const cleanName = String(name || '').trim();
       if (!cleanName) return;
       const cleanDoc = String(docText || '').trim();
-      if (cleanDoc) {
-        cfg.docMap[cleanName] = cleanDoc;
-        if (key === 'C3_L2_SHARED') {
-          EX_EN_DICT[cleanName] = cleanDoc;
+      applySessionExerciseChange(key, (cfg, targetK) => {
+        if (cleanDoc) {
+          cfg.docMap[cleanName] = cleanDoc;
+          if (targetK === 'C3_L2_SHARED') {
+            EX_EN_DICT[cleanName] = cleanDoc;
+          }
         }
-      }
-      const exists = cfg.items.some(it => it.name === cleanName);
-      if (!exists) {
-        cfg.items.unshift({
-          id: uid('lib'),
-          name: cleanName,
-          category: category || '自訂快捷',
-          mode: 'countdown',
-          defaultMin: Number(plannedMin) || Number(state.settings.defaultExMin) || 15
-        });
-        if (key === 'C3_L2_SHARED') {
-          state.settings.exerciseLibrary = [...cfg.items];
+        const exists = cfg.items.some(it => it.name === cleanName);
+        if (!exists) {
+          cfg.items.unshift({
+            id: uid('lib'),
+            name: cleanName,
+            category: category || '其他',
+            mode: 'countdown',
+            defaultMin: Number(plannedMin) || Number(state.settings.defaultExMin) || 15
+          });
         }
-      }
+      });
     }
 
     function inferCategoryFromExName(name) {
@@ -2352,6 +2388,7 @@
       if (!Array.isArray(s.settings.exerciseLibrary) || !s.settings.exerciseLibrary.length) s.settings.exerciseLibrary = createDefaultExerciseLibrary();
       if (typeof s.settings.trackStaffAssignment !== 'boolean') s.settings.trackStaffAssignment = true;
       if (typeof s.settings.showTrialKeyButton !== 'boolean') s.settings.showTrialKeyButton = true;
+      if (typeof s.settings.exerciseEditSyncAll !== 'boolean') s.settings.exerciseEditSyncAll = false;
       if (!Array.isArray(s.onDutyTransport)) s.onDutyTransport = [];
       s.onDutyTransport = s.onDutyTransport.filter(x => s.settings.assistants.includes(x));
       if (!Array.isArray(s.patients)) s.patients = [];
@@ -4213,12 +4250,37 @@
         `;
       }).join('');
 
+      const syncAllDraft = Boolean(state.settings.exerciseEditSyncAll);
+      const libNameCounts = {};
+      lib.forEach(x => { const k = String(x.name || '').trim(); if (k) libNameCounts[k] = (libNameCounts[k] || 0) + 1; });
+      const dupInLib = Object.keys(libNameCounts).filter(k => libNameCounts[k] > 1);
+      const catsHtmlGrouped = EX_CATEGORIES.map(cat => {
+        const items = lib.filter(x => (x.category || '功能性治療') === cat);
+        if (!items.length) return '';
+        return `
+          <div style="background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:6px 8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11.5px; font-weight:900; color:var(--primary); margin-bottom:4px;">
+              <span>📁 ${esc(cat)}</span>
+              <span style="color:#64748b; font-weight:700;">${items.length} 項</span>
+            </div>
+            <div class="chip-row">${items.map(item => {
+              const isDup = (libNameCounts[String(item.name || '').trim()] || 0) > 1;
+              return `<button type="button" class="preset-btn" style="${isDup ? 'border-color:#dc2626; background:#fef2f2;' : ''}" onclick="uiCtx.draft.exercises.push(makeEx('${esc(item.name)}',{category:'${esc(item.category || cat)}',plannedMin:${item.defaultMin},countUp:${item.mode === 'stopwatch'}})); renderDraftExercises();">＋ ${esc(item.name)}${isDup ? ' <span style=\"color:#dc2626;font-weight:900;\">[重複]</span>' : ''} <span style="color:#64748b; font-weight:600;">${item.defaultMin}m</span></button>`;
+            }).join('')}</div>
+          </div>
+        `;
+      }).join('');
+
       document.getElementById('editorMatrixContainer').innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; font-size:11.5px; font-weight:800; color:#0f766e;">
           <span>${isSharedL2 ? '🔗 C3 第 2 節 與 第 3 節 運動清單及 Documentation 互相掛鉤' : `📌 ${esc(meta.location)} ${esc(meta.shortLabel)} 獨立運動清單及 Documentation（只限此節）`}</span>
-          <button type="button" class="mini-action-btn" onclick="state.settings.sessionExerciseConfigs['${getSessionExPoolKey(draftSid)}'].items = createDefaultExerciseLibrary(); persistState(true); renderPrescriptionMatrix(); showToast('✓ 已還原預設運動清單');">↺ 還原預設運動</button>
+          <div style="display:inline-flex; align-items:center; gap:4px; background:#e2e8f0; padding:2px; border-radius:7px;">
+            <button type="button" class="seg-btn ${!syncAllDraft ? 'active' : ''}" onclick="setExerciseSyncMode(false)">✂️ 個別更改</button>
+            <button type="button" class="seg-btn ${syncAllDraft ? 'active' : ''}" style="${syncAllDraft ? 'background:#0d9488; border-color:#0d9488;' : ''}" onclick="setExerciseSyncMode(true)">🔗 全部同步</button>
+          </div>
         </div>
-        ${catsHtml || '<div class="empty-box" style="padding:8px;">此組別目前未有預設運動，可於下方手動新增或按「還原預設運動」</div>'}
+        ${dupInLib.length ? `<div style="background:#fef2f2; border:1px solid #fca5a5; color:#991b1b; padding:5px 8px; border-radius:7px; font-size:11.5px; font-weight:800;">⚠️ 此節清單有重複項目：${dupInLib.map(x=>esc(x)).join('、')}</div>` : ''}
+        ${catsHtmlGrouped || '<div class="empty-box" style="padding:8px;">此組別目前未有運動，可於下方手動新增</div>'}
         <div class="add-inline-row" style="margin-top:4px; padding-top:8px; border-top:1px dashed var(--border-strong); flex-wrap:wrap;">
           <select id="edCustomExCat" class="text-input" style="width:140px;" onchange="toggleCustomPainEptPickerVisibility()">
             ${EX_CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
@@ -5053,14 +5115,64 @@
         const curMeta = getSessionMeta(curSid);
         const poolKey = getSessionExPoolKey(curSid);
         const isSharedL2 = poolKey === 'C3_L2_SHARED';
+        const syncAll = Boolean(state.settings.exerciseEditSyncAll);
         const sessItems = getExerciseLibraryForSession(curSid);
-        const cfg = state.settings.sessionExerciseConfigs[poolKey];
+
+        const nameCounts = {};
+        sessItems.forEach(it => {
+          const k = String(it.name || '').trim();
+          if (k) nameCounts[k] = (nameCounts[k] || 0) + 1;
+        });
+        const dupNames = Object.keys(nameCounts).filter(k => nameCounts[k] > 1);
+
+        const groupedHtml = EX_CATEGORIES.map(cat => {
+          const catEntries = sessItems
+            .map((item, origIdx) => ({ item, origIdx }))
+            .filter(({ item }) => (item.category || '功能性治療') === cat);
+          if (!catEntries.length) return '';
+          return `
+            <div style="border:1.5px solid #cbd5e1; border-radius:10px; overflow:hidden; background:#fff;">
+              <div style="background:#f1f5f9; padding:6px 12px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #cbd5e1;">
+                <span style="font-size:13px; font-weight:900; color:#0f4c81;">📁 組別：${esc(cat)}</span>
+                <span style="font-size:11.5px; font-weight:800; color:#475569; background:#fff; padding:1px 8px; border-radius:999px; border:1px solid #cbd5e1;">${catEntries.length} 項</span>
+              </div>
+              <div style="display:flex; flex-direction:column;">
+                ${catEntries.map(({ item, origIdx }) => {
+                  const curDoc = getSessionDocTextForExercise(curSid, item.name);
+                  const isDup = (nameCounts[String(item.name || '').trim()] || 0) > 1;
+                  return `
+                    <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; padding:7px 10px; border-top:1px solid #f1f5f9; background:${isDup ? '#fef2f2' : '#fff'};">
+                      <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; min-width:230px;">
+                        <strong>${esc(item.name)}</strong>
+                        ${isDup ? `<span style="font-size:11px; font-weight:900; padding:1px 6px; border-radius:5px; background:#dc2626; color:#fff;">⚠️ 重複 (${nameCounts[item.name]})</span>` : ''}
+                        <select class="text-input" style="width:136px; padding:3px 6px; font-size:12px;"
+                                onchange="const newCat=this.value; applySessionExerciseChange('${poolKey}', (cfg)=>{ const target=cfg.items.find(x=>x.id==='${item.id}') || cfg.items[${origIdx}]; if(target) target.category=newCat; }); renderSettingsTabContent(); showToast('✓ 已更新組別');">
+                          ${EX_CATEGORIES.map(c => `<option value="${c}" ${(item.category || '功能性治療') === c ? 'selected' : ''}>${c}</option>`).join('')}
+                        </select>
+                        <span style="font-size:11.5px; color:#64748b;">(${item.defaultMin}m)</span>
+                      </div>
+                      <input type="text" class="text-input" style="flex:1; min-width:210px; padding:4px 8px; font-size:12px;"
+                             value="${esc(curDoc)}" placeholder="documentation..."
+                             onchange="const v=this.value.trim(); const exN='${esc(item.name)}'; applySessionExerciseChange('${poolKey}', (cfg, tk)=>{ cfg.docMap[exN]=v; if(tk==='C3_L2_SHARED') EX_EN_DICT[exN]=v; });" />
+                      <button style="color:var(--red); font-weight:800;" onclick="applySessionExerciseChange('${poolKey}', (cfg)=>{ const idx=cfg.items.findIndex(x=>x.id==='${item.id}'); if(idx!==-1) cfg.items.splice(idx,1); else if(cfg.items[${origIdx}]) cfg.items.splice(${origIdx},1); }); renderSettingsTabContent();">刪除</button>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          `;
+        }).join('');
 
         body.innerHTML = `
           <div class="settings-section">
             <div class="settings-section-title">
               <span>🏋️ ${isSharedL2 ? 'C3 第 2 節 與 第 3 節（共用掛鉤）' : `${esc(curMeta.location)} ${esc(curMeta.shortLabel)}（獨立設定）`} 運動項目與 Documentation</span>
+              <div style="display:inline-flex; align-items:center; gap:4px; background:#e2e8f0; padding:2px; border-radius:7px;">
+                <button type="button" class="seg-btn ${!syncAll ? 'active' : ''}" onclick="setExerciseSyncMode(false)">✂️ 個別更改</button>
+                <button type="button" class="seg-btn ${syncAll ? 'active' : ''}" style="${syncAll ? 'background:#0d9488; border-color:#0d9488;' : ''}" onclick="setExerciseSyncMode(true)">🔗 全部同步</button>
+              </div>
             </div>
+            ${dupNames.length ? `<div style="background:#fef2f2; border:1.5px solid #fca5a5; color:#991b1b; padding:6px 10px; border-radius:8px; font-size:12px; font-weight:800;">⚠️ 偵測到此節清單中有重複項目名稱：${dupNames.map(n => esc(n)).join('、')}</div>` : ''}
             <div class="add-inline-row">
               <input id="libAddName" type="text" class="text-input" style="flex:1.2; min-width:130px;" placeholder="運動名稱..." />
               <input id="libAddDoc" type="text" class="text-input" style="flex:1.8; min-width:180px;" placeholder="documentation 英文描述..." />
@@ -5069,26 +5181,8 @@
               <button class="btn-primary" onclick="addLibEx()">＋新增</button>
             </div>
           </div>
-          <div style="max-height:320px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;">
-            ${sessItems.map((item, i) => {
-              const curDoc = getSessionDocTextForExercise(curSid, item.name);
-              return `
-                <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; padding:7px 10px; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
-                  <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; min-width:210px;">
-                    <strong>${esc(item.name)}</strong>
-                    <select class="text-input" style="width:142px; padding:3px 6px; font-size:12px;"
-                            onchange="state.settings.sessionExerciseConfigs['${poolKey}'].items[${i}].category=this.value; ${isSharedL2 ? `state.settings.exerciseLibrary = state.settings.sessionExerciseConfigs['C3_L2_SHARED'].items.map(x => Object.assign({}, x));` : ''} persistState(true); renderSettingsTabContent(); showToast('✓ 已更新此節運動組別');">
-                      ${EX_CATEGORIES.map(c => `<option value="${c}" ${(item.category || '功能性治療') === c ? 'selected' : ''}>${c}</option>`).join('')}
-                    </select>
-                    <span style="font-size:11.5px; color:#64748b;">(${item.defaultMin}m)</span>
-                  </div>
-                  <input type="text" class="text-input" style="flex:1; min-width:220px; padding:4px 8px; font-size:12px;"
-                         value="${esc(curDoc)}" placeholder="documentation..."
-                         onchange="state.settings.sessionExerciseConfigs['${poolKey}'].docMap['${esc(item.name)}']=this.value.trim(); ${isSharedL2 ? `EX_EN_DICT['${esc(item.name)}']=this.value.trim();` : ''} persistState(true);" />
-                  <button style="color:var(--red); font-weight:800;" onclick="state.settings.sessionExerciseConfigs['${poolKey}'].items.splice(${i},1); ${isSharedL2 ? 'state.settings.exerciseLibrary = [...state.settings.sessionExerciseConfigs[\'C3_L2_SHARED\'].items];' : ''} persistState(true); renderSettingsTabContent();">刪除</button>
-                </div>
-              `;
-            }).join('')}
+          <div style="max-height:330px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;">
+            ${groupedHtml}
           </div>
         `;
         return;
