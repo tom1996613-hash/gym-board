@@ -1493,11 +1493,39 @@
       return [];
     }
 
+    function ensureSessionTransportMap() {
+      if (!state.sessionTransportState || typeof state.sessionTransportState !== 'object') {
+        state.sessionTransportState = {};
+      }
+      GYM_SESSION_CATALOG.forEach(m => {
+        if (!state.sessionTransportState[m.id] || typeof state.sessionTransportState[m.id] !== 'object') {
+          state.sessionTransportState[m.id] = { onDutyTransport: [], transportCounter: 0 };
+        }
+        if (!Array.isArray(state.sessionTransportState[m.id].onDutyTransport)) {
+          state.sessionTransportState[m.id].onDutyTransport = [];
+        }
+        state.sessionTransportState[m.id].transportCounter = Number(state.sessionTransportState[m.id].transportCounter) || 0;
+      });
+    }
+
+    function syncActiveSessionTransportPointers() {
+      ensureSessionTransportMap();
+      const sid = getCurrentSessionId();
+      const curBucket = state.sessionTransportState[sid];
+      if (Array.isArray(state.onDutyTransport) && state.onDutyTransport.length > 0 && curBucket.onDutyTransport.length === 0) {
+        curBucket.onDutyTransport = [...state.onDutyTransport];
+        curBucket.transportCounter = Number(state.transportCounter) || 0;
+      }
+      state.onDutyTransport = curBucket.onDutyTransport;
+      state.transportCounter = curBucket.transportCounter;
+    }
+
     function setCurrentLocation(loc) {
       const active = getActiveSessionIds();
       const match = active.find(id => getSessionMeta(id).location === loc);
       if (!match) return;
       state.settings.currentSessionId = match;
+      syncActiveSessionTransportPointers();
       tvPageIndex = 0;
       tvPageElapsedMs = 0;
       persistState(true);
@@ -1508,6 +1536,7 @@
       const active = getActiveSessionIds();
       if (!active.includes(sessionId)) return;
       state.settings.currentSessionId = sessionId;
+      syncActiveSessionTransportPointers();
       tvPageIndex = 0;
       tvPageElapsedMs = 0;
       persistState(true);
@@ -1937,6 +1966,77 @@
     /* ========================================================================
        範例個案與狀態初始化
        ======================================================================== */
+    function getSessionExPoolKey(sessionId) {
+      if (sessionId === 'C3_S2' || sessionId === 'C3_S3') return 'C3_L2_SHARED';
+      return sessionId;
+    }
+
+    function ensureSessionExerciseConfigs() {
+      if (!state.settings.sessionExerciseConfigs || typeof state.settings.sessionExerciseConfigs !== 'object') {
+        state.settings.sessionExerciseConfigs = {};
+      }
+      const baseLib = Array.isArray(state.settings.exerciseLibrary) && state.settings.exerciseLibrary.length
+        ? state.settings.exerciseLibrary
+        : createDefaultExerciseLibrary();
+      const keys = ['C3_L2_SHARED', 'C3_S1', 'C3_S4', 'L5_PM'];
+      keys.forEach(k => {
+        if (!state.settings.sessionExerciseConfigs[k] || typeof state.settings.sessionExerciseConfigs[k] !== 'object') {
+          state.settings.sessionExerciseConfigs[k] = {
+            items: baseLib.map(it => Object.assign({}, it)),
+            docMap: Object.assign({}, EX_EN_DICT)
+          };
+        } else {
+          if (!Array.isArray(state.settings.sessionExerciseConfigs[k].items)) {
+            state.settings.sessionExerciseConfigs[k].items = baseLib.map(it => Object.assign({}, it));
+          }
+          if (!state.settings.sessionExerciseConfigs[k].docMap || typeof state.settings.sessionExerciseConfigs[k].docMap !== 'object') {
+            state.settings.sessionExerciseConfigs[k].docMap = Object.assign({}, EX_EN_DICT);
+          }
+        }
+      });
+    }
+
+    function getExerciseLibraryForSession(sessionId) {
+      ensureSessionExerciseConfigs();
+      const key = getSessionExPoolKey(sessionId || getCurrentSessionId());
+      return state.settings.sessionExerciseConfigs[key].items;
+    }
+
+    function getSessionDocTextForExercise(sessionId, exName) {
+      ensureSessionExerciseConfigs();
+      const key = getSessionExPoolKey(sessionId || getCurrentSessionId());
+      const docMap = state.settings.sessionExerciseConfigs[key].docMap || {};
+      return docMap[exName] || EX_EN_DICT[exName] || exName;
+    }
+
+    function registerSessionExerciseAndDoc(sessionId, name, category, plannedMin, docText) {
+      ensureSessionExerciseConfigs();
+      const key = getSessionExPoolKey(sessionId || getCurrentSessionId());
+      const cfg = state.settings.sessionExerciseConfigs[key];
+      const cleanName = String(name || '').trim();
+      if (!cleanName) return;
+      const cleanDoc = String(docText || '').trim();
+      if (cleanDoc) {
+        cfg.docMap[cleanName] = cleanDoc;
+        if (key === 'C3_L2_SHARED') {
+          EX_EN_DICT[cleanName] = cleanDoc;
+        }
+      }
+      const exists = cfg.items.some(it => it.name === cleanName);
+      if (!exists) {
+        cfg.items.unshift({
+          id: uid('lib'),
+          name: cleanName,
+          category: category || '自訂快捷',
+          mode: 'countdown',
+          defaultMin: Number(plannedMin) || Number(state.settings.defaultExMin) || 15
+        });
+        if (key === 'C3_L2_SHARED') {
+          state.settings.exerciseLibrary = [...cfg.items];
+        }
+      }
+    }
+
     function makeEx(name, opts = {}) {
       const defMin = (state && state.settings && state.settings.defaultExMin) ? Number(state.settings.defaultExMin) : 15;
       return {
@@ -3863,38 +3963,56 @@
     }
 
     function renderPrescriptionMatrix() {
-      const lib = state.settings.exerciseLibrary || [];
+      const draftSid = (uiCtx.draft && uiCtx.draft.sessionId) || getCurrentSessionId();
+      const meta = getSessionMeta(draftSid);
+      const isSharedL2 = getSessionExPoolKey(draftSid) === 'C3_L2_SHARED';
+      const lib = getExerciseLibraryForSession(draftSid);
       const catsHtml = EX_CATEGORIES.map(cat => {
         const items = lib.filter(x => x.category === cat);
         if (!items.length) return '';
         return `
           <div>
             <div style="font-size:11px; font-weight:800; color:var(--primary); margin-bottom:4px;">${cat}</div>
-            <div class="chip-row">${items.map(item => `<button class="preset-btn" onclick="uiCtx.draft.exercises.push(makeEx('${esc(item.name)}',{plannedMin:${item.defaultMin},countUp:${item.mode === 'stopwatch'}})); renderDraftExercises();">＋ ${esc(item.name)} <span style="color:#64748b; font-weight:600;">${item.defaultMin}m</span></button>`).join('')}</div>
+            <div class="chip-row">${items.map(item => `<button type="button" class="preset-btn" onclick="uiCtx.draft.exercises.push(makeEx('${esc(item.name)}',{plannedMin:${item.defaultMin},countUp:${item.mode === 'stopwatch'}})); renderDraftExercises();">＋ ${esc(item.name)} <span style="color:#64748b; font-weight:600;">${item.defaultMin}m</span></button>`).join('')}</div>
           </div>
         `;
       }).join('');
 
       document.getElementById('editorMatrixContainer').innerHTML = `
+        <div style="font-size:11.5px; font-weight:800; color:#0f766e;">
+          ${isSharedL2 ? '🔗 C3 第 2 節 與 第 3 節 運動清單及 Documentation 互相掛鉤' : `📌 ${esc(meta.location)} ${esc(meta.shortLabel)} 獨立運動清單及 Documentation（只限此節）`}
+        </div>
         ${catsHtml}
-        <div class="add-inline-row" style="margin-top:4px; padding-top:8px; border-top:1px dashed var(--border-strong);">
-          <input id="edCustomExName" type="text" class="text-input" style="flex:1; min-width:180px;" placeholder="臨時自訂運動名稱..."
+        <div class="add-inline-row" style="margin-top:4px; padding-top:8px; border-top:1px dashed var(--border-strong); flex-wrap:wrap;">
+          <input id="edCustomExName" type="text" class="text-input" style="flex:1; min-width:150px;" placeholder="新增運動名稱（限此節）..."
+                 onkeydown="if(event.key==='Enter') addCustomDraftEx()" />
+          <input id="edCustomExDoc" type="text" class="text-input" style="flex:1.5; min-width:190px;" placeholder="documentation（如：Standing balance training...）"
                  onkeydown="if(event.key==='Enter') addCustomDraftEx()" />
           <input id="edCustomExMin" type="number" min="1" max="90" value="${state.settings.defaultExMin || 15}" class="text-input tabular" style="width:68px; text-align:center;" />
-          <button class="btn-secondary" style="padding:7px 12px; font-weight:800;" onclick="addCustomDraftEx()">＋ 加入臨時項目</button>
+          <button type="button" class="btn-secondary" style="padding:7px 12px; font-weight:800;" onclick="addCustomDraftEx()">＋ 加入此節項目</button>
         </div>
       `;
     }
 
     function addCustomDraftEx() {
+      const draftSid = (uiCtx.draft && uiCtx.draft.sessionId) || getCurrentSessionId();
       const nameInp = document.getElementById('edCustomExName');
+      const docInp = document.getElementById('edCustomExDoc');
       const minInp = document.getElementById('edCustomExMin');
       const name = (nameInp ? nameInp.value : '').trim();
+      const docText = (docInp ? docInp.value : '').trim();
       const mins = Math.max(1, Math.min(90, parseInt(minInp ? minInp.value : '15', 10) || 15));
-      if (!name) { showToast('請輸入臨時運動名稱'); return; }
-      uiCtx.draft.exercises.push(makeEx(name, { plannedMin: mins }));
+      if (!name) { showToast('請輸入運動名稱'); return; }
+      registerSessionExerciseAndDoc(draftSid, name, '自訂快捷', mins, docText);
+      const exObj = makeEx(name, { plannedMin: mins });
+      if (docText) exObj.customDoc = docText;
+      uiCtx.draft.exercises.push(exObj);
       nameInp.value = '';
+      if (docInp) docInp.value = '';
+      persistState(true);
+      renderPrescriptionMatrix();
       renderDraftExercises();
+      showToast(`✓ 已加入「${name}」及 documentation 至此節`);
     }
 
     function renderDraftExercises() {
@@ -4253,7 +4371,8 @@
       doneEx.forEach((ex, idx) => {
         const m = computeExMetrics(ex, pt);
         const mins = secToWholeMin(m.elapsedSec);
-        const enName = EX_EN_DICT[ex.name] || ex.name;
+        const ptSid = getPatientEffectiveSessionId(pt);
+        const enName = (ex.customDoc && ex.customDoc.trim()) ? ex.customDoc.trim() : getSessionDocTextForExercise(ptSid, ex.name);
         const noteStr = formatDocNote(ex.note);
         let line = `- ${enName}${noteStr} x ${mins} min`;
 
@@ -4558,23 +4677,39 @@
       }
 
       if (currentSettingsTab === 'exercises') {
+        const curSid = getCurrentSessionId();
+        const curMeta = getSessionMeta(curSid);
+        const poolKey = getSessionExPoolKey(curSid);
+        const isSharedL2 = poolKey === 'C3_L2_SHARED';
+        const sessItems = getExerciseLibraryForSession(curSid);
+        const cfg = state.settings.sessionExerciseConfigs[poolKey];
+
         body.innerHTML = `
           <div class="settings-section">
-            <div class="settings-section-title">＋ 新增預設運動項目</div>
+            <div class="settings-section-title">
+              <span>🏋️ ${isSharedL2 ? 'C3 第 2 節 與 第 3 節（共用掛鉤）' : `${esc(curMeta.location)} ${esc(curMeta.shortLabel)}（獨立設定）`} 運動項目與 Documentation</span>
+            </div>
             <div class="add-inline-row">
-              <input id="libAddName" type="text" class="text-input" style="flex:2;" placeholder="運動名稱..." />
-              <select id="libAddCat" class="text-input" style="flex:1;">${EX_CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}</select>
-              <input id="libAddMin" type="number" value="15" class="text-input" style="width:70px;" />
+              <input id="libAddName" type="text" class="text-input" style="flex:1.2; min-width:130px;" placeholder="運動名稱..." />
+              <input id="libAddDoc" type="text" class="text-input" style="flex:1.8; min-width:180px;" placeholder="documentation 英文描述..." />
+              <select id="libAddCat" class="text-input" style="width:120px;">${EX_CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}</select>
+              <input id="libAddMin" type="number" value="15" class="text-input" style="width:68px;" />
               <button class="btn-primary" onclick="addLibEx()">＋新增</button>
             </div>
           </div>
-          <div style="max-height:300px; overflow-y:auto;">
-            ${s.exerciseLibrary.map((item, i) => `
-              <div style="display:flex; justify-content:space-between; padding:6px 8px; border-bottom:1px solid #e2e8f0;">
-                <span><strong>${esc(item.name)}</strong> (${esc(item.category)} · ${item.defaultMin}m)</span>
-                <button style="color:var(--red);" onclick="state.settings.exerciseLibrary.splice(${i},1); persistState(true); renderSettingsTabContent();">刪除</button>
-              </div>
-            `).join('')}
+          <div style="max-height:320px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;">
+            ${sessItems.map((item, i) => {
+              const curDoc = getSessionDocTextForExercise(curSid, item.name);
+              return `
+                <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; padding:7px 10px; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
+                  <div style="min-width:140px;"><strong>${esc(item.name)}</strong> <span style="font-size:11.5px; color:#64748b;">(${esc(item.category)} · ${item.defaultMin}m)</span></div>
+                  <input type="text" class="text-input" style="flex:1; min-width:220px; padding:4px 8px; font-size:12px;"
+                         value="${esc(curDoc)}" placeholder="documentation..."
+                         onchange="state.settings.sessionExerciseConfigs['${poolKey}'].docMap['${esc(item.name)}']=this.value.trim(); ${isSharedL2 ? `EX_EN_DICT['${esc(item.name)}']=this.value.trim();` : ''} persistState(true);" />
+                  <button style="color:var(--red); font-weight:800;" onclick="state.settings.sessionExerciseConfigs['${poolKey}'].items.splice(${i},1); ${isSharedL2 ? 'state.settings.exerciseLibrary = [...state.settings.sessionExerciseConfigs['C3_L2_SHARED'].items];' : ''} persistState(true); renderSettingsTabContent();">刪除</button>
+                </div>
+              `;
+            }).join('')}
           </div>
         `;
         return;
@@ -5123,13 +5258,14 @@
 
     function addLibEx() {
       const n = document.getElementById('libAddName').value.trim();
+      const d = (document.getElementById('libAddDoc')?.value || '').trim();
       const c = document.getElementById('libAddCat').value;
       const m = parseInt(document.getElementById('libAddMin').value, 10) || 15;
       if (!n) return;
-      state.settings.exerciseLibrary.unshift({ id: uid('lib'), name: n, category: c, mode: 'countdown', defaultMin: m });
+      registerSessionExerciseAndDoc(getCurrentSessionId(), n, c, m, d);
       persistState(true);
       renderSettingsTabContent();
-      showToast(`☁️ 已新增「${n}」並同步上雲端`);
+      showToast(`☁️ 已新增「${n}」及 documentation 至此節`);
     }
 
     /* ========================================================================
@@ -5295,12 +5431,16 @@
           try {
             await backupDailyRecordBeforeReset();
           } catch (e) {}
+          const resetSid = getCurrentSessionId();
+          const resetMeta = getSessionMeta(resetSid);
           state.date = todayISO();
-          state.transportCounter = 0;
+          ensureSessionTransportMap();
+          state.sessionTransportState[resetSid] = { onDutyTransport: [], transportCounter: 0 };
           state.onDutyTransport = [];
+          state.transportCounter = 0;
           hasUnsavedDailyWork = false;
           state.patients.forEach(pt => {
-            if (!isPatientInSelectedSession(pt)) return;
+            if (getPatientEffectiveSessionId(pt) !== resetSid) return;
             pt.transportOrder = null;
             pt.transportStaff = '';
             pt.transportTime = '';
@@ -5322,7 +5462,7 @@
           });
           persistState(true);
           renderWorkspace();
-          showToast('🔄 已備份至雲端並重置今日運動與 PCA 紀錄');
+          showToast(`🔄 已備份並僅重置「${resetMeta.location} ${resetMeta.shortLabel}」，其他節數不受影響`);
         }
       );
     }
