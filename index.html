@@ -958,6 +958,9 @@
       <button class="tool-btn" onclick="confirmCarryOver()">🔄 重置運動與PCA</button>
       <button class="tool-btn btn-add" onclick="openPatientEditor(null)">＋ 新增病人</button>
       <button class="tool-btn btn-export" onclick="openReportModal()">📊 完結報表與英文紀錄</button>
+      <button id="btnTrialSandbox" class="tool-btn ${IS_TRIAL_SANDBOX ? 'is-on' : ''}" style="${IS_TRIAL_SANDBOX ? 'background:#d97706; border-color:#f59e0b; color:#fff;' : ''}" onclick="toggleTrialSandboxMode()">
+        ${IS_TRIAL_SANDBOX ? '🧪 試用模式中（點此回真實資料）' : '🧪 試用沙盒'}
+      </button>
     </div>
   </header>
 
@@ -1380,8 +1383,19 @@
   <script>
     'use strict';
 
-    const STORAGE_KEY = 'rehab_gym_board_v7_cloud_settings';
-    const CHANNEL_NAME = 'rehab_gym_sync_v7';
+    const IS_TRIAL_SANDBOX = (() => {
+      const h = (window.location.hash || '').toLowerCase();
+      const q = new URLSearchParams(window.location.search || '');
+      return h.startsWith('#sandbox') || h.startsWith('#trial') || q.get('sandbox') === '1' || q.get('trial') === '1';
+    })();
+
+    const STORAGE_KEY = IS_TRIAL_SANDBOX
+      ? 'rehab_gym_board_v7_trial_sandbox'
+      : 'rehab_gym_board_v7_cloud_settings';
+    const CHANNEL_NAME = IS_TRIAL_SANDBOX
+      ? 'rehab_gym_sync_v7_trial_sandbox'
+      : 'rehab_gym_sync_v7';
+    const ACTIVE_CLOUD_ROOM = IS_TRIAL_SANDBOX ? 'gym_room_trial_sandbox' : 'gym_room_1';
     const SIDES = ['L', 'R', 'Bi', '無'];
     const EX_CATEGORIES = ['手法治療', '功能性治療', 'Therapeutic Ex', 'walking exercise', 'Pain Control', 'EPT Modality', '其他'];
     const THERAPIST_PALETTE = [
@@ -1751,7 +1765,7 @@
         fbDb = app.database();
 
         // 固定單一房間名稱（請確認與 Firebase Console 裡有最新資料的節點名稱一致）
-        const FIXED_ROOM = 'gym_room_1';
+        const FIXED_ROOM = ACTIVE_CLOUD_ROOM;
         fbRef = fbDb.ref(`rehab_boards/${FIXED_ROOM}`);
 
         fbRef.on('value', (snap) => {
@@ -2688,7 +2702,8 @@
       const activeLocs = Array.from(new Set(activeIds.map(id => getSessionMeta(id).location)));
       const locSessions = activeIds.map(id => getSessionMeta(id)).filter(m => m.location === curMeta.location);
 
-      document.getElementById('topbarTitle').textContent = `${state.settings.systemTitle} · ${curMeta.location} ${curMeta.shortLabel}`;
+      const trialPrefix = IS_TRIAL_SANDBOX ? '🧪 [試用沙盒] ' : '';
+      document.getElementById('topbarTitle').textContent = `${trialPrefix}${state.settings.systemTitle} · ${curMeta.location} ${curMeta.shortLabel}`;
       document.getElementById('topbarSub').textContent = `${todayISO()}（${weekdayZh()}）`;
 
       const locGrp = document.getElementById('topbarLocationSessionGroup');
@@ -5497,6 +5512,15 @@
     /* ========================================================================
        其他工具與計時心跳（精準重置功能）
        ======================================================================== */
+    function toggleTrialSandboxMode() {
+      const base = window.location.href.split('#')[0].split('?')[0];
+      if (IS_TRIAL_SANDBOX) {
+        window.location.href = base;
+      } else {
+        window.location.href = `${base}#sandbox`;
+      }
+    }
+
     function openStandaloneTVPopup() {
       const base = window.location.href.split('#')[0];
       window.open(`${base}#tv`, 'RehabTV', 'width=1440,height=860');
@@ -5505,7 +5529,7 @@
     function toggleFullscreen() { if (!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.(); }
     function toggleAudio() { state.audioOn = !state.audioOn; persistState(true); renderWorkspace(); }
 
-    const FIXED_CLOUD_ROOM = 'gym_room_1';
+    const FIXED_CLOUD_ROOM = ACTIVE_CLOUD_ROOM;
 
     async function backupDailyRecordBeforeReset() {
       if (!fbDb) return;
